@@ -1,0 +1,664 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Gestão de Rotas e Entregas</title>
+  <style>
+    :root{
+      --bg:#f4f7fb;
+      --surface:#ffffff;
+      --surface-2:#f8fafc;
+      --text:#172033;
+      --muted:#6b7280;
+      --line:#e5e9f0;
+      --primary:#165dff;
+      --primary-2:#0f4cd1;
+      --success:#0f9d58;
+      --warning:#d97706;
+      --danger:#d93025;
+      --shadow:0 10px 30px rgba(22,34,55,.08);
+      --radius:18px;
+    }
+    *{box-sizing:border-box}
+    html{scroll-behavior:smooth}
+    body{
+      margin:0;
+      font-family:Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+      color:var(--text);
+      background:var(--bg);
+    }
+    button,input,select{font:inherit}
+    button{cursor:pointer}
+    .app{min-height:100vh}
+    .topbar{
+      position:sticky;top:0;z-index:30;
+      background:rgba(255,255,255,.96);
+      backdrop-filter:blur(14px);
+      border-bottom:1px solid var(--line);
+    }
+    .topbar-inner{
+      max-width:1500px;margin:0 auto;padding:14px 24px;
+      display:flex;gap:16px;align-items:center;justify-content:space-between;
+    }
+    .brand{display:flex;gap:12px;align-items:center;min-width:0}
+    .brand-icon{
+      width:42px;height:42px;border-radius:13px;
+      display:grid;place-items:center;color:#fff;background:var(--primary);
+      font-weight:900;font-size:20px;box-shadow:0 8px 20px rgba(22,93,255,.24);
+    }
+    .brand h1{font-size:18px;margin:0;line-height:1.15}
+    .brand small{display:block;color:var(--muted);margin-top:4px}
+    .nav{display:flex;gap:8px;flex-wrap:wrap}
+    .nav-btn{
+      border:1px solid transparent;background:transparent;color:var(--muted);
+      padding:10px 13px;border-radius:12px;font-weight:750;
+    }
+    .nav-btn:hover{background:var(--surface-2);color:var(--text)}
+    .nav-btn.active{background:#edf3ff;color:var(--primary);border-color:#dbe7ff}
+    .main{max-width:1500px;margin:0 auto;padding:24px}
+    .hero{
+      display:flex;gap:22px;justify-content:space-between;align-items:flex-start;
+      margin-bottom:18px;
+    }
+    .hero h2{font-size:30px;line-height:1.1;margin:0 0 8px}
+    .hero p{margin:0;color:var(--muted);max-width:760px;line-height:1.6}
+    .hero-actions{display:flex;gap:10px;flex-wrap:wrap;justify-content:flex-end}
+    .btn{
+      border:1px solid var(--line);background:var(--surface);color:var(--text);
+      border-radius:12px;padding:11px 14px;font-weight:800;
+      display:inline-flex;align-items:center;justify-content:center;gap:8px;
+      transition:.15s ease;
+    }
+    .btn:hover{transform:translateY(-1px);box-shadow:0 8px 18px rgba(30,45,70,.08)}
+    .btn.primary{background:var(--primary);border-color:var(--primary);color:white}
+    .btn.primary:hover{background:var(--primary-2)}
+    .btn.danger{color:var(--danger)}
+    .btn.small{padding:7px 9px;border-radius:9px;font-size:12px}
+    .summary-grid{
+      display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:14px;margin:18px 0;
+    }
+    .summary-card{
+      background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);
+      padding:18px;box-shadow:var(--shadow);
+    }
+    .summary-card .kicker{font-size:12px;color:var(--muted);font-weight:800;text-transform:uppercase;letter-spacing:.06em}
+    .summary-card .value{font-size:30px;font-weight:900;margin-top:7px}
+    .summary-card .sub{font-size:12px;color:var(--muted);margin-top:4px}
+    .toolbar{
+      background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);
+      box-shadow:var(--shadow);padding:14px;margin-bottom:18px;
+      display:flex;gap:12px;justify-content:space-between;align-items:center;flex-wrap:wrap;
+    }
+    .search{
+      position:relative;min-width:280px;flex:1;max-width:600px;
+    }
+    .search input{
+      width:100%;border:1px solid var(--line);background:var(--surface-2);
+      border-radius:12px;padding:12px 14px 12px 41px;outline:none;
+    }
+    .search input:focus{border-color:#a8c2ff;box-shadow:0 0 0 4px rgba(22,93,255,.08);background:white}
+    .search-icon{position:absolute;left:14px;top:50%;transform:translateY(-50%);color:var(--muted)}
+    .day-filter{display:flex;gap:7px;flex-wrap:wrap}
+    .filter-btn{
+      border:1px solid var(--line);background:white;padding:9px 11px;border-radius:11px;
+      color:var(--muted);font-weight:800;font-size:13px;
+    }
+    .filter-btn.active{background:#172033;color:#fff;border-color:#172033}
+    .board{
+      display:grid;grid-template-columns:repeat(5,minmax(245px,1fr));gap:14px;
+      align-items:start;
+    }
+    .day-column{
+      background:#edf1f7;border:1px solid #e0e6ef;border-radius:20px;padding:10px;min-height:220px;
+    }
+    .day-column.today{outline:3px solid rgba(22,93,255,.16)}
+    .day-head{
+      padding:7px 6px 12px;display:flex;justify-content:space-between;align-items:center;gap:8px;
+    }
+    .day-title{font-weight:950;font-size:14px}
+    .day-count{font-size:11px;background:white;border:1px solid var(--line);border-radius:999px;padding:5px 8px;color:var(--muted);font-weight:800}
+    .route-list{display:flex;flex-direction:column;gap:9px}
+    .route-card{
+      background:var(--surface);border:1px solid var(--line);border-radius:15px;padding:12px;
+      box-shadow:0 4px 14px rgba(24,37,56,.045);
+    }
+    .route-card.hidden{display:none}
+    .route-top{display:flex;justify-content:space-between;gap:10px;align-items:flex-start}
+    .route-number{
+      font-size:10px;text-transform:uppercase;letter-spacing:.07em;color:var(--muted);
+      font-weight:900;margin-bottom:8px;
+    }
+    .route-actions{display:flex;gap:5px;flex-shrink:0}
+    .icon-btn{
+      border:1px solid var(--line);background:#fff;color:var(--muted);
+      width:29px;height:29px;border-radius:9px;display:grid;place-items:center;
+      font-size:13px;font-weight:900;
+    }
+    .icon-btn:hover{background:var(--surface-2);color:var(--text)}
+    .icon-btn.delete:hover{background:#fff3f2;color:var(--danger);border-color:#ffd6d2}
+    .cities{display:flex;gap:6px;flex-wrap:wrap}
+    .city-chip{
+      max-width:100%;display:inline-flex;gap:6px;align-items:center;
+      background:#f2f5fb;border:1px solid #e3e9f3;color:#2b3549;
+      border-radius:9px;padding:6px 7px;font-weight:780;font-size:11px;line-height:1.25;
+    }
+    .city-chip .remove-city{
+      border:0;background:transparent;padding:0;color:#9299a6;font-weight:900;font-size:13px;line-height:1;
+    }
+    .city-chip .remove-city:hover{color:var(--danger)}
+    .add-card{
+      width:100%;margin-top:9px;border:1px dashed #c7d0dc;background:rgba(255,255,255,.55);
+      color:#5f6877;border-radius:13px;padding:10px;font-weight:850;
+    }
+    .add-card:hover{background:white;color:var(--primary);border-color:#a8c2ff}
+    .empty{
+      display:none;text-align:center;background:white;border:1px dashed #cbd5e1;border-radius:16px;
+      padding:36px 20px;color:var(--muted);
+    }
+    .module{display:none}
+    .module.active{display:block}
+    .placeholder{
+      background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);
+      padding:26px;box-shadow:var(--shadow);
+    }
+    .placeholder h3{margin:0 0 8px;font-size:24px}
+    .placeholder p{color:var(--muted);line-height:1.6;max-width:900px}
+    .status-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;margin-top:20px}
+    .status-card{border:1px solid var(--line);border-radius:14px;padding:16px;background:var(--surface-2)}
+    .status-label{font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);font-weight:900}
+    .status-value{font-weight:900;margin-top:7px}
+    .status-good{color:var(--success)}
+    .status-warn{color:var(--warning)}
+    .fields{display:flex;flex-wrap:wrap;gap:7px;margin-top:14px}
+    .field{font-size:12px;border:1px solid var(--line);border-radius:999px;padding:6px 9px;background:white;color:#4b5563}
+    .notice{
+      margin-top:18px;border-left:4px solid var(--warning);background:#fff9ed;border-radius:12px;
+      padding:14px 16px;color:#6c4b0c;line-height:1.5;
+    }
+    .modal-backdrop{
+      display:none;position:fixed;inset:0;z-index:100;background:rgba(15,23,42,.45);
+      align-items:center;justify-content:center;padding:20px;
+    }
+    .modal-backdrop.open{display:flex}
+    .modal{
+      width:min(560px,100%);background:white;border-radius:20px;box-shadow:0 30px 80px rgba(0,0,0,.25);
+      border:1px solid var(--line);overflow:hidden;
+    }
+    .modal-head{padding:20px 22px;border-bottom:1px solid var(--line);display:flex;justify-content:space-between;gap:16px;align-items:center}
+    .modal-head h3{margin:0;font-size:19px}
+    .modal-body{padding:22px}
+    .form-row{margin-bottom:16px}
+    .form-row label{display:block;font-size:12px;color:#4b5563;font-weight:900;margin-bottom:7px}
+    .form-row input,.form-row select{
+      width:100%;border:1px solid var(--line);border-radius:12px;padding:12px 13px;outline:none;background:white;
+    }
+    .form-row input:focus,.form-row select:focus{border-color:#a8c2ff;box-shadow:0 0 0 4px rgba(22,93,255,.08)}
+    .hint{font-size:12px;color:var(--muted);line-height:1.45;margin-top:7px}
+    .modal-actions{padding:16px 22px;border-top:1px solid var(--line);display:flex;justify-content:flex-end;gap:9px}
+    .toast{
+      position:fixed;right:22px;bottom:22px;z-index:200;display:none;
+      background:#172033;color:white;border-radius:12px;padding:12px 15px;font-weight:780;
+      box-shadow:0 15px 35px rgba(0,0,0,.22);
+    }
+    .toast.show{display:block}
+    @media(max-width:1250px){.board{grid-template-columns:repeat(3,minmax(245px,1fr))}}
+    @media(max-width:850px){
+      .topbar-inner{align-items:flex-start;flex-direction:column}
+      .hero{flex-direction:column}.hero-actions{justify-content:flex-start}
+      .summary-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
+      .board{grid-template-columns:1fr}
+      .status-grid{grid-template-columns:1fr}
+      .main{padding:18px}
+    }
+    @media(max-width:520px){
+      .summary-grid{grid-template-columns:1fr}
+      .hero h2{font-size:25px}
+      .search{min-width:100%}
+      .nav{width:100%}.nav-btn{flex:1}
+    }
+  </style>
+</head>
+<body>
+<div class="app">
+  <header class="topbar">
+    <div class="topbar-inner">
+      <div class="brand">
+        <div class="brand-icon">R</div>
+        <div>
+          <h1>Gestão de Rotas e Entregas</h1>
+          <small>Planejamento semanal • Cooperrita</small>
+        </div>
+      </div>
+      <nav class="nav">
+        <button class="nav-btn active" data-module="rotas">Rotas semanais</button>
+        <button class="nav-btn" data-module="espd">Pedidos ESPD</button>
+        <button class="nav-btn" data-module="caminhoes">Caminhões</button>
+      </nav>
+    </div>
+  </header>
+
+  <main class="main">
+    <section id="module-rotas" class="module active">
+      <div class="hero">
+        <div>
+          <h2>Rotas de entrega por dia</h2>
+          <p>Base inicial carregada a partir da sua planilha. As rotas agrupadas foram mantidas para que, na próxima etapa, os pedidos possam ser direcionados aos caminhões conforme a cidade e o dia de entrega.</p>
+        </div>
+        <div class="hero-actions">
+          <button id="restoreBtn" class="btn">↻ Restaurar original</button>
+          <button id="addRouteBtn" class="btn primary">＋ Adicionar cidade/rota</button>
+        </div>
+      </div>
+
+      <div class="summary-grid">
+        <div class="summary-card">
+          <div class="kicker">Dias de entrega</div>
+          <div class="value" id="metricDays">5</div>
+          <div class="sub">Segunda a sexta</div>
+        </div>
+        <div class="summary-card">
+          <div class="kicker">Rotas cadastradas</div>
+          <div class="value" id="metricRoutes">0</div>
+          <div class="sub">Grupos de entrega</div>
+        </div>
+        <div class="summary-card">
+          <div class="kicker">Cidades / pontos</div>
+          <div class="value" id="metricCities">0</div>
+          <div class="sub">Nomes únicos cadastrados</div>
+        </div>
+        <div class="summary-card">
+          <div class="kicker">Alterações</div>
+          <div class="value" id="metricChanges">0</div>
+          <div class="sub">Salvas neste navegador</div>
+        </div>
+      </div>
+
+      <div class="toolbar">
+        <div class="search">
+          <span class="search-icon">⌕</span>
+          <input id="searchInput" type="search" placeholder="Buscar cidade ou rota...">
+        </div>
+        <div class="day-filter" id="dayFilter"></div>
+      </div>
+
+      <div id="board" class="board"></div>
+      <div id="emptyState" class="empty">Nenhuma cidade ou rota encontrada para este filtro.</div>
+    </section>
+
+    <section id="module-espd" class="module">
+      <div class="placeholder">
+        <h3>Pedidos ESPD</h3>
+        <p>Esta área já está reservada para a próxima etapa: importar o arquivo ESPD, consolidar os itens por pedido/cliente e identificar em qual rota semanal cada pedido deve entrar.</p>
+        <div class="status-grid">
+          <div class="status-card">
+            <div class="status-label">Arquivo analisado</div>
+            <div class="status-value status-good">espd094.xlsx</div>
+          </div>
+          <div class="status-card">
+            <div class="status-label">Estrutura encontrada</div>
+            <div class="status-value">14 colunas</div>
+          </div>
+          <div class="status-card">
+            <div class="status-label">Campo cidade</div>
+            <div class="status-value status-warn">Não encontrado</div>
+          </div>
+        </div>
+        <div class="fields">
+          <span class="field">Num Pedido</span><span class="field">Dt Emissao</span><span class="field">Cliente</span>
+          <span class="field">Nome Cliente</span><span class="field">Item</span><span class="field">Desc Item</span>
+          <span class="field">Representate</span><span class="field">Usr Impl</span><span class="field">Qtd Ped</span>
+          <span class="field">Qtd Atende</span><span class="field">Valor</span><span class="field">Dt Cancela</span>
+          <span class="field">Usr Cancela</span><span class="field">Motivo Cancela</span>
+        </div>
+        <div class="notice"><strong>Para automatizar por cidade:</strong> será necessário ter a cidade do cliente em alguma base. Se o ESPD definitivo também não trouxer a cidade, podemos ligar o código do cliente a um cadastro de clientes/cidades e o sistema fará a associação automaticamente.</div>
+      </div>
+    </section>
+
+    <section id="module-caminhoes" class="module">
+      <div class="placeholder">
+        <h3>Distribuição em caminhões</h3>
+        <p>Esta será a etapa de roteirização operacional. Depois de identificar os pedidos do dia, o sistema poderá agrupá-los por rota, calcular carga total e organizar os caminhões disponíveis.</p>
+        <div class="status-grid">
+          <div class="status-card"><div class="status-label">Etapa 1</div><div class="status-value status-good">Rotas semanais</div></div>
+          <div class="status-card"><div class="status-label">Etapa 2</div><div class="status-value">Pedidos por cidade</div></div>
+          <div class="status-card"><div class="status-label">Etapa 3</div><div class="status-value">Alocação em caminhões</div></div>
+        </div>
+      </div>
+    </section>
+  </main>
+</div>
+
+<div id="routeModal" class="modal-backdrop" aria-hidden="true">
+  <div class="modal">
+    <div class="modal-head">
+      <h3 id="modalTitle">Adicionar cidade/rota</h3>
+      <button id="closeModalBtn" class="icon-btn" aria-label="Fechar">×</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-row">
+        <label for="daySelect">Dia de entrega</label>
+        <select id="daySelect"></select>
+      </div>
+      <div class="form-row">
+        <label for="routeInput">Cidade ou rota</label>
+        <input id="routeInput" autocomplete="off" placeholder="Ex.: POUSO ALEGRE ou VARGINHA X ELOI MENDES">
+        <div class="hint">Para cadastrar várias cidades na mesma rota, separe os nomes com a letra <strong>X</strong>.</div>
+      </div>
+    </div>
+    <div class="modal-actions">
+      <button id="cancelModalBtn" class="btn">Cancelar</button>
+      <button id="saveRouteBtn" class="btn primary">Salvar</button>
+    </div>
+  </div>
+</div>
+
+<div id="toast" class="toast"></div>
+
+<script>
+const ORIGINAL_DATA = {"SEGUNDA":[{"label":"ITAJUBA","cities":["ITAJUBA"]},{"label":"POUSO ALEGRE","cities":["POUSO ALEGRE"]},{"label":"GONÇALVES X SAPUCAI-MIRIM X PARAISOPOLIS","cities":["GONÇALVES","SAPUCAI-MIRIM","PARAISOPOLIS"]},{"label":"VARGEM X TOLEDO X MUNHOZ","cities":["VARGEM","TOLEDO","MUNHOZ"]},{"label":"LAVRAS X IJACI X LUMINARIAS X BOM SUCESSO X CARRANCAS","cities":["LAVRAS","IJACI","LUMINARIAS","BOM SUCESSO","CARRANCAS"]},{"label":"NEPOMUCENO X PERDÕES X CANA VERDE X CANDEIAS X CAMPO BELO X RIBEIRÃO VERMELHO X OLIVEIRA X CLAUDIO X ITAPECIRICA X CARMOPOLIS X COQUEIRAL","cities":["NEPOMUCENO","PERDÕES","CANA VERDE","CANDEIAS","CAMPO BELO","RIBEIRÃO VERMELHO","OLIVEIRA","CLAUDIO","ITAPECIRICA","CARMOPOLIS","COQUEIRAL"]},{"label":"PARAGUAÇU X ELOI MENDES X VARGINHA","cities":["PARAGUAÇU","ELOI MENDES","VARGINHA"]},{"label":"PIRANGUINHO X BRASOPOLIS","cities":["PIRANGUINHO","BRASOPOLIS"]},{"label":"POÇOS DE CALDAS","cities":["POÇOS DE CALDAS"]},{"label":"SÃO LOURENÇO X CARMO DE MINAS X DOM VIÇOSO X SOLEDADE DE MINAS X PASSA QUATRO X ITANHANDU X ITAMONTE X VIRGINIA SÃO SEBASTIAO DO RIO VERDE X CAXAMBU X AIURUOCA","cities":["SÃO LOURENÇO","CARMO DE MINAS","DOM VIÇOSO","SOLEDADE DE MINAS","PASSA QUATRO","ITANHANDU","ITAMONTE","VIRGINIA SÃO SEBASTIAO DO RIO VERDE","CAXAMBU","AIURUOCA"]},{"label":"LAMBARI X JESUANIA X OLIMPIO NORONHA","cities":["LAMBARI","JESUANIA","OLIMPIO NORONHA"]},{"label":"NATERCIA X ELIODORA","cities":["NATERCIA","ELIODORA"]},{"label":"CONGONHAL X SENADOR JOSE BENTO X BORDA DA MATA","cities":["CONGONHAL","SENADOR JOSE BENTO","BORDA DA MATA"]}],"TERÇA":[{"label":"POUSO ALEGRE","cities":["POUSO ALEGRE"]},{"label":"CAMBUI X CORREGO DO BOM JESUS","cities":["CAMBUI","CORREGO DO BOM JESUS"]},{"label":"SÃO SEBASTIAO DA BELA VISTA X CAREACU","cities":["SÃO SEBASTIAO DA BELA VISTA","CAREACU"]},{"label":"DELFIM MOREIRA X MARMELOPOLIS","cities":["DELFIM MOREIRA","MARMELOPOLIS"]},{"label":"EXTREMA","cities":["EXTREMA"]},{"label":"PIRANGUÇU X WENCESLAU BRAZ","cities":["PIRANGUÇU","WENCESLAU BRAZ"]},{"label":"POÇOS DE CALDAS","cities":["POÇOS DE CALDAS"]},{"label":"POUSO ALEGRE","cities":["POUSO ALEGRE"]},{"label":"SANTA RITA DO SAPUCAI","cities":["SANTA RITA DO SAPUCAI"]}],"QUARTA":[{"label":"VARGINHA X ELOI MENDES","cities":["VARGINHA","ELOI MENDES"]},{"label":"SILVIANÓPOLIS X SÃO JOÃO DA MATA X POÇO FUNDO X TURVOLANDIA","cities":["SILVIANÓPOLIS","SÃO JOÃO DA MATA","POÇO FUNDO","TURVOLANDIA"]},{"label":"SÃO LOURENÇO X CARMO DE MINAS X ITANHANDU","cities":["SÃO LOURENÇO","CARMO DE MINAS","ITANHANDU"]},{"label":"SÃO JOAO DEL REI","cities":["SÃO JOAO DEL REI"]},{"label":"SANTA RITA DO SAPUCAI","cities":["SANTA RITA DO SAPUCAI"]},{"label":"POUSO ALEGRE x MAGLIONI RIBEIRO x ALVORADA","cities":["POUSO ALEGRE","MAGLIONI RIBEIRO","ALVORADA"]},{"label":"POUSO ALEGRE","cities":["POUSO ALEGRE"]},{"label":"PASSOS X CASSIA X CAPETINGA X IBIRACI X ALPINOPOLIS X SÃO JOSE DA BARRA","cities":["PASSOS","CASSIA","CAPETINGA","IBIRACI","ALPINOPOLIS","SÃO JOSE DA BARRA"]},{"label":"MACHADO X ALFENAS X CAMPOS GERAIS X CAMPO DO MEIO X CARVALHÓPOLIS X ALTEROSA","cities":["MACHADO","ALFENAS","CAMPOS GERAIS","CAMPO DO MEIO","CARVALHÓPOLIS","ALTEROSA"]},{"label":"ITAJUBA (ADICAO)","cities":["ITAJUBA (ADICAO)"]},{"label":"ITAJUBA X ALVORADA X MAGLIONI","cities":["ITAJUBA","ALVORADA","MAGLIONI"]},{"label":"EXTREMA","cities":["EXTREMA"]},{"label":"BORDA DA MATA X TOCOS DO MOJI","cities":["BORDA DA MATA","TOCOS DO MOJI"]},{"label":"BORDA DA MATA X OURO FINO (MAGLIONI, ALVORADA)","cities":["BORDA DA MATA","OURO FINO (MAGLIONI, ALVORADA)"]},{"label":"BARROSO X SANTA CRUZ DE MINAS X TIRADENTES X SÃO TIAGO X RESENDE COSTA X ITUMIRIM X NAZARENO X ITUTINGA","cities":["BARROSO","SANTA CRUZ DE MINAS","TIRADENTES","SÃO TIAGO","RESENDE COSTA","ITUMIRIM","NAZARENO","ITUTINGA"]},{"label":"CAMPO BELO X PEDROES x NEPOMUCENO X CLAUDIO","cities":["CAMPO BELO","PEDROES","NEPOMUCENO","CLAUDIO"]}],"QUINTA":[{"label":"CACHOEIRA DE MINAS X CONCEIÇÃO DOS OUROS","cities":["CACHOEIRA DE MINAS","CONCEIÇÃO DOS OUROS"]},{"label":"CAMPANHA X CAMBUQUIRA X TRES CORAÇÕES","cities":["CAMPANHA","CAMBUQUIRA","TRES CORAÇÕES"]},{"label":"CONCEIÇÃO DO RIO VERDE X CAXAMBU X BAPENDI X AIUROCA X SERITINGA X CARVALHOS X LIBERADE","cities":["CONCEIÇÃO DO RIO VERDE","CAXAMBU","BAPENDI","AIUROCA","SERITINGA","CARVALHOS","LIBERADE"]},{"label":"EXTREMA","cities":["EXTREMA"]},{"label":"FORMIGA","cities":["FORMIGA"]},{"label":"ITAJUBA","cities":["ITAJUBA"]},{"label":"MACHADO X ALFENAS X CAMPOS GERAIS X CARMO DO RIO CLARO","cities":["MACHADO","ALFENAS","CAMPOS GERAIS","CARMO DO RIO CLARO"]},{"label":"OURO FINO X INCONFIDENTES","cities":["OURO FINO","INCONFIDENTES"]},{"label":"PASSOS","cities":["PASSOS"]},{"label":"POUSO ALEGRE","cities":["POUSO ALEGRE"]},{"label":"SÃO SEBASTIAO DO PARAISO","cities":["SÃO SEBASTIAO DO PARAISO"]},{"label":"TRES PONTAS X SANTANA DA VARGEM X BOA ESPERANÇA X ILICINEA X GUAPÉ x COQUEIRAL","cities":["TRES PONTAS","SANTANA DA VARGEM","BOA ESPERANÇA","ILICINEA","GUAPÉ","COQUEIRAL"]},{"label":"LAVRAS X OLIVEIRA","cities":["LAVRAS","OLIVEIRA"]}],"SEXTA":[{"label":"ANDRADAS","cities":["ANDRADAS"]},{"label":"BOM REPOUSO X SENADOR AMARAL X ESTIVA","cities":["BOM REPOUSO","SENADOR AMARAL","ESTIVA"]},{"label":"VARGEM X ITAPEVA","cities":["VARGEM","ITAPEVA"]},{"label":"CAMBUI X CAMANDUCAIA","cities":["CAMBUI","CAMANDUCAIA"]},{"label":"ESPIRITO SANTO DO DOURADO","cities":["ESPIRITO SANTO DO DOURADO"]},{"label":"ITAJUBA","cities":["ITAJUBA"]},{"label":"JACUTINGA X BUENO BRANDÃO X MONTE SIAO","cities":["JACUTINGA","BUENO BRANDÃO","MONTE SIAO"]},{"label":"MARIA DA FÉ X CRISTINA X SÃO JOSÉ DO ALEGRE X PEDRALVA X CONCEIÇÃO DAS PEDRAS","cities":["MARIA DA FÉ","CRISTINA","SÃO JOSÉ DO ALEGRE","PEDRALVA","CONCEIÇÃO DAS PEDRAS"]},{"label":"PARAISÓPOLIS X CONSOLAÇÃO","cities":["PARAISÓPOLIS","CONSOLAÇÃO"]},{"label":"POUSO ALEGRE","cities":["POUSO ALEGRE"]},{"label":"SÃO GONÇALO DO SAPUCAI X MONSENHOR PAULO X CORDISLANDIA","cities":["SÃO GONÇALO DO SAPUCAI","MONSENHOR PAULO","CORDISLANDIA"]}]};
+const DAYS = ["SEGUNDA","TERÇA","QUARTA","QUINTA","SEXTA"];
+const STORAGE_KEY = "rotas_entregas_v1";
+const CHANGES_KEY = "rotas_entregas_v1_changes";
+
+let data = loadData();
+let changes = Number(localStorage.getItem(CHANGES_KEY) || "0");
+let activeDay = "TODOS";
+let editing = null;
+
+function deepClone(obj){ return JSON.parse(JSON.stringify(obj)); }
+
+function loadData(){
+  try{
+    const saved = localStorage.getItem(STORAGE_KEY);
+    if(saved){
+      const parsed = JSON.parse(saved);
+      if(parsed && typeof parsed === "object") return parsed;
+    }
+  }catch(e){}
+  return deepClone(ORIGINAL_DATA);
+}
+
+function saveData(message){
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+  changes++;
+  localStorage.setItem(CHANGES_KEY, String(changes));
+  updateMetrics();
+  if(message) showToast(message);
+}
+
+function normalizeText(value){
+  return String(value || "")
+    .normalize("NFD").replace(/[\u0300-\u036f]/g,"")
+    .toUpperCase().replace(/\s+/g," ").trim();
+}
+
+function parseCities(value){
+  const clean = String(value || "").replace(/\s+/g," ").trim();
+  return clean.split(/\s+[xX]\s+/).map(s => s.trim()).filter(Boolean);
+}
+
+function rebuildLabel(route){
+  route.label = route.cities.join(" X ");
+}
+
+function uniqueCitiesCount(){
+  const set = new Set();
+  DAYS.forEach(day => (data[day] || []).forEach(route => {
+    (route.cities || []).forEach(city => set.add(normalizeText(city)));
+  }));
+  return set.size;
+}
+
+function totalRoutes(){
+  return DAYS.reduce((sum,day) => sum + (data[day] || []).length, 0);
+}
+
+function updateMetrics(){
+  document.getElementById("metricRoutes").textContent = totalRoutes();
+  document.getElementById("metricCities").textContent = uniqueCitiesCount();
+  document.getElementById("metricChanges").textContent = changes;
+}
+
+function dayShort(day){
+  return ({SEGUNDA:"Seg",TERÇA:"Ter",QUARTA:"Qua",QUINTA:"Qui",SEXTA:"Sex"})[day] || day;
+}
+
+function isToday(day){
+  const idx = new Date().getDay();
+  const map = {1:"SEGUNDA",2:"TERÇA",3:"QUARTA",4:"QUINTA",5:"SEXTA"};
+  return map[idx] === day;
+}
+
+function createDayFilter(){
+  const host = document.getElementById("dayFilter");
+  host.innerHTML = "";
+  ["TODOS",...DAYS].forEach(day => {
+    const btn = document.createElement("button");
+    btn.className = "filter-btn" + (activeDay === day ? " active" : "");
+    btn.textContent = day === "TODOS" ? "Todos" : dayShort(day);
+    btn.onclick = () => { activeDay = day; createDayFilter(); renderBoard(); };
+    host.appendChild(btn);
+  });
+}
+
+function renderBoard(){
+  const board = document.getElementById("board");
+  const query = normalizeText(document.getElementById("searchInput").value);
+  board.innerHTML = "";
+  let anyVisible = false;
+
+  DAYS.forEach(day => {
+    if(activeDay !== "TODOS" && activeDay !== day) return;
+
+    const col = document.createElement("section");
+    col.className = "day-column" + (isToday(day) ? " today" : "");
+
+    const routes = data[day] || [];
+    const head = document.createElement("div");
+    head.className = "day-head";
+    head.innerHTML = `<div class="day-title">${day}</div><div class="day-count">${routes.length} rota${routes.length === 1 ? "" : "s"}</div>`;
+    col.appendChild(head);
+
+    const list = document.createElement("div");
+    list.className = "route-list";
+
+    routes.forEach((route,index) => {
+      const haystack = normalizeText((route.label || "") + " " + (route.cities || []).join(" "));
+      if(query && !haystack.includes(query)) return;
+      anyVisible = true;
+
+      const card = document.createElement("article");
+      card.className = "route-card";
+
+      const top = document.createElement("div");
+      top.className = "route-top";
+
+      const content = document.createElement("div");
+      content.style.minWidth = "0";
+      const num = document.createElement("div");
+      num.className = "route-number";
+      num.textContent = `ROTA ${String(index+1).padStart(2,"0")}`;
+      content.appendChild(num);
+
+      const chips = document.createElement("div");
+      chips.className = "cities";
+      (route.cities || []).forEach((city,cityIndex) => {
+        const chip = document.createElement("span");
+        chip.className = "city-chip";
+        const name = document.createElement("span");
+        name.textContent = city;
+        const remove = document.createElement("button");
+        remove.className = "remove-city";
+        remove.title = "Remover esta cidade";
+        remove.textContent = "×";
+        remove.onclick = (ev) => {
+          ev.stopPropagation();
+          removeCity(day,index,cityIndex,city);
+        };
+        chip.append(name,remove);
+        chips.appendChild(chip);
+      });
+      content.appendChild(chips);
+
+      const actions = document.createElement("div");
+      actions.className = "route-actions";
+      const edit = document.createElement("button");
+      edit.className = "icon-btn";
+      edit.title = "Editar rota";
+      edit.textContent = "✎";
+      edit.onclick = () => openModal(day,index);
+      const del = document.createElement("button");
+      del.className = "icon-btn delete";
+      del.title = "Excluir rota";
+      del.textContent = "⌫";
+      del.onclick = () => deleteRoute(day,index);
+      actions.append(edit,del);
+
+      top.append(content,actions);
+      card.appendChild(top);
+      list.appendChild(card);
+    });
+
+    col.appendChild(list);
+
+    const add = document.createElement("button");
+    add.className = "add-card";
+    add.textContent = "＋ Adicionar neste dia";
+    add.onclick = () => openModal(day,null);
+    col.appendChild(add);
+
+    board.appendChild(col);
+  });
+
+  document.getElementById("emptyState").style.display = anyVisible ? "none" : "block";
+  updateMetrics();
+}
+
+function openModal(day="SEGUNDA", routeIndex=null){
+  editing = routeIndex === null ? null : {day, routeIndex};
+  document.getElementById("modalTitle").textContent = editing ? "Editar rota" : "Adicionar cidade/rota";
+  document.getElementById("daySelect").value = day;
+  document.getElementById("routeInput").value = editing ? data[day][routeIndex].cities.join(" X ") : "";
+  document.getElementById("routeModal").classList.add("open");
+  document.getElementById("routeModal").setAttribute("aria-hidden","false");
+  setTimeout(() => document.getElementById("routeInput").focus(), 30);
+}
+
+function closeModal(){
+  document.getElementById("routeModal").classList.remove("open");
+  document.getElementById("routeModal").setAttribute("aria-hidden","true");
+  editing = null;
+}
+
+function saveRoute(){
+  const day = document.getElementById("daySelect").value;
+  const cities = parseCities(document.getElementById("routeInput").value);
+  if(!cities.length){
+    showToast("Digite pelo menos uma cidade.");
+    return;
+  }
+  const route = {label:cities.join(" X "),cities};
+
+  if(editing){
+    const oldDay = editing.day;
+    const oldIndex = editing.routeIndex;
+    if(day === oldDay){
+      data[day][oldIndex] = route;
+    }else{
+      data[oldDay].splice(oldIndex,1);
+      data[day].push(route);
+    }
+    saveData("Rota atualizada.");
+  }else{
+    data[day].push(route);
+    saveData("Cidade/rota adicionada.");
+  }
+  closeModal();
+  renderBoard();
+}
+
+function deleteRoute(day,index){
+  const route = data[day][index];
+  if(!confirm(`Excluir a rota "${route.label}" de ${day.toLowerCase()}?`)) return;
+  data[day].splice(index,1);
+  saveData("Rota excluída.");
+  renderBoard();
+}
+
+function removeCity(day,routeIndex,cityIndex,city){
+  if(!confirm(`Remover "${city}" desta rota?`)) return;
+  const route = data[day][routeIndex];
+  route.cities.splice(cityIndex,1);
+  if(route.cities.length === 0){
+    data[day].splice(routeIndex,1);
+  }else{
+    rebuildLabel(route);
+  }
+  saveData("Cidade removida.");
+  renderBoard();
+}
+
+function restoreOriginal(){
+  if(!confirm("Restaurar todas as rotas exatamente como vieram da planilha original? As alterações feitas neste navegador serão apagadas.")) return;
+  data = deepClone(ORIGINAL_DATA);
+  changes = 0;
+  localStorage.removeItem(STORAGE_KEY);
+  localStorage.setItem(CHANGES_KEY,"0");
+  document.getElementById("searchInput").value = "";
+  activeDay = "TODOS";
+  createDayFilter();
+  renderBoard();
+  showToast("Lista original restaurada.");
+}
+
+function showToast(message){
+  const toast = document.getElementById("toast");
+  toast.textContent = message;
+  toast.classList.add("show");
+  clearTimeout(showToast.timer);
+  showToast.timer = setTimeout(() => toast.classList.remove("show"),2200);
+}
+
+function setupDaySelect(){
+  const select = document.getElementById("daySelect");
+  select.innerHTML = "";
+  DAYS.forEach(day => {
+    const opt = document.createElement("option");
+    opt.value = day;
+    opt.textContent = day;
+    select.appendChild(opt);
+  });
+}
+
+function setupNavigation(){
+  document.querySelectorAll(".nav-btn").forEach(btn => {
+    btn.addEventListener("click",() => {
+      document.querySelectorAll(".nav-btn").forEach(x => x.classList.toggle("active",x === btn));
+      document.querySelectorAll(".module").forEach(x => x.classList.remove("active"));
+      document.getElementById("module-" + btn.dataset.module).classList.add("active");
+    });
+  });
+}
+
+document.getElementById("addRouteBtn").onclick = () => openModal("SEGUNDA",null);
+document.getElementById("restoreBtn").onclick = restoreOriginal;
+document.getElementById("closeModalBtn").onclick = closeModal;
+document.getElementById("cancelModalBtn").onclick = closeModal;
+document.getElementById("saveRouteBtn").onclick = saveRoute;
+document.getElementById("searchInput").addEventListener("input",renderBoard);
+document.getElementById("routeModal").addEventListener("click",(e) => {
+  if(e.target.id === "routeModal") closeModal();
+});
+document.addEventListener("keydown",(e) => {
+  if(e.key === "Escape") closeModal();
+  if(e.key === "Enter" && document.getElementById("routeModal").classList.contains("open")) saveRoute();
+});
+
+setupNavigation();
+setupDaySelect();
+createDayFilter();
+renderBoard();
+</script>
+</body>
+</html>
