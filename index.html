@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Gestão Logística - V5.46 Controle de Publicação + Configurações</title>
+<title>Gestão Logística - V5.47 Matriz Robusta + Liberação Segura</title>
 <style>
 :root{
   --bg:#f3f6fb;--card:#fff;--line:#e2e8f0;--text:#152033;--muted:#667085;
@@ -526,7 +526,7 @@ main{max-width:1580px;margin:auto;padding:20px}.view{display:none}.view.active{d
 </head>
 <body>
 <header class="top"><div class="topin">
- <div class="brand"><div class="logo">R</div><div><h1>Gestão Logística - Embarques e Rotas V5.46</h1><small>Rotas • ESPD • Frota • Embarques automáticos</small></div></div>
+ <div class="brand"><div class="logo">R</div><div><h1>Gestão Logística - Embarques e Rotas V5.47</h1><small>Rotas • ESPD • Frota • Embarques automáticos</small></div></div>
  <nav class="nav">
   <button class="active" data-view="planning">Embarques</button>
   <button data-view="routeanalysis">Central de Rotas</button>
@@ -597,6 +597,21 @@ main{max-width:1580px;margin:auto;padding:20px}.view{display:none}.view.active{d
   <div class="metric"><small>Novos inseridos</small><strong id="pmNew">0</strong><span>Na última sincronização</span></div>
  </div>
 
+ <div class="panel">
+  <div class="dd-section-head">
+   <div><h3>Indicadores de consolidação dos embarques</h3><p style="margin:3px 0 0">Os indicadores básicos são atualizados automaticamente. Clique em analisar para calcular corredores e combinações compatíveis.</p></div>
+   <button type="button" class="btn small primary" onclick="analyzeConsolidationFromEmbarques()">◎ Analisar consolidação</button>
+  </div>
+  <div class="grid4">
+   <div class="metric"><small>Embarques abaixo da meta</small><strong id="raUnder">0</strong><span>Alvos para consolidação</span></div>
+   <div class="metric"><small>Pedidos compatíveis</small><strong id="raCompatible">—</strong><span>No corredor de outra rota</span></div>
+   <div class="metric"><small>Pedidos futuros aproveitáveis</small><strong id="raFuture">—</strong><span>Rotas dos próximos dias</span></div>
+   <div class="metric"><small>Sugestões de consolidação</small><strong id="raSuggestions">—</strong><span>Combinações recomendadas</span></div>
+   <div class="metric"><small>Rotas sem peso</small><strong id="raNoWeight">0</strong><span>Compatibilidade geográfica apenas</span></div>
+  </div>
+  <div id="embarqueAnalysisState" style="margin-top:8px;font-size:9px;color:var(--muted);font-weight:800">Análise detalhada ainda não executada para o dia atual.</div>
+ </div>
+
  <div class="milk-manual-panel">
   <div class="milk-manual-head">
    <div>
@@ -640,7 +655,7 @@ main{max-width:1580px;margin:auto;padding:20px}.view{display:none}.view.active{d
 
  <div class="panel">
   <div class="dd-section-head">
-   <div><h3>Mapa semanal e rotas dos motoristas</h3><p style="margin:3px 0 0">Gere a rota porta a porta de cada motorista e filtre no mapa por dia ou motorista.</p></div>
+   <div><h3>Mapa semanal e rotas dos motoristas</h3><p style="margin:3px 0 0">O pré-cálculo respeita os filtros. O botão “Roteirizar todos e liberar Apps” sempre processa todos os dias e motoristas da semana.</p></div>
    <div class="driver-map-controls">
     <select id="mapDayFilter" title="Filtrar o dia">
      <option value="TODOS">Semana inteira</option>
@@ -698,7 +713,7 @@ main{max-width:1580px;margin:auto;padding:20px}.view{display:none}.view.active{d
    <div class="route-map-half"><div id="routeMap"></div></div>
    <aside class="route-operations-side">
     <div class="ops-head">
-     <div><h4>Painel operacional</h4><small>Roteirize todos com um clique. Depois de gerada, a rota sai automaticamente da fila.</small></div>
+     <div><h4>Painel operacional</h4><small>“Roteirizar todos e liberar Apps” processa a semana inteira. Se alguma rota falhar, nenhum App é liberado.</small></div>
      <span class="badge open" id="opsRouteStatus">OPERAÇÃO</span>
     </div>
     <div class="ops-kpis">
@@ -756,14 +771,6 @@ main{max-width:1580px;margin:auto;padding:20px}.view{display:none}.view.active{d
   </div>
   <div class="ra-note" style="margin-top:11px"><b>Regra de segurança:</b> a cidade de outra rota nunca é colocada depois do destino final do embarque. Ela só pode ser inserida <b>entre pontos já existentes</b> da rota. O campo “acréscimo rodoviário” funciona como tolerância técnica; coloque <b>0 km</b> para análise literal sem qualquer aumento medido.</div>
   <div id="raStatus" class="ra-status"><div style="font-size:20px">◎</div><div><strong>Pronto para analisar.</strong> Na primeira análise, o sistema resolve e salva as coordenadas das cidades. Depois as próximas análises ficam mais rápidas.</div></div>
- </div>
-
- <div class="grid4">
-  <div class="metric"><small>Embarques abaixo da meta</small><strong id="raUnder">0</strong><span>Alvos para consolidação</span></div>
-  <div class="metric"><small>Pedidos compatíveis</small><strong id="raCompatible">0</strong><span>No corredor de outra rota</span></div>
-  <div class="metric"><small>Pedidos futuros aproveitáveis</small><strong id="raFuture">0</strong><span>Rotas dos próximos dias</span></div>
-  <div class="metric"><small>Sugestões de consolidação</small><strong id="raSuggestions">0</strong><span>Combinações recomendadas</span></div>
-  <div class="metric"><small>Rotas sem peso</small><strong id="raNoWeight">0</strong><span>Compatibilidade geográfica apenas</span></div>
  </div>
 
  <div class="panel">
@@ -1285,7 +1292,7 @@ async function readPublishedDriverBundle(appId){
  return legacy?.bundle||legacy
 }
 async function publishDriverAppBundle(driver,routesList){
- if(!driverAppsUnlocked())throw new Error("Apps bloqueados: clique em Roteirizar todos e liberar Apps.");
+ if(!driverAppsUnlocked()&&!bulkRoutePublishMode)throw new Error("Apps bloqueados: clique em Roteirizar todos e liberar Apps.");
  const valid=(routesList||[]).filter(r=>!r?.error&&r?.stops?.length);
  if(!valid.length)throw new Error(`Nenhuma viagem válida encontrada para ${driver}.`);
  if(!firebaseConfigReady())throw new Error("Firebase não configurado.");
@@ -1305,21 +1312,15 @@ async function publishDriverAppBundle(driver,routesList){
  bundle.publicationRevision=revision;
  bundle.routeSignature=signature;
  bundle.publishedAt=new Date().toISOString();
- bundle.appBuild="V5.46";
+ bundle.appBuild="V5.47";
 
  const safeBundle=cleanFirebaseObject(bundle);
 
- // V5.46: as viagens ficam em /bundle e os canhotos em /deliveryProofs.
+ // V5.47: as viagens ficam em /bundle e os canhotos em /deliveryProofs.
  // Isso evita carregar fotos grandes toda vez que o motorista abre o App.
  const rootRef=rt.dbMod.ref(rt.db,`driverApps/${publication.appId}`);
- const oldSnap=await rt.dbMod.get(rootRef);
- const oldRoot=oldSnap.exists()?oldSnap.val():null;
- const preservedProofs=oldRoot?.deliveryProofs||{};
-
- await rt.dbMod.set(rootRef,{
-   bundle:safeBundle,
-   deliveryProofs:preservedProofs
- });
+ // Atualiza somente /bundle e preserva canhotos, metadados, ocorrências e retakes.
+ await rt.dbMod.update(rootRef,{bundle:safeBundle});
 
  const checkSnap=await rt.dbMod.get(rt.dbMod.ref(rt.db,`driverApps/${publication.appId}/bundle`));
  if(!checkSnap.exists())throw new Error("O Firebase não devolveu as viagens após a publicação.");
@@ -1346,7 +1347,7 @@ async function publishDriverAppBundle(driver,routesList){
  return candidate
 }
 async function ensureDriverAppPublished(driver,routesList){
- if(!driverAppsUnlocked())throw new Error("Apps bloqueados: clique em Roteirizar todos e liberar Apps.");
+ if(!driverAppsUnlocked()&&!bulkRoutePublishMode)throw new Error("Apps bloqueados: clique em Roteirizar todos e liberar Apps.");
  if(!firebaseConfigReady())return null;
  const valid=(routesList||[]).filter(r=>!r?.error&&r?.stops?.length);
  if(!valid.length)throw new Error(`Nenhuma viagem válida encontrada para ${driver}.`);
@@ -1373,9 +1374,9 @@ function publishedDriverAppUrl(driver){
  if(!publicBase&&!/^https?:$/.test(location.protocol))return"";
  const url=publicBase?new URL("motorista.html",publicBase):new URL("motorista.html",window.location.href);
 
- // V5.46: Firebase já está embutido no motorista.html.
+ // V5.47: Firebase já está embutido no motorista.html.
  // O WhatsApp recebe somente um link curto; não há mais JSON/configuração no hash.
- url.searchParams.set("v","546");
+ url.searchParams.set("v","547");
  url.hash=`app=${encodeURIComponent(pub.appId)}&rev=${encodeURIComponent(pub.revision||"")}&orders=${encodeURIComponent(pub.orderCount||0)}&stops=${encodeURIComponent(pub.totalStops||0)}&driver=${encodeURIComponent(pub.driver||driver)}`;
  return url.href
 }
@@ -1581,7 +1582,7 @@ function renderRedeliveryPanels(){
 }
 function closeRedeliveryModal(){$("redeliveryModal")?.classList.remove("open");currentRedeliveryCase=null}
 function openRedeliveryApproval(appId,eventId){
- alert("Na V5.46 não existe aprovação manual. A próxima rota é calculada automaticamente.");return;
+ alert("Na V5.47 não existe aprovação manual. A próxima rota é calculada automaticamente.");return;
 
  const state=proofStateForApp(appId),event=state.events?.[eventId];if(!event)return alert("Ocorrência não encontrada.");
  const approval=state.redelivery?.[eventId]||null;currentRedeliveryCase={appId,eventId,event,approval};
@@ -3128,7 +3129,7 @@ function deliveryCoordinateCacheKey(stop){
  return `ADDR:${norm(stop?.address||"")}`
 }
 async function geocodeDeliveryStop(stop){
- // Arquivo de teste V5.46: coordenadas explícitas têm prioridade total.
+ // Arquivo de teste V5.47: coordenadas explícitas têm prioridade total.
  if(validDeliveryCoordinates(stop?.lat,stop?.lon)){
    return{
      lat:Number(stop.lat),lon:Number(stop.lon),
@@ -3303,14 +3304,99 @@ function streetAwareDeliveryOrder(matrix,stops){
  }
  return seq
 }
+async function fetchJsonRobust(url,{timeoutMs=14000,retries=2}={}){
+ let lastError=null;
+ for(let attempt=0;attempt<=retries;attempt++){
+   const controller=new AbortController();
+   const timer=setTimeout(()=>controller.abort(),timeoutMs);
+   try{
+     const r=await fetch(url,{signal:controller.signal});
+     clearTimeout(timer);
+     if(!r.ok)throw new Error(`HTTP ${r.status}`);
+     return await r.json()
+   }catch(e){
+     clearTimeout(timer);
+     lastError=e;
+     if(attempt<retries)await sleep(350*(attempt+1))
+   }
+ }
+ throw lastError||new Error("Falha de rede")
+}
+function approximateRoadDistanceMeters(a,b){
+ const straight=geoDistanceMeters(a,b);
+ return Number.isFinite(straight)?straight*1.24:Number.POSITIVE_INFINITY
+}
+function approximateRoadDurationSeconds(distanceMeters){
+ return Number.isFinite(distanceMeters)?distanceMeters/(38/3.6):Number.POSITIVE_INFINITY
+}
+function fillApproxMatrixBlock(distances,durations,points,srcIndexes,dstIndexes){
+ srcIndexes.forEach(si=>dstIndexes.forEach(di=>{
+   const d=si===di?0:approximateRoadDistanceMeters(points[si],points[di]);
+   distances[si][di]=d;
+   durations[si][di]=approximateRoadDurationSeconds(d)
+ }))
+}
+async function osrmTableBlock(points,srcIndexes,dstIndexes){
+ const blockPoints=[...srcIndexes.map(i=>points[i]),...dstIndexes.map(i=>points[i])];
+ const coords=blockPoints.map(p=>`${p.lon},${p.lat}`).join(";");
+ const sources=srcIndexes.map((_,i)=>i).join(";");
+ const destinations=dstIndexes.map((_,i)=>srcIndexes.length+i).join(";");
+ const url=`https://router.project-osrm.org/table/v1/driving/${coords}?annotations=distance,duration&sources=${sources}&destinations=${destinations}`;
+ const j=await fetchJsonRobust(url,{timeoutMs:16000,retries:2});
+ if(j.code!=="Ok"||!Array.isArray(j.distances))throw new Error(j.message||"Matriz OSRM inválida");
+ return j
+}
 async function osrmDeliveryMatrix(points){
- const coords=points.map(p=>`${p.lon},${p.lat}`).join(";");
- const url=`https://router.project-osrm.org/table/v1/driving/${coords}?annotations=distance,duration`;
- const r=await fetch(url);
- if(!r.ok)throw new Error(`Falha na matriz rodoviária (${r.status})`);
- const j=await r.json();
- if(j.code!=="Ok"||!j.distances)throw new Error("OSRM não retornou matriz de distâncias.");
- return{distances:j.distances,durations:j.durations||[]}
+ const valid=(points||[]).every(p=>validDeliveryCoordinates(p?.lat,p?.lon));
+ if(!valid)throw new Error("Existem coordenadas inválidas antes do cálculo da matriz.");
+ const n=points.length;
+ if(!n)return{distances:[],durations:[],source:"EMPTY",fallbackBlocks:0};
+ const distances=Array.from({length:n},()=>Array(n).fill(Number.POSITIVE_INFINITY));
+ const durations=Array.from({length:n},()=>Array(n).fill(Number.POSITIVE_INFINITY));
+ for(let i=0;i<n;i++){distances[i][i]=0;durations[i][i]=0}
+
+ // Até 18 pontos: uma única chamada é mais rápida.
+ if(n<=18){
+   try{
+     const coords=points.map(p=>`${p.lon},${p.lat}`).join(";");
+     const url=`https://router.project-osrm.org/table/v1/driving/${coords}?annotations=distance,duration`;
+     const j=await fetchJsonRobust(url,{timeoutMs:16000,retries:2});
+     if(j.code==="Ok"&&Array.isArray(j.distances)){
+       return{distances:j.distances,durations:j.durations||durations,source:"OSRM",fallbackBlocks:0}
+     }
+   }catch(e){console.warn("Matriz OSRM direta falhou; usando blocos.",e)}
+ }
+
+ // Embarques grandes são divididos para não exceder limite do serviço público.
+ const BLOCK=14;
+ let fallbackBlocks=0,totalBlocks=0;
+ const indexGroups=[];
+ for(let i=0;i<n;i+=BLOCK)indexGroups.push(Array.from({length:Math.min(BLOCK,n-i)},(_,k)=>i+k));
+
+ for(const srcIndexes of indexGroups){
+   for(const dstIndexes of indexGroups){
+     totalBlocks++;
+     try{
+       const j=await osrmTableBlock(points,srcIndexes,dstIndexes);
+       srcIndexes.forEach((si,sx)=>dstIndexes.forEach((di,dx)=>{
+         const d=j.distances?.[sx]?.[dx],t=j.durations?.[sx]?.[dx];
+         if(Number.isFinite(d)){
+           distances[si][di]=d;
+           durations[si][di]=Number.isFinite(t)?t:approximateRoadDurationSeconds(d)
+         }else{
+           const ad=si===di?0:approximateRoadDistanceMeters(points[si],points[di]);
+           distances[si][di]=ad;durations[si][di]=approximateRoadDurationSeconds(ad)
+         }
+       }))
+     }catch(e){
+       fallbackBlocks++;
+       console.warn("Bloco da matriz rodoviária indisponível; usando fallback técnico.",e);
+       fillApproxMatrixBlock(distances,durations,points,srcIndexes,dstIndexes)
+     }
+     if(totalBlocks>1)await sleep(90)
+   }
+ }
+ return{distances,durations,source:fallbackBlocks? "OSRM+FALLBACK":"OSRM_BLOCKS",fallbackBlocks,totalBlocks}
 }
 function matrixVal(matrix,a,b){
  const v=matrix?.[a]?.[b];
@@ -3367,24 +3453,55 @@ function improveOpenRoute2Opt(seq,matrix){
  }
  return best
 }
-async function osrmDeliveryRoute(points){
+function approximateRouteSegment(points){
+ const coords=(points||[]).filter(p=>validDeliveryCoordinates(p?.lat,p?.lon));
+ let distance=0;
+ for(let i=0;i<coords.length-1;i++)distance+=approximateRoadDistanceMeters(coords[i],coords[i+1]);
+ return{
+   distance,
+   duration:approximateRoadDurationSeconds(distance),
+   geometry:{type:"LineString",coordinates:coords.map(p=>[Number(p.lon),Number(p.lat)])},
+   fallback:true
+ }
+}
+async function osrmDeliveryRouteSegment(points){
  const coords=points.map(p=>`${p.lon},${p.lat}`).join(";");
  const approaches=points.map((_,i)=>i===0?"unrestricted":"curb").join(";");
- const base=`https://router.project-osrm.org/route/v1/driving/${coords}?overview=full&geometries=geojson&steps=true`;
-
- let r=await fetch(`${base}&approaches=${approaches}`);
- if(r.ok){
-   const j=await r.json();
+ const base=`https://router.project-osrm.org/route/v1/driving/${coords}?overview=full&geometries=geojson&steps=false`;
+ try{
+   const j=await fetchJsonRobust(`${base}&approaches=${approaches}`,{timeoutMs:18000,retries:1});
    if(j?.routes?.[0])return j.routes[0]
- }
+ }catch(e){console.warn("Rota curb indisponível; tentando rota normal.",e)}
+ try{
+   const j=await fetchJsonRobust(base,{timeoutMs:18000,retries:2});
+   if(j?.routes?.[0])return j.routes[0]
+ }catch(e){console.warn("Trecho OSRM indisponível; usando fallback.",e)}
+ return approximateRouteSegment(points)
+}
+async function osrmDeliveryRoute(points){
+ const valid=(points||[]).filter(p=>validDeliveryCoordinates(p?.lat,p?.lon));
+ if(valid.length<2)return approximateRouteSegment(valid);
+ const MAX_POINTS=18;
+ if(valid.length<=MAX_POINTS)return osrmDeliveryRouteSegment(valid);
 
- // Fallback automático caso o servidor público não aceite a abordagem curb.
- r=await fetch(base);
- if(!r.ok)throw new Error(`Falha ao calcular rota final (${r.status})`);
- const j=await r.json();
- const route=j?.routes?.[0];
- if(!route)throw new Error("Rota final não encontrada.");
- return route
+ let distance=0,duration=0,fallback=false;
+ const coordinates=[];
+ let start=0;
+ while(start<valid.length-1){
+   const end=Math.min(valid.length,start+MAX_POINTS);
+   const segment=valid.slice(start,end);
+   const route=await osrmDeliveryRouteSegment(segment);
+   distance+=Number(route.distance||0);
+   duration+=Number(route.duration||0);
+   fallback=fallback||route.fallback===true;
+   (route.geometry?.coordinates||[]).forEach((c,i)=>{
+     if(start>0&&i===0)return;
+     if(Array.isArray(c)&&Number.isFinite(Number(c[0]))&&Number.isFinite(Number(c[1])))coordinates.push([Number(c[0]),Number(c[1])])
+   });
+   if(end>=valid.length)break;
+   start=end-1
+ }
+ return{distance,duration,geometry:{type:"LineString",coordinates},fallback}
 }
 function resetShipmentRouteMap(){
  if(shipmentRouteMapInstance){
@@ -3460,7 +3577,7 @@ async function routeOpenedShipment(){
      throw new Error(`${built.missing.length} pedido(s) sem Endereco Completo. Vincule uma base com endereços antes de roteirizar.`)
    }
    if(!built.stops.length)throw new Error("Este embarque não possui paradas com endereço.");
-   if(built.stops.length>45)throw new Error("Este embarque possui mais de 45 paradas. Divida a carga para roteirização no serviço público de teste.");
+   if(built.stops.length>120)throw new Error("Este embarque possui mais de 120 paradas. Divida a carga para manter o processamento operacional.");
 
    status.textContent=`Localizando ${built.stops.length} endereço(s)...`;
    const stops=[];
@@ -3622,12 +3739,19 @@ function renderRoutingQueue(){
 async function routeAllPendingTrucks(){
  if(driverRouteGenerationBusy)return;
  if(!settings.espdOperationalRevision||!aggregatedOrders.length)return alert("Vincule um ESPD válido antes de liberar os Apps dos Motoristas.");
- const select=$("mapDriverFilter"),previous=select?.value||"TODOS";
- if(select)select.value="TODOS";bulkRoutePublishMode=true;
+ const driverSelect=$("mapDriverFilter"),daySelect=$("mapDayFilter");
+ const previousDriver=driverSelect?.value||"TODOS",previousDay=daySelect?.value||"TODOS";
+ if(driverSelect)driverSelect.value="TODOS";
+ if(daySelect)daySelect.value="TODOS";
+ bulkRoutePublishMode=true;
+ settings.bulkRoutingRevision="";
+ settings.bulkRoutingAt="";
+ persist();updateDriverAppReleaseUi();renderWhatsAppDispatch();
  try{await generateDriverRoutes()}
  finally{
    bulkRoutePublishMode=false;
-   if(select&&[...select.options].some(o=>o.value===previous))select.value=previous;
+   if(driverSelect&&[...driverSelect.options].some(o=>o.value===previousDriver))driverSelect.value=previousDriver;
+   if(daySelect&&[...daySelect.options].some(o=>o.value===previousDay))daySelect.value=previousDay;
    updateDriverAppReleaseUi();renderRoutingQueue();renderLiveTrackingPanel();renderWeeklyRouteMap();renderWhatsAppDispatch()
  }
 }
@@ -3692,9 +3816,9 @@ async function buildDriverRoute(dayInfo,driver){
    }
  }
  if(!built.stops.length)return null;
- if(built.stops.length>45){
+ if(built.stops.length>120){
    return{
-     error:`${built.stops.length} paradas — limite de 45 no serviço público de teste`,
+     error:`${built.stops.length} paradas — divida a carga acima de 120 paradas`,
      dayKey:dayInfo.key,day:dayInfo.day,driver,
      shipments:shipments.map(s=>s.shipment)
    }
@@ -3718,8 +3842,9 @@ async function buildDriverRoute(dayInfo,driver){
  $("mapStatus").innerHTML=`<div style="font-size:20px">◎</div><div><strong>${esc(driver)} • ${esc(dayInfo.day)}</strong> Calculando matriz rodoviária...</div>`;
  const points=[{lat:DEPOT_COORD.lat,lon:DEPOT_COORD.lon},...stops];
  const matrix=await osrmDeliveryMatrix(points);
+ if(matrix.fallbackBlocks)$("mapStatus").innerHTML=`<div style="font-size:20px">↻</div><div><strong>${esc(driver)} • ${esc(dayInfo.day)}</strong> Matriz calculada com fallback em ${matrix.fallbackBlocks} bloco(s); continuando a roteirização.</div>`;
 
- // V5.46: distância real pela rua + continuidade de via.
+ // V5.47: distância real pela rua + continuidade de via.
  // Ao entrar em uma rua com várias entregas, descarrega os clientes próximos
  // nessa mesma via antes de sair, quando isso evita deslocamentos desnecessários.
  const seq=streetAwareDeliveryOrder(matrix.distances,stops);
@@ -3830,33 +3955,19 @@ async function reactivateNoTimeEventsForRoute(driver,route){
 async function generateDriverRoutes(){
  if(driverRouteGenerationBusy)return;
  driverRouteGenerationBusy=true;
-
- const btn=$("generateDriverRoutes");
- btn.disabled=true;
+ const btn=$("generateDriverRoutes"),allBtn=$("routeAllTrucksBtn");
+ if(btn)btn.disabled=true;if(allBtn)allBtn.disabled=true;
  refreshDriverFilter();
 
- const initialDriverFilter=$("mapDriverFilter")?.value||"TODOS";
-
- // Para um motorista específico, reserva uma aba ainda dentro do clique do usuário.
- // Assim o navegador permite abrir o WhatsApp após o processamento assíncrono.
- let preparedWindow=null;
- if(bulkRoutePublishMode&&initialDriverFilter!=="TODOS"){
-   preparedWindow=window.open("about:blank","_blank");
-   if(preparedWindow){
-     preparedWindow.document.write('<!doctype html><title>Gerando rota</title><body style="font-family:Arial;padding:24px"><h2>Gerando rota do motorista...</h2><p>Ao concluir, o sistema pedirá/confirma o WhatsApp e abrirá a mensagem com o App da rota.</p></body>')
-   }
- }
-
+ const driverFilter=$("mapDriverFilter")?.value||"TODOS";
  try{
    const days=selectedMapDays();
-   const driverFilter=initialDriverFilter;
    let total=0,success=0,errors=0,skippedFinalized=0,reactivatedNoTime=0;
    const refreshedDrivers=new Set();
+   const errorList=[];
 
    for(const info of days){
-     const plan=plans[info.key];
-     if(!plan)continue;
-
+     const plan=plans[info.key];if(!plan)continue;
      const drivers=[...new Set((plan.shipments||[])
        .filter(s=>(s.orders||[]).length&&s.driver&&norm(s.driver)!=="A DEFINIR")
        .map(s=>s.driver))]
@@ -3871,139 +3982,99 @@ async function generateDriverRoutes(){
 
        const existingRoute=plan.driverRoutes?.[driver];
        const existingCurrent=existingRoute&&!existingRoute.error&&routeBelongsToCurrentEspd(existingRoute);
-       if(existingCurrent&&centralRouteIsFinalized(existingRoute)){
-         skippedFinalized++;
-         continue
-       }
+       if(existingCurrent&&centralRouteIsFinalized(existingRoute)){skippedFinalized++;continue}
        if(existingCurrent){
          try{reactivatedNoTime+=await reactivateNoTimeEventsForRoute(driver,existingRoute)}catch(e){console.warn("Reativação de não entregues",driver,e)}
        }
 
        total++;
+       $("mapStatus").innerHTML=`<div style="font-size:20px">↻</div><div><strong>${esc(driver)} • ${esc(info.day)}</strong> Preparando roteirização ${success+errors+1}/${Math.max(1,total)}...</div>`;
        try{
          const result=await buildDriverRoute(info,driver);
          if(result?.error){
-           errors++;
+           errors++;errorList.push(`${driver} / ${info.day}: ${result.error}`);
            ensurePlanDriverRoutes(plan)[driver]=result
-         }else if(result){
-           success++
+         }else if(result){success++}
+         else{
+           errors++;errorList.push(`${driver} / ${info.day}: rota vazia`);
+           ensurePlanDriverRoutes(plan)[driver]={error:"Rota vazia",dayKey:info.key,day:info.day,driver,shipments:shipmentsForDriverOnPlan(plan,driver).map(s=>s.shipment)}
          }
        }catch(e){
          console.error("Rota motorista",driver,info.key,e);
-         errors++;
-         ensurePlanDriverRoutes(plan)[driver]={
-           error:e.message||String(e),dayKey:info.key,day:info.day,driver,
-           shipments:shipmentsForDriverOnPlan(plan,driver).map(s=>s.shipment)
-         }
+         errors++;errorList.push(`${driver} / ${info.day}: ${e.message||e}`);
+         ensurePlanDriverRoutes(plan)[driver]={error:e.message||String(e),dayKey:info.key,day:info.day,driver,shipments:shipmentsForDriverOnPlan(plan,driver).map(s=>s.shipment)}
        }
        persist()
      }
    }
 
-   refreshDriverFilter();
-   renderRoutingQueue();
-   renderWeeklyRouteMap();
-   renderDriverApps();
-
-   // Só a roteirização geral libera/publica no celular.
-   if(bulkRoutePublishMode){
-     settings.bulkRoutingRevision=settings.espdOperationalRevision;
-     settings.bulkRoutingAt=new Date().toISOString();
-     persist();updateDriverAppReleaseUi()
-   }
-   if(bulkRoutePublishMode&&firebaseConfigReady()){
-     const driversToPublish=driverFilter==="TODOS"
-       ? [...new Set(days.flatMap(info=>{
-           const plan=plans[info.key];
-           return (plan?.shipments||[]).filter(s=>(s.orders||[]).length&&s.driver&&norm(s.driver)!=="A DEFINIR").map(s=>s.driver)
-         }))]
-       : [driverFilter];
-     for(const d of driversToPublish){
-       const rs=routesForDriverApp(d);
-       if(rs.length){
-         try{await publishDriverAppBundle(d,rs)}
-         catch(e){console.error("Publicação App",d,e);toast(`Rota de ${d} gerada, mas não foi possível publicar o App online.`)}
-       }
-     }
-     renderDriverApps();
-     connectLiveTracking().catch(console.error)
-   }
-
-   $("mapStatus").innerHTML=`<div style="font-size:20px">✓</div><div><strong>Rotas pendentes geradas com descarga na rua.</strong> ${success} rota(s) calculada(s)${skippedFinalized?` • ${skippedFinalized} rota(s) já concluída(s) ignorada(s)`:""}${reactivatedNoTime?` • ${reactivatedNoTime} entrega(s) “não deu tempo” reativada(s) para nova tentativa`:""}${errors?` • ${errors} com pendência`:""}. Rotas concluídas não são recalculadas.</div>`;
+   refreshDriverFilter();renderRoutingQueue();renderWeeklyRouteMap();renderDriverApps();renderDriverRouteSummary();
 
    if(!total){
-     if(preparedWindow)preparedWindow.close();
-     if(skippedFinalized)toast(`${skippedFinalized} rota(s) já estão concluídas. Nenhuma rota concluída foi gerada novamente.`);
-     else toast("Nenhum motorista com embarque e pedidos pendentes foi encontrado para o período selecionado.");
+     $("mapStatus").innerHTML=`<div style="font-size:20px">◎</div><div><strong>Nenhuma rota pendente.</strong> ${skippedFinalized?`${skippedFinalized} rota(s) já concluída(s).`:"Nenhum motorista com embarque e pedidos foi encontrado."}</div>`;
      return
    }
 
    if(!bulkRoutePublishMode){
-     if(preparedWindow)preparedWindow.close();
+     $("mapStatus").innerHTML=`<div style="font-size:20px">✓</div><div><strong>Pré-cálculo concluído.</strong> ${success} rota(s) calculada(s)${errors?` • ${errors} pendência(s)`:""}. <b>Nada foi enviado aos Apps.</b></div>`;
      renderWhatsAppDispatch();
-     toast("Pré-cálculo concluído. Nada foi enviado aos Apps. Use Roteirizar todos e liberar Apps.");
+     toast("Pré-cálculo concluído. Nada foi enviado aos Apps.");
      return
    }
-   // Depois da liberação geral, os envios individuais permanecem disponíveis.
-   if(driverFilter!=="TODOS"){
-     const routesList=routesForDriverApp(driverFilter);
-     if(!routesList.length){
-       if(preparedWindow)preparedWindow.close();
-       return
-     }
 
-     const currentEntry=fleetEntryForDriver(driverFilter);
-     const currentPhone=currentEntry?.whatsapp||"";
-     const answer=prompt(
-       `Rota de ${driverFilter} concluída.\n\nInforme/confirme o WhatsApp para mandar o App da rota ao celular:`,
-       currentPhone
-     );
-
-     if(answer===null){
-       if(preparedWindow)preparedWindow.close();
-       toast(`Rota de ${driverFilter} salva no App dos Motoristas.`);
-       return
-     }
-
-     const phone=normalizeWhatsAppNumber(answer);
-     if(!validWhatsAppNumber(phone)){
-       if(preparedWindow)preparedWindow.close();
-       alert("WhatsApp inválido. A rota foi salva; você pode cadastrar o número depois na aba Apps dos Motoristas.");
-       activateView("driverapps");
-       return
-     }
-
-     if(currentEntry){
-       currentEntry.whatsapp=answer.trim();
-       persist();
-       renderFleet();
-       renderDriverApps()
-     }
-
-     let verifiedAppUrl="";
-     try{
-       verifiedAppUrl=await prepareVerifiedDriverApp(driverFilter,routesList)
-     }catch(e){
-       if(preparedWindow)preparedWindow.close();
-       console.error(e);
-       alert(`A rota foi gerada, mas o link NÃO foi enviado porque o Firebase não confirmou todas as viagens de ${driverFilter}.\n\n${e.message||e}`);
-       activateView("driverapps");
-       return
-     }
-
-     const msg=whatsappMessageForRoutes(driverFilter,routesList,verifiedAppUrl);
-     const waUrl=`https://wa.me/${phone}?text=${encodeURIComponent(msg)}`;
-
-     if(preparedWindow)preparedWindow.location.href=waUrl;
-     else window.open(waUrl,"_blank","noopener")
-   }else{
-     if(preparedWindow)preparedWindow.close();
-     renderWhatsAppDispatch();
-     toast("Roteirização geral concluída. Apps liberados; agora você pode enviar as rotas pelo WhatsApp.")
+   // Liberação geral é tudo-ou-nada.
+   if(errors>0){
+     settings.bulkRoutingRevision="";settings.bulkRoutingAt="";persist();updateDriverAppReleaseUi();
+     await publishDriverAppsWaiting("Roteirização incompleta. Aguardando correção e nova liberação.").catch(console.error);
+     $("mapStatus").innerHTML=`<div style="font-size:20px">!</div><div><strong>Apps NÃO liberados.</strong> ${success} rota(s) calculada(s), ${errors} com pendência. Corrija as pendências e clique novamente em “Roteirizar todos e liberar Apps”.<br><small>${errorList.slice(0,5).map(esc).join(" • ")}</small></div>`;
+     alert(`A roteirização geral não foi liberada porque ${errors} rota(s) tiveram pendência.\n\nNenhum App recebeu pedidos/rotas.\n\n${errorList.slice(0,8).join("\n")}`);
+     return
    }
+
+   if(!firebaseConfigReady()){
+     settings.bulkRoutingRevision="";settings.bulkRoutingAt="";persist();updateDriverAppReleaseUi();
+     $("mapStatus").innerHTML='<div style="font-size:20px">!</div><div><strong>Rotas calculadas, mas Apps NÃO liberados.</strong> O Firebase não está disponível.</div>';
+     alert("As rotas foram calculadas, mas os Apps não foram liberados porque o Firebase não está disponível.");
+     return
+   }
+
+   const driversToPublish=[...new Set(days.flatMap(info=>{
+     const plan=plans[info.key];
+     return (plan?.shipments||[]).filter(s=>(s.orders||[]).length&&s.driver&&norm(s.driver)!=="A DEFINIR").map(s=>s.driver)
+   }))];
+
+   let publishErrors=[];
+   for(const driver of driversToPublish){
+     const rs=routesForDriverApp(driver);
+     if(!rs.length){
+       publishErrors.push(`${driver}: nenhuma rota válida da versão atual`);
+       continue
+     }
+     try{await publishDriverAppBundle(driver,rs)}
+     catch(e){console.error("Publicação App",driver,e);publishErrors.push(`${driver}: ${e.message||e}`)}
+   }
+
+   if(publishErrors.length){
+     settings.bulkRoutingRevision="";settings.bulkRoutingAt="";persist();updateDriverAppReleaseUi();
+     // Reverte qualquer publicação parcial para Aguardando roteirização.
+     await publishDriverAppsWaiting("Falha na liberação geral. Aguardando nova tentativa.").catch(console.error);
+     renderDriverApps();renderWhatsAppDispatch();
+     $("mapStatus").innerHTML=`<div style="font-size:20px">!</div><div><strong>Apps NÃO liberados.</strong> Falhou a publicação de ${publishErrors.length} motorista(s). Nenhum App permanecerá com a operação parcial.</div>`;
+     alert(`Falha ao liberar os Apps.\n\nNenhum App ficará com publicação parcial.\n\n${publishErrors.slice(0,8).join("\n")}`);
+     return
+   }
+
+   settings.bulkRoutingRevision=settings.espdOperationalRevision;
+   settings.bulkRoutingAt=new Date().toISOString();
+   persist();updateDriverAppReleaseUi();
+   renderDriverApps();renderWhatsAppDispatch();renderRoutingQueue();
+   connectLiveTracking().catch(console.error);
+
+   $("mapStatus").innerHTML=`<div style="font-size:20px">✓</div><div><strong>Roteirização geral concluída e Apps liberados.</strong> ${success} rota(s) calculada(s)${skippedFinalized?` • ${skippedFinalized} concluída(s) preservada(s)`:""}${reactivatedNoTime?` • ${reactivatedNoTime} reativação(ões)`:""}. Agora os Apps podem receber pedidos e rotas.</div>`;
+   toast("Roteirização geral concluída. Apps liberados com sucesso.")
  }finally{
    driverRouteGenerationBusy=false;
-   btn.disabled=false
+   if(btn)btn.disabled=false;if(allBtn)allBtn.disabled=false
  }
 }
 function savedDriverRoutesForMap(options={}){
@@ -4191,7 +4262,7 @@ function driverAppUrlForRoutes(driver,routesList){
  // Compatibilidade sem Firebase.
  const publicBase=normalizedPublicBaseUrl();
  const url=publicBase?new URL("motorista.html",publicBase):new URL("motorista.html",window.location.href);
- url.searchParams.set("v","546");
+ url.searchParams.set("v","547");
  url.hash=encodeDriverAppPayload(compactDriverBundle(driver,valid));
  return url.href
 }
@@ -4225,7 +4296,7 @@ async function prepareVerifiedDriverApp(driver,routesList){
  const url=driverAppUrlForRoutes(driver,valid);
  if(!url)throw new Error(`Não foi possível gerar o link do App de ${driver}.`);
  if(firebaseConfigReady()&&url.includes("&cfg=")){
-   throw new Error("Foi detectado um link antigo com configuração Firebase embutida. Atualize o sistema para a V5.46.")
+   throw new Error("Foi detectado um link antigo com configuração Firebase embutida. Atualize o sistema para a V5.47.")
  }
  return url
 }
@@ -4853,13 +4924,17 @@ async function osrmDistanceKm(points){
  const coords=points.map(p=>`${p.lon},${p.lat}`).join(";");
  const url=`https://router.project-osrm.org/route/v1/driving/${coords}?overview=false&steps=false`;
  try{
-   const r=await fetch(url);
-   if(!r.ok)throw new Error(`OSRM HTTP ${r.status}`);
-   const j=await r.json();
+   const j=await fetchJsonRobust(url,{timeoutMs:14000,retries:2});
    const km=j?.routes?.[0]?.distance/1000;
-   if(!Number.isFinite(km))return null;
-   osrmCache.set(key,km);await sleep(180);return km
- }catch(e){console.warn("OSRM",e);return null}
+   if(!Number.isFinite(km))throw new Error("Distância rodoviária ausente");
+   osrmCache.set(key,km);await sleep(100);return km
+ }catch(e){
+   console.warn("OSRM análise indisponível; estimando corredor.",e);
+   let meters=0;
+   for(let i=0;i<points.length-1;i++)meters+=approximateRoadDistanceMeters(points[i],points[i+1]);
+   const km=meters/1000;
+   return Number.isFinite(km)?km:null
+ }
 }
 async function verifyCityOnRoute(route,cityCoord,corridorKm,maxExtraKm){
  const pts=await routePointsFor(route);
@@ -5002,9 +5077,17 @@ async function analyzeRoutes(){
    }
 
    lastRouteAnalysis=suggestions;
+   lastRouteAnalysisDayKey=dayKey;
+   lastRouteAnalysisCounts={
+     under:targetShipments.length,
+     compatible:compatibleCount,
+     future:futureCompatibleCount,
+     suggestions:suggestions.filter(s=>s.selected.length||s.noWeight&&s.compatible.length).length,
+     noWeight
+   };
    $("raCompatible").textContent=compatibleCount;
    $("raFuture").textContent=futureCompatibleCount;
-   $("raSuggestions").textContent=suggestions.filter(s=>s.selected.length||s.noWeight&&s.compatible.length).length;
+   $("raSuggestions").textContent=lastRouteAnalysisCounts.suggestions;
    $("raNoWeight").textContent=noWeight;
    renderRouteAnalysis(suggestions);
    setRouteAnalysisStatus("Análise concluída.",`${compatibleCount} pedido(s) encontrados em corredores compatíveis, sendo ${futureCompatibleCount} de rotas futuras. Nada foi movido sem sua confirmação.`,"ok");
@@ -5759,8 +5842,39 @@ function manualEmbarkMilkOrder(encodedOrder){
  target.weight+=o.weight;plan.seen[o.id]=new Date().toISOString();persist();renderPlanning();renderWeeklyDashboard();toast(`Pedido ${o.id} incluído manualmente no embarque ${target.shipment}.`)
 }
 
+
+function refreshEmbarqueConsolidationMetrics(){
+ const dayKey=currentPlanKey(),plan=plans[dayKey];
+ const targetPct=80;
+ const shipments=(plan?.shipments||[]).filter(s=>(s.orders||[]).length);
+ const under=shipments.filter(s=>{const occ=shipmentOcc(s);return occ===null||occ<targetPct}).length;
+ const noWeight=shipments.filter(s=>shipmentOcc(s)===null).length;
+ if($("raUnder"))$("raUnder").textContent=under;
+ if($("raNoWeight"))$("raNoWeight").textContent=noWeight;
+
+ const sameAnalysis=lastRouteAnalysisDayKey===dayKey&&lastRouteAnalysisCounts;
+ if($("raCompatible"))$("raCompatible").textContent=sameAnalysis?lastRouteAnalysisCounts.compatible:"—";
+ if($("raFuture"))$("raFuture").textContent=sameAnalysis?lastRouteAnalysisCounts.future:"—";
+ if($("raSuggestions"))$("raSuggestions").textContent=sameAnalysis?lastRouteAnalysisCounts.suggestions:"—";
+ const state=$("embarqueAnalysisState");
+ if(state)state.textContent=sameAnalysis
+   ?`Última análise: ${lastRouteAnalysisCounts.compatible} compatível(is), ${lastRouteAnalysisCounts.future} futuro(s), ${lastRouteAnalysisCounts.suggestions} sugestão(ões).`
+   :"Indicadores de ocupação atualizados. Clique em Analisar consolidação para calcular corredores e combinações."
+}
+async function analyzeConsolidationFromEmbarques(){
+ const dayKey=currentPlanKey();
+ if($("raDay")){
+   const option=[...$("raDay").options].find(o=>o.value===dayKey);
+   if(option)$("raDay").value=dayKey
+ }
+ const state=$("embarqueAnalysisState");
+ if(state)state.textContent="Analisando corredores e combinações...";
+ await analyzeRoutes();
+ refreshEmbarqueConsolidationMetrics()
+}
 function renderPlanning(){
  renderRedeliveryPanels();
+ refreshEmbarqueConsolidationMetrics();
  const d=new Date(),tm=tomorrow(),day=tomorrowDay(),p=getPlan();$("pToday").textContent=fmtDate(d);$("pTomorrow").textContent=fmtDate(tm);$("pDay").textContent=day;$("pLast").textContent=settings.lastShipment;$("pNext").textContent=(Number(settings.lastShipment)||0)+1;$("lastShipmentInput").value=settings.lastShipment;$("heavyThreshold").value=settings.heavyThreshold;$("fleetPriority").value=settings.fleetPriority;
  const eligible=aggregatedOrders.filter(o=>!o.sourceShipment&&!!routeForCity(o.city)&&normalizeOrderCategory(o)!=="LEITE").length;
  $("pmEligible").textContent=eligible;$("pmShipments").textContent=p.shipments.filter(s=>s.status==="ABERTO").length;$("pmPending").textContent=p.pending.length;

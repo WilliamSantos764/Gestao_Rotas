@@ -1,6 +1,6 @@
-Gestão Logística V5.46
-Apps recebem rotas/pedidos somente após Roteirizar todos e liberar Apps.
-WhatsApp editável diretamente em WhatsApp — envio das rotas.
-Desvincular ESPD limpa toda a operação preservando Motoristas/Frota/Rotas Fixas.
-Menu principal reduzido a Embarques + Central de Rotas + engrenagem.
-Apps instalados exibem Aguardando roteirização quando bloqueados.
+Gestão Logística V5.47
+Matriz rodoviária dividida em blocos com retry/fallback.
+Rotas finais grandes divididas em trechos.
+Roteirizar todos e liberar Apps = tudo ou nada.
+Indicadores de consolidação movidos para Embarques.
+Indicadores de corredor deixam de exibir zero falso antes da análise.
