@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Gestão Logística - V5.29 Link Motorista Corrigido</title>
+<title>Gestão Logística - V5.30 Link Curto + Firebase Embutido</title>
 <style>
 :root{
   --bg:#f3f6fb;--card:#fff;--line:#e2e8f0;--text:#152033;--muted:#667085;
@@ -365,7 +365,7 @@ main{max-width:1580px;margin:auto;padding:20px}.view{display:none}.view.active{d
 </head>
 <body>
 <header class="top"><div class="topin">
- <div class="brand"><div class="logo">R</div><div><h1>Gestão Logística - Rotas e Embarques V5.29</h1><small>Rotas • ESPD • Frota • Embarques automáticos</small></div></div>
+ <div class="brand"><div class="logo">R</div><div><h1>Gestão Logística - Rotas e Embarques V5.30</h1><small>Rotas • ESPD • Frota • Embarques automáticos</small></div></div>
  <nav class="nav">
   <button class="active" data-view="planning">Dashboard semanal</button>
   <button data-view="routeanalysis">Análise de rotas</button>
@@ -493,7 +493,7 @@ main{max-width:1580px;margin:auto;padding:20px}.view{display:none}.view.active{d
    </div>
    <div class="realtime-config">
     <div class="realtime-config-head">
-     <div><h4>Rastreamento em tempo real</h4><small>Firebase do Gestão Logística já integrado. Esta configuração armazena os Apps dos motoristas e recebe o GPS dos caminhões na central.</small></div>
+     <div><h4>Rastreamento em tempo real</h4><small>Firebase do Gestão Logística já integrado. Na V5.30 o App do Motorista também possui essa configuração embutida, evitando links cortados pelo WhatsApp.</small></div>
      <span class="badge review" id="firebaseConnectionBadge">NÃO CONFIGURADO</span>
     </div>
     <textarea id="firebaseConfigText" placeholder="Configuração Firebase integrada automaticamente."></textarea>
@@ -501,7 +501,7 @@ main{max-width:1580px;margin:auto;padding:20px}.view{display:none}.view.active{d
      <button type="button" class="btn small primary" id="saveFirebaseConfig">Salvar / reconectar</button>
      <button type="button" class="btn small" id="connectLiveTracking">📡 Conectar caminhões ao vivo</button>
     </div>
-    <div id="firebaseStatus" class="realtime-status">Firebase integrado. A central tentará conectar automaticamente ao abrir o sistema.</div>
+    <div id="firebaseStatus" class="realtime-status">Firebase integrado. A central conecta automaticamente e os links dos motoristas agora são curtos, sem JSON dentro do WhatsApp.</div>
    </div>
   </div>
   <div class="route-map-wrap"><div id="routeMap"></div></div>
@@ -1001,12 +1001,12 @@ async function publishDriverAppBundle(driver,routesList){
  bundle.publicationRevision=revision;
  bundle.routeSignature=signature;
  bundle.publishedAt=new Date().toISOString();
- bundle.appBuild="V5.29";
+ bundle.appBuild="V5.30";
 
  const safeBundle=cleanFirebaseObject(bundle);
  await rt.dbMod.set(rt.dbMod.ref(rt.db,`driverApps/${publication.appId}`),safeBundle);
 
- // A V5.29 NÃO libera o link antes de confirmar que o Firebase devolve o pacote completo.
+ // A V5.30 NÃO libera o link antes de confirmar que o Firebase devolve o pacote completo.
  const checkSnap=await rt.dbMod.get(rt.dbMod.ref(rt.db,`driverApps/${publication.appId}`));
  if(!checkSnap.exists())throw new Error("O Firebase não devolveu as viagens após a publicação.");
  const remote=checkSnap.val();
@@ -1052,13 +1052,15 @@ async function ensureDriverAppPublished(driver,routesList){
 }
 function publishedDriverAppUrl(driver){
  const pub=firebasePublicationForDriver(driver);
- const cfgToken=firebaseConfigToken();
- if(!pub?.appId||!cfgToken)return"";
+ if(!pub?.appId)return"";
  const publicBase=normalizedPublicBaseUrl();
  if(!publicBase&&!/^https?:$/.test(location.protocol))return"";
  const url=publicBase?new URL("motorista.html",publicBase):new URL("motorista.html",window.location.href);
- url.searchParams.set("v","529");
- url.hash=`app=${encodeURIComponent(pub.appId)}&cfg=${encodeURIComponent(cfgToken)}&rev=${encodeURIComponent(pub.revision||"")}&orders=${encodeURIComponent(pub.orderCount||0)}&stops=${encodeURIComponent(pub.totalStops||0)}&driver=${encodeURIComponent(pub.driver||driver)}`;
+
+ // V5.30: Firebase já está embutido no motorista.html.
+ // O WhatsApp recebe somente um link curto; não há mais JSON/configuração no hash.
+ url.searchParams.set("v","530");
+ url.hash=`app=${encodeURIComponent(pub.appId)}&rev=${encodeURIComponent(pub.revision||"")}&orders=${encodeURIComponent(pub.orderCount||0)}&stops=${encodeURIComponent(pub.totalStops||0)}&driver=${encodeURIComponent(pub.driver||driver)}`;
  return url.href
 }
 function stopLiveTrackingSubscriptions(){
@@ -2880,7 +2882,7 @@ function driverAppUrlForRoutes(driver,routesList){
  // Compatibilidade sem Firebase.
  const publicBase=normalizedPublicBaseUrl();
  const url=publicBase?new URL("motorista.html",publicBase):new URL("motorista.html",window.location.href);
- url.searchParams.set("v","529");
+ url.searchParams.set("v","530");
  url.hash=encodeDriverAppPayload(compactDriverBundle(driver,valid));
  return url.href
 }
@@ -2912,6 +2914,9 @@ async function prepareVerifiedDriverApp(driver,routesList){
 
  const url=driverAppUrlForRoutes(driver,valid);
  if(!url)throw new Error(`Não foi possível gerar o link do App de ${driver}.`);
+ if(firebaseConfigReady()&&url.includes("&cfg=")){
+   throw new Error("Foi detectado um link antigo com configuração Firebase embutida. Atualize o sistema para a V5.30.")
+ }
  return url
 }
 async function openDriverDeliveryApp(encodedDay,encodedDriver){

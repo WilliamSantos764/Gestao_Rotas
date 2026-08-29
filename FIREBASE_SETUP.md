@@ -1,6 +1,6 @@
-# Firebase já integrado na V5.29
+# Firebase já integrado na V5.30
 
-A configuração Web do projeto Firebase já está gravada no Gestão Logística V5.29.
+A configuração Web do projeto Firebase já está gravada no Gestão Logística V5.30.
 Você não precisa mais copiar o JSON para o sistema.
 
 Este arquivo permanece como referência para:
@@ -92,11 +92,25 @@ Exemplo:
 10. Na central clique em **Conectar caminhões ao vivo**.
 
 
-## V5.29 — conferência do link
+## V5.30 — conferência do link
 
 A central agora verifica a gravação em `driverApps/<appId>` antes de enviar o link ao motorista.
 Se o WhatsApp não abrir, verifique primeiro:
 
 1. Authentication > Anonymous habilitado.
 2. Realtime Database Rules publicadas.
-3. `index.html` e `motorista.html` V5.29 publicados no mesmo diretório HTTPS.
+3. `index.html` e `motorista.html` V5.30 publicados no mesmo diretório HTTPS.
+
+
+## V5.30 — link curto
+
+O `motorista.html` agora contém a configuração Web Firebase usada pelo projeto.
+Não existe mais necessidade de transportar `firebaseConfig` no link do WhatsApp.
+
+Formato esperado do link:
+
+`motorista.html?v=530#app=driver_xxx&rev=rev_xxx&orders=N&stops=N&driver=NOME`
+
+A leitura das viagens continua sendo feita em:
+
+`driverApps/<appId>`

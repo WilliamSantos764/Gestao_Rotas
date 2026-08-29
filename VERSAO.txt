@@ -1,3 +1,4 @@
-Gestão Logística V5.29
-Correção: link do App do Motorista com publicação/verificação no Firebase e sincronização de viagens.
-Ao publicar: substitua index.html E motorista.html.
+Gestão Logística V5.30
+Correção definitiva do App do Motorista: Firebase embutido no motorista.html e link curto no WhatsApp.
+Erro corrigido: Unterminated string in JSON causado por cfg truncado no link.
+Publicar index.html E motorista.html.

@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#101828">
-<title>App do Motorista - V5.29 GPS Sincronizado</title>
+<title>App do Motorista - V5.30 GPS Firebase Embutido</title>
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
 <style>
 :root{--bg:#f2f4f7;--card:#fff;--text:#101828;--muted:#667085;--line:#d0d5dd;--accent:#155eef;--ok:#027a48;--warn:#b54708}
@@ -54,7 +54,7 @@ footer{padding:14px;text-align:center;color:var(--muted);font-size:10px}
   <p id="subtitle">Carregando rota...</p>
 </header>
 <div class="wrap">
-  <div class="rule">✓ Este App reúne TODAS as entregas roteirizadas do motorista. Ao autorizar o GPS, a rota ativa é recalculada a partir da localização atual do caminhão.</div>
+  <div class="rule">✓ Este App V5.30 carrega TODAS as entregas do motorista diretamente do Firebase. Ao autorizar o GPS, a rota ativa é recalculada a partir da localização atual do caminhão.</div>
   <section class="gpsbox">
    <div class="gpshead">
     <div><h2>GPS do motorista</h2><small>Permita a localização para criar a rota a partir de onde o caminhão está e enviar sua posição em tempo real para o Gestão Logística.</small></div>
@@ -80,11 +80,12 @@ footer{padding:14px;text-align:center;color:var(--muted);font-size:10px}
   <main id="stops"></main>
   <div id="error" class="empty" style="display:none"></div>
 </div>
-<footer>App de rota gerado pelo sistema de Gestão Logística.</footer>
+<footer>App de rota gerado pelo sistema de Gestão Logística. • V5.30</footer>
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script>
 const $=id=>document.getElementById(id);
 const FIREBASE_SDK_VERSION="10.14.1";
+const EMBEDDED_FIREBASE_CONFIG={"apiKey":"AIzaSyBmEX1QM6pJmMO116YTADhqMKOhWl5Nz8Q","authDomain":"gestao-logistica-4c606.firebaseapp.com","databaseURL":"https://gestao-logistica-4c606-default-rtdb.firebaseio.com/","projectId":"gestao-logistica-4c606","appId":"1:484709506190:web:52590b0888a1da0f1efddf"};
 function esc(s){return String(s??"").replace(/[&<>"']/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#039;"}[m]))}
 function km(v){return (Number(v||0)/1000).toLocaleString("pt-BR",{maximumFractionDigits:1})+" km"}
 function decodeBase64Url(raw){
@@ -97,12 +98,18 @@ function decodeBase64Url(raw){
 function legacyPayload(){
  const raw=(location.hash||"").slice(1);
  if(!raw)throw new Error("Link sem dados do App.");
+ if(raw.includes("app="))throw new Error("Link online inválido: ID do App não reconhecido.");
  return decodeBase64Url(raw)
 }
-function hashParams(){
- const raw=(location.hash||"").slice(1);
- if(!raw.startsWith("app="))return null;
- return new URLSearchParams(raw)
+function onlineParams(){
+ const hashRaw=(location.hash||"").slice(1);
+ if(hashRaw.includes("app=")){
+   const hp=new URLSearchParams(hashRaw);
+   if(hp.get("app"))return hp
+ }
+ const qp=new URLSearchParams(location.search||"");
+ if(qp.get("app"))return qp;
+ return null
 }
 async function firebaseRuntimeFromConfig(cfg){
  const base=`https://www.gstatic.com/firebasejs/${FIREBASE_SDK_VERSION}`;
@@ -150,16 +157,17 @@ async function readDriverBundleWithRetry(rt,appId,expected){
    await wait(650)
  }
  if(last){
-   throw new Error(`A central respondeu, mas o pacote de viagens ainda não está pronto. Atualize a rota na central e tente novamente.`)
+   throw new Error(`O App conectou ao Firebase, mas o pacote publicado ainda não confere com a rota. Gere/atualize a rota na central e envie novamente.`)
  }
- throw new Error("As viagens deste motorista não foram encontradas no Firebase. Gere/atualize a rota na central e envie o link novamente.")
+ throw new Error("O App conectou ao Firebase, mas não encontrou o pacote de viagens deste motorista. Na central, gere/atualize a rota e use novamente o botão Enviar celular.")
 }
 async function loadPayload(){
- const params=hashParams();
+ const params=onlineParams();
  if(!params)return{payload:legacyPayload(),tracking:null};
- const appId=params.get("app"),cfgToken=params.get("cfg");
- if(!appId||!cfgToken)throw new Error("Link online incompleto.");
- const cfg=decodeBase64Url(cfgToken);
+
+ const appId=String(params.get("app")||"").trim();
+ if(!appId)throw new Error("O link do motorista não contém o ID das viagens.");
+
  const expected={
    rev:params.get("rev")||"",
    driver:params.get("driver")||"",
@@ -169,15 +177,35 @@ async function loadPayload(){
  if(!params.has("orders"))expected.orders=NaN;
  if(!params.has("stops"))expected.stops=NaN;
 
+ // V5.30: NÃO depende mais do cfg enviado pelo WhatsApp.
+ // O Firebase oficial do Gestão Logística já está dentro deste arquivo.
+ let cfg=EMBEDDED_FIREBASE_CONFIG;
+
+ // Compatibilidade com links antigos: se houver cfg antigo e ele estiver íntegro,
+ // ele pode ser lido; se estiver truncado/corrompido, é simplesmente ignorado.
+ const legacyCfgToken=params.get("cfg");
+ if(legacyCfgToken){
+   try{
+     const legacyCfg=decodeBase64Url(legacyCfgToken);
+     if(legacyCfg?.apiKey&&legacyCfg?.databaseURL&&legacyCfg?.projectId&&legacyCfg?.appId){
+       cfg=legacyCfg
+     }
+   }catch(e){
+     console.warn("Configuração antiga do link estava cortada; usando Firebase embutido da V5.30.",e)
+   }
+ }
+
  $("gpsStatus").textContent="Conectando ao Gestão Logística...";
  let rt;
  try{
    rt=await firebaseRuntimeFromConfig(cfg)
  }catch(e){
    const msg=String(e?.message||e);
-   if(/operation-not-allowed|auth/i.test(msg))throw new Error("O acesso do motorista ao Firebase não foi autorizado. Ative Authentication > Anonymous no projeto Firebase.");
+   if(/operation-not-allowed|auth/i.test(msg))throw new Error("O Firebase recusou o acesso anônimo. Ative Authentication > Anonymous no projeto Firebase.");
+   if(/permission|denied/i.test(msg))throw new Error("O Firebase recusou a leitura das viagens. Confira as regras do Realtime Database.");
    throw e
  }
+
  const payload=await readDriverBundleWithRetry(rt,appId,expected);
  return{payload,tracking:{...rt,appId,cfg,expected}}
 }
@@ -431,7 +459,7 @@ async function boot(){
    }
  }catch(e){
    $("map").style.display="none";$("stops").style.display="none";$("error").style.display="block";
-   $("error").textContent=(e.message||String(e))+"\n\nSe este link veio do WhatsApp, peça à central para abrir a V5.29, gerar/atualizar a rota do motorista e enviar o link novamente.";$("subtitle").textContent="Não foi possível abrir as entregas.";
+   $("error").textContent=(e.message||String(e))+"\n\nSe este link veio do WhatsApp, peça à central para abrir a V5.30, gerar/atualizar a rota do motorista e enviar o link novamente.";$("subtitle").textContent="Não foi possível abrir as entregas.";
    $("gpsStatus").textContent=e.message||String(e)
  }
 }
