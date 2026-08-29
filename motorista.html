@@ -10,7 +10,7 @@
 <meta name="apple-mobile-web-app-title" content="Motorista">
 <link rel="manifest" href="./manifest.webmanifest">
 <link rel="apple-touch-icon" href="./icons/icon-192.png">
-<title>App do Motorista - V5.41 Embarques + Rotas</title>
+<title>App do Motorista - V5.42 Linha Azul Estável</title>
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
 <style>
 :root{--bg:#f2f4f7;--card:#fff;--text:#101828;--muted:#667085;--line:#d0d5dd;--accent:#155eef;--ok:#027a48;--warn:#b54708}
@@ -168,7 +168,7 @@ footer{padding:14px;text-align:center;color:var(--muted);font-size:10px}
     <b id="progressText">0/0 entregas concluídas</b>
     <div class="progressline"><i id="progressBar"></i></div>
   </div>
-  <div id="mapLegend" class="maplegend"><span class="route-sample"></span><span>Linha azul contínua = caminho pelas ruas, da posição atual até todas as entregas restantes da rota ativa.</span></div>
+  <div id="mapLegend" class="maplegend"><span class="route-sample"></span><span>Linha azul contínua = trajeto da rota. Com GPS ativo, acompanha a posição atual pelas ruas até todas as entregas restantes.</span></div>
   <div id="map"></div>
   <div class="work-section-title"><h2>Rotas pendentes para fazer</h2><span id="pendingRouteCount">0 pendentes</span></div>
   <main id="stops"></main>
@@ -179,7 +179,7 @@ footer{padding:14px;text-align:center;color:var(--muted);font-size:10px}
   </details>
   <div id="error" class="empty" style="display:none"></div>
 </div>
-<footer>App de rota gerado pelo sistema de Gestão Logística. • V5.41 — reentregas sincronizadas</footer>
+<footer>App de rota gerado pelo sistema de Gestão Logística. • V5.42 — reentregas sincronizadas</footer>
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script>
 const $=id=>document.getElementById(id);
@@ -363,7 +363,7 @@ async function loadPayload(){
  if(!params.has("orders"))expected.orders=NaN;
  if(!params.has("stops"))expected.stops=NaN;
 
- // V5.41: NÃO depende mais do cfg enviado pelo WhatsApp.
+ // V5.42: NÃO depende mais do cfg enviado pelo WhatsApp.
  // O Firebase oficial do Gestão Logística já está dentro deste arquivo.
  let cfg=EMBEDDED_FIREBASE_CONFIG;
 
@@ -377,7 +377,7 @@ async function loadPayload(){
        cfg=legacyCfg
      }
    }catch(e){
-     console.warn("Configuração antiga do link estava cortada; usando Firebase embutido da V5.41.",e)
+     console.warn("Configuração antiga do link estava cortada; usando Firebase embutido da V5.42.",e)
    }
  }
 
@@ -423,6 +423,44 @@ function syncHeaderFromApp(){
  $("kOrders").textContent=orders.size;
  $("kKm").textContent=km((app.routes||[]).filter((_,ri)=>!routeIsCompletedByIndex(ri)).reduce((n,r)=>n+Number(r.totalDistance||0),0))
 }
+
+function routeStableKey(route){
+ return[
+   route?.dayKey||"",
+   route?.driver||app?.driver||"",
+   (route?.shipments||[]).map(String).sort().join(",")
+ ].join("|")
+}
+function captureLiveRouteState(payload){
+ const state=new Map();
+ (payload?.routes||[]).forEach(route=>{
+   const key=routeStableKey(route);
+   if(!key)return;
+   state.set(key,{
+     liveGeometry:Array.isArray(route.liveGeometry)?route.liveGeometry:[],
+     liveDistance:Number(route.liveDistance||0),
+     liveDuration:Number(route.liveDuration||0),
+     liveOrigin:route.liveOrigin||null
+   })
+ });
+ return state
+}
+function restoreLiveRouteState(payload,state){
+ (payload?.routes||[]).forEach(route=>{
+   const saved=state.get(routeStableKey(route));
+   if(!saved)return;
+   if(saved.liveGeometry?.length>1)route.liveGeometry=saved.liveGeometry;
+   if(saved.liveDistance)route.liveDistance=saved.liveDistance;
+   if(saved.liveDuration)route.liveDuration=saved.liveDuration;
+   if(saved.liveOrigin)route.liveOrigin=saved.liveOrigin
+ })
+ return payload
+}
+function plannedGeometryForRoute(route){
+ return(Array.isArray(route?.plannedGeometry)?route.plannedGeometry:[])
+   .map(p=>[Number(p?.[0]),Number(p?.[1])])
+   .filter(p=>Number.isFinite(p[0])&&Number.isFinite(p[1]))
+}
 function startOnlineBundleSync(){
  if(!tracking?.dbMod||!tracking?.db||!tracking?.appId)return;
  if(onlineBundleUnsub){try{onlineBundleUnsub()}catch{} onlineBundleUnsub=null}
@@ -434,14 +472,15 @@ function startOnlineBundleSync(){
      if(!onlineBundleMatches(raw,tracking.expected||{}))return;
      const next=normalizePayload(raw);
      if(String(next.publicationRevision||"")===String(app?.publicationRevision||""))return;
-     app=next;
+     const liveState=captureLiveRouteState(app);
+     app=restoreLiveRouteState(next,liveState);
      done=loadDone(app);
      hydrateDeliveryProofs().then(()=>{renderStops();updateProgress();rebuildMap({fit:false})}).catch(console.error);
      syncHeaderFromApp();
      liveRouteFitted=false;
      renderStops();updateProgress();rebuildMap({fit:!currentLocation});
      $("gpsStatus").textContent="✓ Viagens atualizadas automaticamente pela central.";
-     if(currentLocation)optimizeFromCurrentLocation(false).catch(console.error)
+     if(currentLocation)requestLiveRouteRecalc(false)
    }catch(e){console.error("Sincronização das viagens:",e)}
  })
 }
@@ -720,7 +759,7 @@ async function registerDeliveryException(global,status){
 
    deliveryEvents[eventId]=record;
    renderStops();updateProgress();rebuildMap({fit:false});
-   if(currentLocation)await optimizeFromCurrentLocation(false).catch(console.error);
+   if(currentLocation)requestLiveRouteRecalc(false);
    await publishTracking(true).catch(console.error);
 
    $("gpsStatus").textContent=status==="CANHOTO_RETIDO"
@@ -743,7 +782,7 @@ async function reactivateDelivery(global){
    await tracking.dbMod.set(tracking.dbMod.ref(tracking.db,`driverApps/${tracking.appId}/deliveryEvents/${key}`),updated);
    deliveryEvents[key]=updated;
    renderStops();updateProgress();rebuildMap({fit:false});
-   if(currentLocation)await optimizeFromCurrentLocation(false).catch(console.error);
+   if(currentLocation)requestLiveRouteRecalc(false);
    await publishTracking(true).catch(console.error)
  }catch(e){
    alert(`Não foi possível reativar a entrega: ${e.message||e}`)
@@ -843,7 +882,7 @@ async function withTimeout(promise,ms,label){
 }
 function proofViewerUrl(proofId){
  const url=new URL("canhoto.html",window.location.href);
- url.searchParams.set("v","541");
+ url.searchParams.set("v","542");
  url.hash=`app=${encodeURIComponent(tracking.appId)}&proof=${encodeURIComponent(proofId)}`;
  return url.href
 }
@@ -942,7 +981,7 @@ async function confirmDeliveryProof(){
    renderStops();
    updateProgress();
    rebuildMap({fit:false});
-   if(currentLocation)await optimizeFromCurrentLocation(false).catch(console.error);
+   if(currentLocation)requestLiveRouteRecalc(false);
    await publishTracking(true).catch(console.error);
 
    $("proofUploadStatus").textContent="✓ Canhoto salvo. Abrindo o WhatsApp...";
@@ -953,13 +992,13 @@ async function confirmDeliveryProof(){
    if(waWindow&&!waWindow.closed)waWindow.location.href=waUrl;
    else window.location.href=waUrl
  }catch(e){
-   console.error("Canhoto V5.41:",e);
+   console.error("Canhoto V5.42:",e);
    if(waWindow&&!waWindow.closed)try{waWindow.close()}catch{}
    const msg=String(e?.message||e);
 
    let hint="";
    if(/permission|denied/i.test(msg)){
-     hint="\n\nO Realtime Database bloqueou o canhoto. Publique o firebase-rules.json da V5.41."
+     hint="\n\nO Realtime Database bloqueou o canhoto. Publique o firebase-rules.json da V5.42."
    }else if(/demorou|network|internet/i.test(msg)){
      hint="\n\nConfira a internet do celular e toque novamente em “Enviar canhoto e concluir”."
    }
@@ -1027,6 +1066,17 @@ function geoDistanceMeters(a,b){
  const h=Math.sin(dLat/2)**2+Math.cos(lat1)*Math.cos(lat2)*Math.sin(dLon/2)**2;
  return 2*R*Math.asin(Math.min(1,Math.sqrt(h)))
 }
+
+function requestLiveRouteRecalc(showMessage=false){
+ routeCalcPending=true;
+ if(routeCalcBusy)return;
+ routeCalcPending=false;
+ optimizeFromCurrentLocation(showMessage).catch(e=>{
+   console.error("Recálculo do traçado:",e);
+   $("gpsStatus").textContent=`GPS ativo, mas o traçado será tentado novamente: ${e.message||e}`;
+   setTimeout(()=>requestLiveRouteRecalc(false),2500)
+ })
+}
 function scheduleLiveRouteRefresh(){
  if(!currentLocation||routeCalcBusy)return;
  const now=Date.now();
@@ -1038,10 +1088,7 @@ function scheduleLiveRouteRefresh(){
  if(lastRouteRefreshAt&&elapsed<30000&&moved<120)return;
  clearTimeout(routeRefreshTimer);
  routeRefreshTimer=setTimeout(()=>{
-   optimizeFromCurrentLocation(false).catch(e=>{
-     console.error("Atualização automática do traçado:",e);
-     $("gpsStatus").textContent=`GPS ativo, mas não foi possível atualizar o traçado agora: ${e.message||e}`
-   })
+   requestLiveRouteRecalc(false)
  },700)
 }
 
@@ -1103,10 +1150,10 @@ async function osrmMatrix(origin,stops){
  const j=await r.json();if(j.code!=="Ok"||!j.distances)throw new Error("Matriz rodoviária indisponível.");
  return j
 }
-async function osrmRoute(points){
+async function osrmRouteSegment(points){
  const coords=points.map(p=>`${p.lon},${p.lat}`).join(";");
  const approaches=points.map((_,i)=>i===0?"unrestricted":"curb").join(";");
- const base=`https://router.project-osrm.org/route/v1/driving/${coords}?overview=full&geometries=geojson&steps=true`;
+ const base=`https://router.project-osrm.org/route/v1/driving/${coords}?overview=full&geometries=geojson&steps=false`;
 
  let r=await fetch(`${base}&approaches=${approaches}`);
  if(r.ok){
@@ -1116,7 +1163,37 @@ async function osrmRoute(points){
  r=await fetch(base);
  if(!r.ok)throw new Error("Não foi possível montar o trajeto atual.");
  const j=await r.json();
- return j.routes?.[0]||null
+ const route=j.routes?.[0];
+ if(!route)throw new Error("O serviço de rotas não devolveu um trajeto.");
+ return route
+}
+async function osrmRoute(points){
+ const valid=(points||[]).filter(p=>Number.isFinite(Number(p?.lat))&&Number.isFinite(Number(p?.lon)));
+ if(valid.length<2)return null;
+
+ // Evita limite de URL/waypoints do servidor público.
+ // Cada bloco compartilha o último ponto com o bloco seguinte.
+ const MAX_POINTS=18;
+ if(valid.length<=MAX_POINTS)return osrmRouteSegment(valid);
+
+ let distance=0,duration=0;
+ const geometry=[];
+ let start=0;
+ while(start<valid.length-1){
+   const end=Math.min(valid.length,start+MAX_POINTS);
+   const segment=valid.slice(start,end);
+   const route=await osrmRouteSegment(segment);
+   distance+=Number(route.distance||0);
+   duration+=Number(route.duration||0);
+   const coords=route?.geometry?.coordinates||[];
+   coords.forEach((c,i)=>{
+     if(start>0&&i===0)return;
+     if(Array.isArray(c)&&Number.isFinite(Number(c[0]))&&Number.isFinite(Number(c[1])))geometry.push(c)
+   });
+   if(end>=valid.length)break;
+   start=end-1
+ }
+ return{distance,duration,geometry:{type:"LineString",coordinates:geometry}}
 }
 function updateProgress(){
  const stops=flatStops(app),total=stops.length,completed=stops.filter(s=>isStopDelivered(s)).length;
@@ -1250,12 +1327,20 @@ function rebuildMap(options={}){
  }
 
  const liveGeometry=Array.isArray(activeRoute?.liveGeometry)?activeRoute.liveGeometry:[];
- if(currentLocation&&liveGeometry.length>1){
+ const plannedGeometry=plannedGeometryForRoute(activeRoute);
+ const fallbackGeometry=currentLocation&&activeRoute
+   ?[[currentLocation.lat,currentLocation.lon],...(remainingActiveStops().map(s=>[Number(s.lat),Number(s.lon)]).filter(p=>Number.isFinite(p[0])&&Number.isFinite(p[1])))]
+   :[];
+ // Prioridade: traçado GPS real pelas ruas -> rota planejada da central -> linha temporária entre paradas.
+ const displayGeometry=(currentLocation&&liveGeometry.length>1)
+   ?liveGeometry
+   :(plannedGeometry.length>1?plannedGeometry:(fallbackGeometry.length>1?fallbackGeometry:[]));
+ if(displayGeometry.length>1){
    if(currentPolyline){
-     currentPolyline.setLatLngs(liveGeometry);
+     currentPolyline.setLatLngs(displayGeometry);
      currentPolyline.setStyle({color:"#155eef",weight:6,opacity:.94,lineCap:"round",lineJoin:"round"})
    }else{
-     currentPolyline=L.polyline(liveGeometry,{
+     currentPolyline=L.polyline(displayGeometry,{
        color:"#155eef",
        weight:6,
        opacity:.94,
@@ -1264,7 +1349,7 @@ function rebuildMap(options={}){
      }).addTo(map).bindPopup("<b>Traçado atual da rota</b><br>Caminho calculado pelas ruas até as entregas restantes.")
    }
    currentPolyline.bringToFront();
-   liveGeometry.forEach(p=>focusBounds.push(p));
+   displayGeometry.forEach(p=>focusBounds.push(p));
    $("mapLegend").classList.add("show")
  }else{
    if(currentPolyline){map.removeLayer(currentPolyline);currentPolyline=null}
@@ -1335,8 +1420,12 @@ async function optimizeFromCurrentLocation(showMessage=true){
    rebuildMap({fit:false});
    return
  }
- if(routeCalcBusy)return;
+ if(routeCalcBusy){
+   routeCalcPending=true;
+   return
+ }
  routeCalcBusy=true;
+ routeCalcPending=false;
  $("gpsStatus").textContent=`Calculando ruas e pontos de descarga para ${remaining.length} entrega(s)...`;
  let matrix;
  try{
@@ -1367,21 +1456,28 @@ async function optimizeFromCurrentLocation(showMessage=true){
 
    // Guarda no próprio App a geometria REAL pelas ruas.
    // GeoJSON vem [lon,lat], Leaflet usa [lat,lon].
-   route.liveGeometry=(final?.geometry?.coordinates||[])
+   const freshGeometry=(final?.geometry?.coordinates||[])
      .map(c=>[Number(c[1]),Number(c[0])])
      .filter(c=>Number.isFinite(c[0])&&Number.isFinite(c[1]));
+   if(freshGeometry.length>1){
+     route.liveGeometry=freshGeometry
+   }
 
    lastRoutedLocation={lat:currentLocation.lat,lon:currentLocation.lon};
    lastRouteRefreshAt=Date.now();
 
    $("currentRouteInfo").style.display="block";
    $("currentRouteInfo").innerHTML=`<b>Traçado da rota ativo:</b> ${esc(route.day||"rota")} • ${ordered.length} entrega(s) restante(s) • ${km(route.liveDistance)} estimados. <b>A linha azul contínua mostra o caminho até os pontos de descarga na via</b>. Entregas da mesma rua são agrupadas quando isso reduz manobras e deslocamentos.`;
-   $("gpsStatus").textContent=`Traçado atualizado às ${new Date().toLocaleTimeString("pt-BR")}.`;
+   $("gpsStatus").textContent=`Linha azul atualizada às ${new Date().toLocaleTimeString("pt-BR")}.`;
    renderStops();rebuildMap({fit:showMessage||!liveRouteFitted});updateProgress();
    if(showMessage)alert("Rota atualizada no mapa a partir da sua localização atual.");
    publishTracking(true).catch(console.error)
  }finally{
-   routeCalcBusy=false
+   routeCalcBusy=false;
+   if(routeCalcPending){
+     routeCalcPending=false;
+     setTimeout(()=>requestLiveRouteRecalc(false),120)
+   }
  }
 }
 async function publishTracking(force=false){
@@ -1468,10 +1564,10 @@ async function startGps(){
  watchId=navigator.geolocation.watchPosition(handlePosition,gpsError,{enableHighAccuracy:true,maximumAge:3000,timeout:15000});
  navigator.geolocation.getCurrentPosition(async pos=>{
    handlePosition(pos);
-   try{await optimizeFromCurrentLocation(false)}catch(e){$("gpsStatus").textContent=e.message||String(e)}
+   requestLiveRouteRecalc(false)
  },gpsError,{enableHighAccuracy:true,maximumAge:0,timeout:15000})
 }
-let app=null,done={},proofRecords={},retakeRequests={},deliveryEvents={},redeliveryApprovals={},map=null,mapStopLayer=null,mapBaseLayer=null,currentLocation=null,currentMarker=null,currentPolyline=null,tracking=null,watchId=null,lastPublish=0,routeCalcBusy=false,lastRouteRefreshAt=0,lastRoutedLocation=null,routeRefreshTimer=null,liveRouteFitted=false,pendingProofGlobal=null,pendingProofFile=null,proofPreviewUrl="",proofUploadBusy=false;
+let app=null,done={},proofRecords={},retakeRequests={},deliveryEvents={},redeliveryApprovals={},map=null,mapStopLayer=null,mapBaseLayer=null,currentLocation=null,currentMarker=null,currentPolyline=null,tracking=null,watchId=null,lastPublish=0,routeCalcBusy=false,routeCalcPending=false,lastRouteRefreshAt=0,lastRoutedLocation=null,routeRefreshTimer=null,liveRouteFitted=false,pendingProofGlobal=null,pendingProofFile=null,proofPreviewUrl="",proofUploadBusy=false;
 async function boot(){
  try{
    const loaded=await loadPayload();
@@ -1494,13 +1590,13 @@ async function boot(){
    }
  }catch(e){
    $("gpsGate").classList.remove("show");document.body.classList.remove("gps-locked");$("map").style.display="none";$("stops").style.display="none";$("error").style.display="block";
-   $("error").textContent=(e.message||String(e))+"\n\nSe este link veio do WhatsApp, peça à central para abrir a V5.41, gerar/atualizar a rota do motorista e enviar o link novamente.";$("subtitle").textContent="Não foi possível abrir as entregas.";
+   $("error").textContent=(e.message||String(e))+"\n\nSe este link veio do WhatsApp, peça à central para abrir a V5.42, gerar/atualizar a rota do motorista e enviar o link novamente.";$("subtitle").textContent="Não foi possível abrir as entregas.";
    $("gpsStatus").textContent=e.message||String(e)
  }
 }
 $("startGpsBtn").addEventListener("click",startGps);
 $("gpsGateBtn").addEventListener("click",startGps);
-$("rerouteBtn").addEventListener("click",()=>optimizeFromCurrentLocation(true).catch(e=>alert(e.message||e)));
+$("rerouteBtn").addEventListener("click",()=>requestLiveRouteRecalc(true));
 $("proofCameraInput").addEventListener("change",e=>{const file=e.target.files?.[0];if(file)openProofPreview(file)});
 $("proofRetryBtn").addEventListener("click",()=>{$("proofModal").classList.remove("open");$("proofCameraInput").value="";$("proofCameraInput").click()});
 $("proofConfirmBtn").addEventListener("click",confirmDeliveryProof);

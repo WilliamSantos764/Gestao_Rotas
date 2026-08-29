@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Gestão Logística - V5.41 Embarques + Central de Rotas Organizada</title>
+<title>Gestão Logística - V5.42 Linha Azul Estável no App</title>
 <style>
 :root{
   --bg:#f3f6fb;--card:#fff;--line:#e2e8f0;--text:#152033;--muted:#667085;
@@ -472,7 +472,7 @@ main{max-width:1580px;margin:auto;padding:20px}.view{display:none}.view.active{d
 </head>
 <body>
 <header class="top"><div class="topin">
- <div class="brand"><div class="logo">R</div><div><h1>Gestão Logística - Embarques e Rotas V5.41</h1><small>Rotas • ESPD • Frota • Embarques automáticos</small></div></div>
+ <div class="brand"><div class="logo">R</div><div><h1>Gestão Logística - Embarques e Rotas V5.42</h1><small>Rotas • ESPD • Frota • Embarques automáticos</small></div></div>
  <nav class="nav">
   <button class="active" data-view="planning">Embarques</button>
   <button data-view="routeanalysis">Central de Rotas</button>
@@ -606,7 +606,7 @@ main{max-width:1580px;margin:auto;padding:20px}.view{display:none}.view.active{d
    </div>
    <div class="realtime-config">
     <div class="realtime-config-head">
-     <div><h4>Rastreamento em tempo real</h4><small>Firebase do Gestão Logística já integrado. Na V5.41 o App do Motorista também possui essa configuração embutida, evitando links cortados pelo WhatsApp.</small></div>
+     <div><h4>Rastreamento em tempo real</h4><small>Firebase do Gestão Logística já integrado. Na V5.42 o App do Motorista também possui essa configuração embutida, evitando links cortados pelo WhatsApp.</small></div>
      <span class="badge review" id="firebaseConnectionBadge">NÃO CONFIGURADO</span>
     </div>
     <textarea id="firebaseConfigText" placeholder="Configuração Firebase integrada automaticamente."></textarea>
@@ -1163,11 +1163,11 @@ async function publishDriverAppBundle(driver,routesList){
  bundle.publicationRevision=revision;
  bundle.routeSignature=signature;
  bundle.publishedAt=new Date().toISOString();
- bundle.appBuild="V5.41";
+ bundle.appBuild="V5.42";
 
  const safeBundle=cleanFirebaseObject(bundle);
 
- // V5.41: as viagens ficam em /bundle e os canhotos em /deliveryProofs.
+ // V5.42: as viagens ficam em /bundle e os canhotos em /deliveryProofs.
  // Isso evita carregar fotos grandes toda vez que o motorista abre o App.
  const rootRef=rt.dbMod.ref(rt.db,`driverApps/${publication.appId}`);
  const oldSnap=await rt.dbMod.get(rootRef);
@@ -1229,9 +1229,9 @@ function publishedDriverAppUrl(driver){
  if(!publicBase&&!/^https?:$/.test(location.protocol))return"";
  const url=publicBase?new URL("motorista.html",publicBase):new URL("motorista.html",window.location.href);
 
- // V5.41: Firebase já está embutido no motorista.html.
+ // V5.42: Firebase já está embutido no motorista.html.
  // O WhatsApp recebe somente um link curto; não há mais JSON/configuração no hash.
- url.searchParams.set("v","541");
+ url.searchParams.set("v","542");
  url.hash=`app=${encodeURIComponent(pub.appId)}&rev=${encodeURIComponent(pub.revision||"")}&orders=${encodeURIComponent(pub.orderCount||0)}&stops=${encodeURIComponent(pub.totalStops||0)}&driver=${encodeURIComponent(pub.driver||driver)}`;
  return url.href
 }
@@ -2911,7 +2911,7 @@ function deliveryCoordinateCacheKey(stop){
  return `ADDR:${norm(stop?.address||"")}`
 }
 async function geocodeDeliveryStop(stop){
- // Arquivo de teste V5.41: coordenadas explícitas têm prioridade total.
+ // Arquivo de teste V5.42: coordenadas explícitas têm prioridade total.
  if(validDeliveryCoordinates(stop?.lat,stop?.lon)){
    return{
      lat:Number(stop.lat),lon:Number(stop.lon),
@@ -3468,7 +3468,7 @@ async function buildDriverRoute(dayInfo,driver){
  const points=[{lat:DEPOT_COORD.lat,lon:DEPOT_COORD.lon},...stops];
  const matrix=await osrmDeliveryMatrix(points);
 
- // V5.41: distância real pela rua + continuidade de via.
+ // V5.42: distância real pela rua + continuidade de via.
  // Ao entrar em uma rua com várias entregas, descarrega os clientes próximos
  // nessa mesma via antes de sair, quando isso evita deslocamentos desnecessários.
  const seq=streetAwareDeliveryOrder(matrix.distances,stops);
@@ -3771,6 +3771,24 @@ function encodeDriverAppPayload(payload){
  }
  return btoa(binary).replace(/\+/g,"-").replace(/\//g,"_").replace(/=+$/,"")
 }
+
+function compactPlannedGeometry(route,maxPoints=700){
+ const coords=route?.geometry?.coordinates;
+ if(!Array.isArray(coords)||coords.length<2)return[];
+ const step=Math.max(1,Math.ceil(coords.length/maxPoints));
+ const out=[];
+ for(let i=0;i<coords.length;i+=step){
+   const c=coords[i];
+   if(Array.isArray(c)&&Number.isFinite(Number(c[0]))&&Number.isFinite(Number(c[1])))out.push([Number(c[1]),Number(c[0])])
+ }
+ const last=coords[coords.length-1];
+ if(Array.isArray(last)&&Number.isFinite(Number(last[0]))&&Number.isFinite(Number(last[1]))){
+   const p=[Number(last[1]),Number(last[0])];
+   const prev=out[out.length-1];
+   if(!prev||prev[0]!==p[0]||prev[1]!==p[1])out.push(p)
+ }
+ return out
+}
 function compactDriverRoute(route){
  return{
    v:1,
@@ -3783,6 +3801,7 @@ function compactDriverRoute(route){
    shipments:route.shipments||[],
    totalDistance:route.totalDistance||0,
    totalDuration:route.totalDuration||0,
+   plannedGeometry:compactPlannedGeometry(route),
    orderCount:route.orderCount||0,
    routedOrderCount:route.routedOrderCount||0,
    sortMode:"ROAD_FRONT_STREET_AWARE",
@@ -3831,6 +3850,7 @@ function compactDriverBundle(driver,routesList){
      shipments:route.shipments||[],
      totalDistance:route.totalDistance||0,
      totalDuration:route.totalDuration||0,
+     plannedGeometry:compactPlannedGeometry(route),
      sortMode:"ROAD_FRONT_STREET_AWARE",
      stops:(route.stops||[]).map((s,i)=>({
        n:i+1,
@@ -3904,7 +3924,7 @@ function driverAppUrlForRoutes(driver,routesList){
  // Compatibilidade sem Firebase.
  const publicBase=normalizedPublicBaseUrl();
  const url=publicBase?new URL("motorista.html",publicBase):new URL("motorista.html",window.location.href);
- url.searchParams.set("v","541");
+ url.searchParams.set("v","542");
  url.hash=encodeDriverAppPayload(compactDriverBundle(driver,valid));
  return url.href
 }
@@ -3937,7 +3957,7 @@ async function prepareVerifiedDriverApp(driver,routesList){
  const url=driverAppUrlForRoutes(driver,valid);
  if(!url)throw new Error(`Não foi possível gerar o link do App de ${driver}.`);
  if(firebaseConfigReady()&&url.includes("&cfg=")){
-   throw new Error("Foi detectado um link antigo com configuração Firebase embutida. Atualize o sistema para a V5.41.")
+   throw new Error("Foi detectado um link antigo com configuração Firebase embutida. Atualize o sistema para a V5.42.")
  }
  return url
 }

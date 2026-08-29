@@ -1,6 +1,6 @@
-Gestão Logística V5.41
-Dashboard renomeado para Embarques.
-Pedidos/itens/peso/valor concentrados em Embarques.
-Roteirização concentrada na Central de Rotas.
-Pedido removido fica pendente até liberação manual.
-Mapa reduzido para layout mais limpo.
+Gestão Logística V5.42
+Linha azul contínua restaurada e estabilizada no App do Motorista.
+Preserva geometria durante sincronização.
+Recálculos concorrentes entram em fila.
+OSRM dividido em blocos para rotas com muitas paradas.
+Mantém organização Embarques / Central de Rotas da V5.41.
