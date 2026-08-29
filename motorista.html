@@ -4,7 +4,13 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#101828">
-<title>App do Motorista - V5.31 Traçado GPS no Mapa</title>
+<meta name="application-name" content="Gestão Logística Motorista">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Motorista">
+<link rel="manifest" href="./manifest.webmanifest">
+<link rel="apple-touch-icon" href="./icons/icon-192.png">
+<title>App do Motorista - V5.32 App Instalável + GPS Obrigatório</title>
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
 <style>
 :root{--bg:#f2f4f7;--card:#fff;--text:#101828;--muted:#667085;--line:#d0d5dd;--accent:#155eef;--ok:#027a48;--warn:#b54708}
@@ -26,8 +32,25 @@ header h1{font-size:18px;margin:0}header p{font-size:12px;margin:5px 0 0;color:#
 .current-route{background:#eff8ff;border:1px solid #b2ddff;color:#175cd3;border-radius:11px;padding:9px;font-size:11px;line-height:1.45;margin-bottom:10px}
 .current-location-marker{width:32px;height:32px;border-radius:50%;background:#155eef;color:white;border:4px solid white;box-shadow:0 2px 8px #344054;display:flex;align-items:center;justify-content:center;font-size:15px}
 .maplegend{display:none;align-items:center;gap:8px;background:#fff;border:1px solid var(--line);border-radius:11px;padding:8px 10px;margin:-2px 0 10px;font-size:11px;font-weight:800;color:#344054}
-.maplegend.show{display:flex}.route-sample{width:45px;height:0;border-top:4px dashed #155eef;flex:0 0 auto}
+.maplegend.show{display:flex}.route-sample{width:45px;height:0;border-top:4px solid #155eef;flex:0 0 auto}
 .next-stop-marker{width:34px;height:34px;border-radius:50%;background:#f79009;color:#fff;border:3px solid #fff;box-shadow:0 2px 8px #7a2e0e;display:flex;align-items:center;justify-content:center;font-weight:950;font-size:13px}
+
+
+.installbox{background:#eff8ff;border:1px solid #b2ddff;border-radius:13px;padding:11px;margin-bottom:10px;display:flex;gap:10px;align-items:center;justify-content:space-between;flex-wrap:wrap}
+.installbox strong{display:block;font-size:13px;color:#175cd3}.installbox small{display:block;color:#475467;font-size:10px;margin-top:3px;line-height:1.4}
+.installbtn{min-height:42px;border:0;border-radius:10px;padding:8px 12px;background:#175cd3;color:#fff;font-weight:900;cursor:pointer}
+.installbtn.installed{background:#ecfdf3;color:#027a48;border:1px solid #abefc6}
+.gpsgate{position:fixed;inset:0;background:rgba(16,24,40,.94);z-index:99999;display:none;align-items:center;justify-content:center;padding:18px}
+.gpsgate.show{display:flex}.gpsgate-card{width:min(460px,100%);background:#fff;border-radius:20px;padding:22px;box-shadow:0 24px 80px rgba(0,0,0,.35)}
+.gpsgate-icon{width:62px;height:62px;border-radius:50%;display:flex;align-items:center;justify-content:center;background:#eff8ff;font-size:30px;margin-bottom:12px}
+.gpsgate h2{font-size:22px;margin:0 0 8px}.gpsgate p{font-size:13px;line-height:1.55;color:#475467;margin:0 0 12px}
+.gpsgate-status{padding:10px;border-radius:10px;background:#f2f4f7;color:#475467;font-size:11px;font-weight:800;line-height:1.45;margin-bottom:12px}
+.gpsgate-actions{display:grid;grid-template-columns:1fr;gap:8px}
+.gpsgate-actions button{min-height:48px;border:0;border-radius:11px;font-size:13px;font-weight:900;padding:10px}
+.gpsgate-primary{background:#155eef;color:#fff}.gpsgate-install{background:#eff8ff;color:#175cd3;border:1px solid #b2ddff!important}
+body.gps-locked{overflow:hidden}
+#map{transform:translateZ(0);will-change:auto}
+.leaflet-container{backface-visibility:hidden}
 
 @media(max-width:520px){.gpsactions{grid-template-columns:1fr}}
 
@@ -53,18 +76,34 @@ footer{padding:14px;text-align:center;color:var(--muted);font-size:10px}
 </style>
 </head>
 <body>
+<div id="gpsGate" class="gpsgate" role="dialog" aria-modal="true" aria-labelledby="gpsGateTitle">
+ <div class="gpsgate-card">
+  <div class="gpsgate-icon">📍</div>
+  <h2 id="gpsGateTitle">GPS obrigatório</h2>
+  <p>Para acessar as entregas e a rota, o motorista precisa permitir a localização. O sistema usa o GPS para ordenar as entregas, desenhar o caminho e atualizar a central.</p>
+  <div id="gpsGateStatus" class="gpsgate-status">Carregando as viagens do motorista...</div>
+  <div class="gpsgate-actions">
+   <button id="gpsGateBtn" type="button" class="gpsgate-primary">📍 Ativar GPS e entrar no App</button>
+   <button id="gpsGateInstallBtn" type="button" class="gpsgate-install">📲 Instalar App no celular</button>
+  </div>
+ </div>
+</div>
 <header>
   <h1 id="title">Rota de Entregas</h1>
   <p id="subtitle">Carregando rota...</p>
 </header>
 <div class="wrap">
-  <div class="rule">✓ Este App V5.31 carrega TODAS as entregas do motorista diretamente do Firebase. Ao autorizar o GPS, a rota ativa é recalculada a partir da localização atual do caminhão e o caminho pelas ruas aparece tracejado no mapa.</div>
+  <div class="rule">✓ O GPS é obrigatório. Com a localização ativa, o App organiza as entregas restantes e mostra uma <b>linha azul contínua</b> pelas ruas, da posição atual até todos os clientes da rota ativa.</div>
+  <section id="installBox" class="installbox">
+   <div><strong>📲 Instalar App do Motorista</strong><small id="installHint">Instale no celular para abrir pelo ícone, como um aplicativo.</small></div>
+   <button id="installBtn" type="button" class="installbtn">Instalar App no celular</button>
+  </section>
   <section class="gpsbox">
    <div class="gpshead">
     <div><h2>GPS do motorista</h2><small>Permita a localização para criar a rota a partir de onde o caminhão está e enviar sua posição em tempo real para o Gestão Logística.</small></div>
     <b id="gpsBadge">GPS desligado</b>
    </div>
-   <div id="gpsStatus" class="gpsstatus">Toque em “Ativar GPS e roteirizar”. Em HTTPS, o navegador solicitará sua permissão de localização.</div>
+   <div id="gpsStatus" class="gpsstatus">GPS obrigatório para acessar a rota. Autorize a localização para continuar.</div>
    <div class="gpsactions">
     <button id="startGpsBtn" type="button" class="gpsprimary">📍 Ativar GPS e roteirizar</button>
     <button id="rerouteBtn" type="button" class="gpssecondary" disabled>↻ Recalcular a partir daqui</button>
@@ -80,17 +119,90 @@ footer{padding:14px;text-align:center;color:var(--muted);font-size:10px}
     <b id="progressText">0/0 entregas concluídas</b>
     <div class="progressline"><i id="progressBar"></i></div>
   </div>
-  <div id="mapLegend" class="maplegend"><span class="route-sample"></span><span>Linha azul tracejada = caminho pelas ruas, da posição atual até todas as entregas restantes da rota ativa.</span></div>
+  <div id="mapLegend" class="maplegend"><span class="route-sample"></span><span>Linha azul contínua = caminho pelas ruas, da posição atual até todas as entregas restantes da rota ativa.</span></div>
   <div id="map"></div>
   <main id="stops"></main>
   <div id="error" class="empty" style="display:none"></div>
 </div>
-<footer>App de rota gerado pelo sistema de Gestão Logística. • V5.31 — traçado rodoviário</footer>
+<footer>App de rota gerado pelo sistema de Gestão Logística. • V5.32 — App instalável • GPS obrigatório</footer>
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script>
 const $=id=>document.getElementById(id);
 const FIREBASE_SDK_VERSION="10.14.1";
 const EMBEDDED_FIREBASE_CONFIG={"apiKey":"AIzaSyBmEX1QM6pJmMO116YTADhqMKOhWl5Nz8Q","authDomain":"gestao-logistica-4c606.firebaseapp.com","databaseURL":"https://gestao-logistica-4c606-default-rtdb.firebaseio.com/","projectId":"gestao-logistica-4c606","appId":"1:484709506190:web:52590b0888a1da0f1efddf"};
+
+const LAST_DRIVER_APP_KEY="gestao_logistica_motorista:last_app:v1";
+let deferredInstallPrompt=null;
+function isStandaloneApp(){
+ return window.matchMedia?.("(display-mode: standalone)")?.matches===true||window.navigator.standalone===true
+}
+function saveLastDriverParams(params){
+ try{
+   if(!params?.get("app"))return;
+   const obj={};
+   ["app","rev","orders","stops","driver"].forEach(k=>{const v=params.get(k);if(v!==null&&v!=="")obj[k]=v});
+   localStorage.setItem(LAST_DRIVER_APP_KEY,JSON.stringify(obj))
+ }catch{}
+}
+function restoredDriverParams(){
+ try{
+   const obj=JSON.parse(localStorage.getItem(LAST_DRIVER_APP_KEY)||"null");
+   if(!obj?.app)return null;
+   const p=new URLSearchParams();
+   Object.entries(obj).forEach(([k,v])=>p.set(k,String(v)));
+   return p
+ }catch{return null}
+}
+function showInstallState(){
+ const installed=isStandaloneApp();
+ const btn=$("installBtn"),gateBtn=$("gpsGateInstallBtn"),hint=$("installHint");
+ if(installed){
+   if(btn){btn.textContent="✓ App instalado";btn.classList.add("installed");btn.disabled=true}
+   if(gateBtn){gateBtn.textContent="✓ App já instalado";gateBtn.disabled=true}
+   if(hint)hint.textContent="Você abriu o Gestão Logística pelo aplicativo instalado."
+ }else if(deferredInstallPrompt){
+   if(btn){btn.textContent="📲 Instalar App no celular";btn.disabled=false}
+   if(gateBtn){gateBtn.textContent="📲 Instalar App no celular";gateBtn.disabled=false}
+   if(hint)hint.textContent="Instalação disponível. Depois, abra o App pelo ícone na tela inicial."
+ }else{
+   if(btn){btn.textContent="📲 Como instalar no celular";btn.disabled=false}
+   if(gateBtn){gateBtn.textContent="📲 Como instalar no celular";gateBtn.disabled=false}
+   if(hint)hint.textContent="Se o botão automático não aparecer, use o menu do navegador para adicionar à tela inicial."
+ }
+}
+async function requestAppInstall(){
+ if(isStandaloneApp())return;
+ if(deferredInstallPrompt){
+   deferredInstallPrompt.prompt();
+   try{await deferredInstallPrompt.userChoice}catch{}
+   deferredInstallPrompt=null;
+   showInstallState();
+   return
+ }
+ const ua=navigator.userAgent||"";
+ const ios=/iPad|iPhone|iPod/.test(ua);
+ if(ios){
+   alert("No iPhone/iPad:\n\n1. Abra este link no Safari.\n2. Toque em Compartilhar.\n3. Escolha “Adicionar à Tela de Início”.\n4. Confirme em Adicionar.")
+ }else{
+   alert("Para instalar:\n\nAbra o menu do navegador (⋮) e escolha “Instalar app” ou “Adicionar à tela inicial”.\n\nSe essa opção não aparecer, confirme que o link está aberto em HTTPS.")
+ }
+}
+window.addEventListener("beforeinstallprompt",e=>{
+ e.preventDefault();
+ deferredInstallPrompt=e;
+ showInstallState()
+});
+window.addEventListener("appinstalled",()=>{
+ deferredInstallPrompt=null;
+ showInstallState()
+});
+async function registerMotoristaServiceWorker(){
+ if(!("serviceWorker" in navigator)||!/^https?:$/.test(location.protocol))return;
+ try{
+   const reg=await navigator.serviceWorker.register("./sw.js",{scope:"./"});
+   reg.update().catch(()=>{})
+ }catch(e){console.warn("Service Worker:",e)}
+}
 function esc(s){return String(s??"").replace(/[&<>"']/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#039;"}[m]))}
 function km(v){return (Number(v||0)/1000).toLocaleString("pt-BR",{maximumFractionDigits:1})+" km"}
 function decodeBase64Url(raw){
@@ -110,10 +222,17 @@ function onlineParams(){
  const hashRaw=(location.hash||"").slice(1);
  if(hashRaw.includes("app=")){
    const hp=new URLSearchParams(hashRaw);
-   if(hp.get("app"))return hp
+   if(hp.get("app")){saveLastDriverParams(hp);return hp}
  }
  const qp=new URLSearchParams(location.search||"");
- if(qp.get("app"))return qp;
+ if(qp.get("app")){saveLastDriverParams(qp);return qp}
+
+ // Ao abrir pelo ícone instalado, o start_url não carrega o hash do WhatsApp.
+ // Recupera o último motorista/appId usado neste aparelho.
+ if(isStandaloneApp()||qp.get("pwa")==="1"){
+   const saved=restoredDriverParams();
+   if(saved?.get("app"))return saved
+ }
  return null
 }
 async function firebaseRuntimeFromConfig(cfg){
@@ -182,7 +301,7 @@ async function loadPayload(){
  if(!params.has("orders"))expected.orders=NaN;
  if(!params.has("stops"))expected.stops=NaN;
 
- // V5.31: NÃO depende mais do cfg enviado pelo WhatsApp.
+ // V5.32: NÃO depende mais do cfg enviado pelo WhatsApp.
  // O Firebase oficial do Gestão Logística já está dentro deste arquivo.
  let cfg=EMBEDDED_FIREBASE_CONFIG;
 
@@ -196,7 +315,7 @@ async function loadPayload(){
        cfg=legacyCfg
      }
    }catch(e){
-     console.warn("Configuração antiga do link estava cortada; usando Firebase embutido da V5.31.",e)
+     console.warn("Configuração antiga do link estava cortada; usando Firebase embutido da V5.32.",e)
    }
  }
 
@@ -256,7 +375,8 @@ function startOnlineBundleSync(){
      app=next;
      done=loadDone(app);
      syncHeaderFromApp();
-     renderStops();updateProgress();rebuildMap();
+     liveRouteFitted=false;
+     renderStops();updateProgress();rebuildMap({fit:!currentLocation});
      $("gpsStatus").textContent="✓ Viagens atualizadas automaticamente pela central.";
      if(currentLocation)optimizeFromCurrentLocation(false).catch(console.error)
    }catch(e){console.error("Sincronização das viagens:",e)}
@@ -372,50 +492,93 @@ function renderStops(){
  }).join("");
  host.querySelectorAll("[data-stop]").forEach(b=>b.addEventListener("click",()=>toggleDone(Number(b.dataset.stop))))
 }
-function rebuildMap(){
- if(!window.L||!flatStops(app).length){$("map").style.display="none";return}
+function ensureMapReady(){
+ if(!window.L||!flatStops(app).length){$("map").style.display="none";return false}
  $("map").style.display="block";
- if(map){map.remove();map=null}
- map=L.map("map");
- L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",{maxZoom:19,attribution:"&copy; OpenStreetMap"}).addTo(map);
+ if(map)return true;
+
+ map=L.map("map",{preferCanvas:true});
+ L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",{
+   maxZoom:19,
+   attribution:"&copy; OpenStreetMap",
+   updateWhenIdle:true,
+   keepBuffer:4
+ }).addTo(map);
+
+ mapStopLayer=L.layerGroup().addTo(map);
+ mapBaseLayer=L.layerGroup().addTo(map);
+ setTimeout(()=>map?.invalidateSize(false),60);
+ return true
+}
+function updateCurrentPositionMarker(){
+ if(!ensureMapReady()||!currentLocation)return;
+
+ if(mapBaseLayer)mapBaseLayer.clearLayers();
+
+ const latlng=[currentLocation.lat,currentLocation.lon];
+ if(currentMarker){
+   currentMarker.setLatLng(latlng)
+ }else{
+   const icon=L.divIcon({className:"",html:'<div class="current-location-marker">🚚</div>',iconSize:[32,32],iconAnchor:[16,16]});
+   currentMarker=L.marker(latlng,{icon,zIndexOffset:1000})
+     .addTo(map).bindPopup("<b>Você está aqui</b><br>Localização atual do caminhão.")
+ }
+}
+function rebuildMap(options={}){
+ if(!ensureMapReady())return;
+ const fit=options.fit!==false;
 
  const allBounds=[],focusBounds=[],colors=["#155eef","#7c3aed","#059669","#d97706","#dc2626","#0891b2","#c026d3"];
  const activeRi=activeRouteIndex(),activeRoute=app.routes?.[activeRi];
 
+ // Não destrói o mapa nem as tiles. Apenas atualiza as camadas necessárias.
+ mapStopLayer.clearLayers();
+ mapBaseLayer.clearLayers();
+
  if(currentLocation){
    allBounds.push([currentLocation.lat,currentLocation.lon]);
    focusBounds.push([currentLocation.lat,currentLocation.lon]);
-   const icon=L.divIcon({className:"",html:'<div class="current-location-marker">🚚</div>',iconSize:[32,32],iconAnchor:[16,16]});
-   currentMarker=L.marker([currentLocation.lat,currentLocation.lon],{icon,zIndexOffset:1000})
-     .addTo(map).bindPopup("<b>Você está aqui</b><br>Localização atual do caminhão.")
- }else if(app.origin){
-   allBounds.push([app.origin.lat,app.origin.lon]);
-   L.circleMarker([app.origin.lat,app.origin.lon],{radius:8,color:"#101828",weight:3,fillColor:"#fff",fillOpacity:1})
-     .addTo(map).bindPopup("<b>Cooperrita — origem planejada</b>")
+   updateCurrentPositionMarker()
+ }else{
+   if(currentMarker){map.removeLayer(currentMarker);currentMarker=null}
+   if(app.origin&&Number.isFinite(Number(app.origin.lat))&&Number.isFinite(Number(app.origin.lon))){
+     allBounds.push([app.origin.lat,app.origin.lon]);
+     L.circleMarker([app.origin.lat,app.origin.lon],{radius:8,color:"#101828",weight:3,fillColor:"#fff",fillOpacity:1})
+       .addTo(mapBaseLayer).bindPopup("<b>Cooperrita — origem planejada</b>")
+   }
  }
 
- // Traçado rodoviário real obtido do OSRM:
- // GPS atual -> parada 1 -> parada 2 -> ... -> última entrega restante.
  const liveGeometry=Array.isArray(activeRoute?.liveGeometry)?activeRoute.liveGeometry:[];
  if(currentLocation&&liveGeometry.length>1){
-   currentPolyline=L.polyline(liveGeometry,{
-     color:"#155eef",
-     weight:6,
-     opacity:.92,
-     dashArray:"12 9",
-     lineCap:"round",
-     lineJoin:"round"
-   }).addTo(map).bindPopup("<b>Traçado atual da rota</b><br>Caminho calculado pelas ruas até as entregas restantes.");
+   if(currentPolyline){
+     currentPolyline.setLatLngs(liveGeometry);
+     currentPolyline.setStyle({color:"#155eef",weight:6,opacity:.94,lineCap:"round",lineJoin:"round"})
+   }else{
+     currentPolyline=L.polyline(liveGeometry,{
+       color:"#155eef",
+       weight:6,
+       opacity:.94,
+       lineCap:"round",
+       lineJoin:"round"
+     }).addTo(map).bindPopup("<b>Traçado atual da rota</b><br>Caminho calculado pelas ruas até as entregas restantes.")
+   }
+   currentPolyline.bringToFront();
    liveGeometry.forEach(p=>focusBounds.push(p));
    $("mapLegend").classList.add("show")
  }else{
-   currentPolyline=null;
+   if(currentPolyline){map.removeLayer(currentPolyline);currentPolyline=null}
    $("mapLegend").classList.remove("show")
  }
 
  let global=0;
  (app.routes||[]).forEach((r,ri)=>{
    const color=colors[ri%colors.length];
+   const pendingIndexes=(r.stops||[]).map((s,idx)=>{
+     const ff=flatStops(app).find(x=>x._routeIndex===ri&&x._stopIndex===idx);
+     return ff&&!done[ff._global]?idx:null
+   }).filter(v=>v!==null);
+   const firstPendingIndex=pendingIndexes.length?pendingIndexes[0]:-1;
+
    (r.stops||[]).forEach((s,si)=>{
      global++;
      const lat=Number(s.lat),lon=Number(s.lon);
@@ -426,13 +589,7 @@ function rebuildMap(){
      const isDone=f?!!done[f._global]:false;
      if(ri===activeRi&&!isDone)focusBounds.push([lat,lon]);
 
-     const pendingActive=(ri===activeRi&&!isDone);
-     const pendingActiveStops=(r.stops||[]).filter((st,idx)=>{
-       const ff=flatStops(app).find(x=>x._routeIndex===ri&&x._stopIndex===idx);
-       return ff&&!done[ff._global]
-     });
-     const firstPending=pendingActiveStops[0]===s;
-
+     const firstPending=ri===activeRi&&si===firstPendingIndex&&!isDone;
      let iconHtml;
      if(firstPending&&currentLocation){
        iconHtml=`<div class="next-stop-marker">${si+1}</div>`
@@ -440,16 +597,19 @@ function rebuildMap(){
        const markerColor=isDone?"#12b76a":color;
        iconHtml=`<div style="width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;background:${markerColor};color:white;font-weight:900;border:2px solid white;box-shadow:0 1px 4px #555">${isDone?"✓":global}</div>`
      }
-     const icon=L.divIcon({className:"",html:iconHtml,iconSize:[firstPending&&currentLocation?34:28,firstPending&&currentLocation?34:28],iconAnchor:[firstPending&&currentLocation?17:14,firstPending&&currentLocation?17:14]});
-     L.marker([lat,lon],{icon,zIndexOffset:firstPending?800:0}).addTo(map)
+     const size=firstPending&&currentLocation?34:28;
+     const icon=L.divIcon({className:"",html:iconHtml,iconSize:[size,size],iconAnchor:[size/2,size/2]});
+     L.marker([lat,lon],{icon,zIndexOffset:firstPending?800:0}).addTo(mapStopLayer)
        .bindPopup(`<b>${esc(r.day||"")} — ${firstPending&&currentLocation?"PRÓXIMA ENTREGA":`entrega ${si+1}`}</b><br>${esc(s.name)}<br>${esc(s.address)}${s.distanceFromCurrent!=null?`<br><b>${km(s.distanceFromCurrent)} da posição atual</b>`:""}`)
    })
  });
 
- // Com GPS ativo, dá foco ao caminho que o motorista deve executar AGORA.
- // Sem GPS, mostra todas as entregas do App.
  const boundsToUse=currentLocation&&focusBounds.length>1?focusBounds:allBounds;
- if(boundsToUse.length)map.fitBounds(boundsToUse,{padding:[24,24],maxZoom:16})
+ if(fit&&boundsToUse.length){
+   map.fitBounds(boundsToUse,{padding:[24,24],maxZoom:16,animate:false});
+   liveRouteFitted=!!currentLocation
+ }
+ setTimeout(()=>map?.invalidateSize(false),0)
 }
 async function optimizeFromCurrentLocation(showMessage=true){
  if(!currentLocation)throw new Error("GPS ainda não localizado.");
@@ -460,7 +620,7 @@ async function optimizeFromCurrentLocation(showMessage=true){
    $("mapLegend").classList.remove("show");
    $("currentRouteInfo").style.display="block";
    $("currentRouteInfo").textContent="Todas as entregas da rota ativa foram concluídas.";
-   rebuildMap();
+   rebuildMap({fit:false});
    return
  }
  if(routeCalcBusy)return;
@@ -503,10 +663,10 @@ async function optimizeFromCurrentLocation(showMessage=true){
    lastRouteRefreshAt=Date.now();
 
    $("currentRouteInfo").style.display="block";
-   $("currentRouteInfo").innerHTML=`<b>Traçado da rota ativo:</b> ${esc(route.day||"rota")} • ${ordered.length} entrega(s) restante(s) • ${km(route.liveDistance)} estimados. <b>A linha azul tracejada no mapa mostra o caminho pelas ruas</b> da posição atual até todas as paradas restantes, na ordem indicada.`;
+   $("currentRouteInfo").innerHTML=`<b>Traçado da rota ativo:</b> ${esc(route.day||"rota")} • ${ordered.length} entrega(s) restante(s) • ${km(route.liveDistance)} estimados. <b>A linha azul contínua no mapa mostra o caminho pelas ruas</b> da posição atual até todas as paradas restantes, na ordem indicada.`;
    $("gpsStatus").textContent=`Traçado atualizado às ${new Date().toLocaleTimeString("pt-BR")}.`;
-   renderStops();rebuildMap();updateProgress();
-   if(showMessage)alert("Traçado da rota atualizado no mapa a partir da sua localização atual.");
+   renderStops();rebuildMap({fit:showMessage||!liveRouteFitted});updateProgress();
+   if(showMessage)alert("Rota atualizada no mapa a partir da sua localização atual.");
    publishTracking(true).catch(console.error)
  }finally{
    routeCalcBusy=false
@@ -526,26 +686,72 @@ async function publishTracking(force=false){
  };
  await tracking.dbMod.set(tracking.dbMod.ref(tracking.db,`tracking/${tracking.appId}`),payload)
 }
+
+function showGpsGate(message){
+ const gate=$("gpsGate");
+ if(gate){
+   gate.classList.add("show");
+   document.body.classList.add("gps-locked")
+ }
+ if(message)$("gpsGateStatus").textContent=message
+}
+function unlockGpsGate(){
+ const gate=$("gpsGate");
+ if(gate)gate.classList.remove("show");
+ document.body.classList.remove("gps-locked");
+ $("startGpsBtn").textContent="✓ GPS ativo";
+ $("startGpsBtn").disabled=true
+}
+async function enforceGpsRequirement(){
+ showGpsGate("GPS obrigatório. Toque em “Ativar GPS e entrar no App” para liberar as entregas.");
+ if(!navigator.geolocation){
+   showGpsGate("Este navegador não oferece GPS/geolocalização. Use um navegador atualizado em um celular com localização ativa.");
+   return
+ }
+ try{
+   if(navigator.permissions?.query){
+     const permission=await navigator.permissions.query({name:"geolocation"});
+     if(permission.state==="granted"){
+       $("gpsGateStatus").textContent="Permissão de GPS já concedida. Localizando...";
+       startGps()
+     }else if(permission.state==="denied"){
+       showGpsGate("A localização está bloqueada para este site. Abra as permissões do navegador, permita Localização e toque em “Ativar GPS e entrar no App”.")
+     }
+     permission.onchange=()=>{
+       if(permission.state==="granted")startGps();
+       else if(permission.state==="denied")showGpsGate("A localização foi bloqueada. O App permanece travado até o GPS ser permitido.")
+     }
+   }
+ }catch{}
+}
 function handlePosition(pos){
  const c=pos.coords;
  currentLocation={lat:c.latitude,lon:c.longitude,accuracy:c.accuracy,speed:c.speed,heading:c.heading,timestamp:pos.timestamp};
  $("gpsBadge").textContent="GPS ativo";
  $("gpsBadge").style.color="#027a48";
  $("gpsStatus").textContent=`Localização atualizada • precisão ±${Math.round(c.accuracy||0)} m • ${new Date().toLocaleTimeString("pt-BR")}`;
+ $("gpsGateStatus").textContent=`GPS ativo • precisão ±${Math.round(c.accuracy||0)} m`;
  $("rerouteBtn").disabled=false;
- rebuildMap();
+
+ // Atualiza SOMENTE a posição do caminhão. Não recria o mapa.
+ updateCurrentPositionMarker();
+ unlockGpsGate();
+
  publishTracking(false).catch(console.error);
  scheduleLiveRouteRefresh()
 }
 function gpsError(err){
- $("gpsBadge").textContent="GPS indisponível";
+ $("gpsBadge").textContent="GPS obrigatório";
  $("gpsBadge").style.color="#b42318";
- const msg=err?.code===1?"Permissão de localização negada.":err?.message||"Não foi possível obter a localização.";
- $("gpsStatus").textContent=msg+" O GPS exige HTTPS (por exemplo GitHub Pages) no celular."
+ let msg=err?.code===1?"Permissão de localização negada.":err?.message||"Não foi possível obter a localização.";
+ if(!window.isSecureContext)msg+=" O GPS do navegador exige HTTPS.";
+ $("gpsStatus").textContent=msg;
+ showGpsGate(msg+" O App continuará bloqueado até a localização ser permitida.")
 }
 async function startGps(){
  if(!navigator.geolocation)return gpsError({message:"Este navegador não possui geolocalização."});
  $("gpsStatus").textContent="Solicitando permissão de localização...";
+ $("gpsGateStatus").textContent="Solicitando permissão de GPS do celular...";
  if(watchId!==null)navigator.geolocation.clearWatch(watchId);
  watchId=navigator.geolocation.watchPosition(handlePosition,gpsError,{enableHighAccuracy:true,maximumAge:3000,timeout:15000});
  navigator.geolocation.getCurrentPosition(async pos=>{
@@ -553,7 +759,7 @@ async function startGps(){
    try{await optimizeFromCurrentLocation(false)}catch(e){$("gpsStatus").textContent=e.message||String(e)}
  },gpsError,{enableHighAccuracy:true,maximumAge:0,timeout:15000})
 }
-let app=null,done={},map=null,currentLocation=null,currentMarker=null,currentPolyline=null,tracking=null,watchId=null,lastPublish=0,routeCalcBusy=false,lastRouteRefreshAt=0,lastRoutedLocation=null,routeRefreshTimer=null;
+let app=null,done={},map=null,mapStopLayer=null,mapBaseLayer=null,currentLocation=null,currentMarker=null,currentPolyline=null,tracking=null,watchId=null,lastPublish=0,routeCalcBusy=false,lastRouteRefreshAt=0,lastRoutedLocation=null,routeRefreshTimer=null,liveRouteFitted=false;
 async function boot(){
  try{
    const loaded=await loadPayload();
@@ -562,22 +768,29 @@ async function boot(){
    done=loadDone(app);
 
    syncHeaderFromApp();
-   renderStops();updateProgress();rebuildMap();
+   renderStops();updateProgress();rebuildMap({fit:true});
    startOnlineBundleSync();
+   showInstallState();
+   enforceGpsRequirement();
 
    if(tracking){
-     $("gpsStatus").textContent="Todas as entregas foram carregadas. Ative o GPS para desenhar no mapa o caminho pelas ruas até os clientes e compartilhar sua posição com a central.";
+     $("gpsStatus").textContent="Todas as entregas foram carregadas. O GPS é obrigatório para liberar o App, desenhar a rota e compartilhar a posição com a central.";
    }else{
-     $("gpsStatus").textContent="Entregas carregadas. Ative o GPS para desenhar no mapa o caminho pelas ruas até os clientes. Este link não está conectado ao rastreamento online da central.";
+     $("gpsStatus").textContent="Entregas carregadas. O GPS é obrigatório para liberar o App e desenhar a rota. Este link não está conectado ao rastreamento online da central.";
    }
  }catch(e){
-   $("map").style.display="none";$("stops").style.display="none";$("error").style.display="block";
-   $("error").textContent=(e.message||String(e))+"\n\nSe este link veio do WhatsApp, peça à central para abrir a V5.31, gerar/atualizar a rota do motorista e enviar o link novamente.";$("subtitle").textContent="Não foi possível abrir as entregas.";
+   $("gpsGate").classList.remove("show");document.body.classList.remove("gps-locked");$("map").style.display="none";$("stops").style.display="none";$("error").style.display="block";
+   $("error").textContent=(e.message||String(e))+"\n\nSe este link veio do WhatsApp, peça à central para abrir a V5.32, gerar/atualizar a rota do motorista e enviar o link novamente.";$("subtitle").textContent="Não foi possível abrir as entregas.";
    $("gpsStatus").textContent=e.message||String(e)
  }
 }
 $("startGpsBtn").addEventListener("click",startGps);
+$("gpsGateBtn").addEventListener("click",startGps);
 $("rerouteBtn").addEventListener("click",()=>optimizeFromCurrentLocation(true).catch(e=>alert(e.message||e)));
+$("installBtn").addEventListener("click",requestAppInstall);
+$("gpsGateInstallBtn").addEventListener("click",requestAppInstall);
+registerMotoristaServiceWorker();
+showInstallState();
 boot()
 </script>
 </body>

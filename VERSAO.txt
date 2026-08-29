@@ -1,5 +1,6 @@
-Gestão Logística V5.31
-App do Motorista: traçado real da rota no mapa usando GPS + OSRM.
-Linha azul tracejada: localização atual -> todas as entregas restantes da rota ativa.
-Atualização automática do traçado após deslocamento relevante.
-Publicar index.html e motorista.html.
+Gestão Logística V5.32
+App do Motorista instalável como PWA.
+GPS obrigatório para liberar entregas.
+Mapa Leaflet persistente, sem recriação a cada atualização GPS.
+Linha da rota azul contínua.
+Publicar index.html, motorista.html, manifest.webmanifest, sw.js e pasta icons.

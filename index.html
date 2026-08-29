@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Gestão Logística - V5.31 Traçado da Rota no App</title>
+<title>Gestão Logística - V5.32 PWA + GPS Obrigatório + Mapa Estável</title>
 <style>
 :root{
   --bg:#f3f6fb;--card:#fff;--line:#e2e8f0;--text:#152033;--muted:#667085;
@@ -365,7 +365,7 @@ main{max-width:1580px;margin:auto;padding:20px}.view{display:none}.view.active{d
 </head>
 <body>
 <header class="top"><div class="topin">
- <div class="brand"><div class="logo">R</div><div><h1>Gestão Logística - Rotas e Embarques V5.31</h1><small>Rotas • ESPD • Frota • Embarques automáticos</small></div></div>
+ <div class="brand"><div class="logo">R</div><div><h1>Gestão Logística - Rotas e Embarques V5.32</h1><small>Rotas • ESPD • Frota • Embarques automáticos</small></div></div>
  <nav class="nav">
   <button class="active" data-view="planning">Dashboard semanal</button>
   <button data-view="routeanalysis">Análise de rotas</button>
@@ -493,7 +493,7 @@ main{max-width:1580px;margin:auto;padding:20px}.view{display:none}.view.active{d
    </div>
    <div class="realtime-config">
     <div class="realtime-config-head">
-     <div><h4>Rastreamento em tempo real</h4><small>Firebase do Gestão Logística já integrado. Na V5.31 o App do Motorista também possui essa configuração embutida, evitando links cortados pelo WhatsApp.</small></div>
+     <div><h4>Rastreamento em tempo real</h4><small>Firebase do Gestão Logística já integrado. Na V5.32 o App do Motorista também possui essa configuração embutida, evitando links cortados pelo WhatsApp.</small></div>
      <span class="badge review" id="firebaseConnectionBadge">NÃO CONFIGURADO</span>
     </div>
     <textarea id="firebaseConfigText" placeholder="Configuração Firebase integrada automaticamente."></textarea>
@@ -1001,12 +1001,12 @@ async function publishDriverAppBundle(driver,routesList){
  bundle.publicationRevision=revision;
  bundle.routeSignature=signature;
  bundle.publishedAt=new Date().toISOString();
- bundle.appBuild="V5.31";
+ bundle.appBuild="V5.32";
 
  const safeBundle=cleanFirebaseObject(bundle);
  await rt.dbMod.set(rt.dbMod.ref(rt.db,`driverApps/${publication.appId}`),safeBundle);
 
- // A V5.31 NÃO libera o link antes de confirmar que o Firebase devolve o pacote completo.
+ // A V5.32 NÃO libera o link antes de confirmar que o Firebase devolve o pacote completo.
  const checkSnap=await rt.dbMod.get(rt.dbMod.ref(rt.db,`driverApps/${publication.appId}`));
  if(!checkSnap.exists())throw new Error("O Firebase não devolveu as viagens após a publicação.");
  const remote=checkSnap.val();
@@ -1057,9 +1057,9 @@ function publishedDriverAppUrl(driver){
  if(!publicBase&&!/^https?:$/.test(location.protocol))return"";
  const url=publicBase?new URL("motorista.html",publicBase):new URL("motorista.html",window.location.href);
 
- // V5.31: Firebase já está embutido no motorista.html.
+ // V5.32: Firebase já está embutido no motorista.html.
  // O WhatsApp recebe somente um link curto; não há mais JSON/configuração no hash.
- url.searchParams.set("v","531");
+ url.searchParams.set("v","532");
  url.hash=`app=${encodeURIComponent(pub.appId)}&rev=${encodeURIComponent(pub.revision||"")}&orders=${encodeURIComponent(pub.orderCount||0)}&stops=${encodeURIComponent(pub.totalStops||0)}&driver=${encodeURIComponent(pub.driver||driver)}`;
  return url.href
 }
@@ -2882,7 +2882,7 @@ function driverAppUrlForRoutes(driver,routesList){
  // Compatibilidade sem Firebase.
  const publicBase=normalizedPublicBaseUrl();
  const url=publicBase?new URL("motorista.html",publicBase):new URL("motorista.html",window.location.href);
- url.searchParams.set("v","531");
+ url.searchParams.set("v","532");
  url.hash=encodeDriverAppPayload(compactDriverBundle(driver,valid));
  return url.href
 }
@@ -2915,7 +2915,7 @@ async function prepareVerifiedDriverApp(driver,routesList){
  const url=driverAppUrlForRoutes(driver,valid);
  if(!url)throw new Error(`Não foi possível gerar o link do App de ${driver}.`);
  if(firebaseConfigReady()&&url.includes("&cfg=")){
-   throw new Error("Foi detectado um link antigo com configuração Firebase embutida. Atualize o sistema para a V5.31.")
+   throw new Error("Foi detectado um link antigo com configuração Firebase embutida. Atualize o sistema para a V5.32.")
  }
  return url
 }
