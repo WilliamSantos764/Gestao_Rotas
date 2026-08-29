@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Gestão Logística - V5.44 Embarques + Acompanhamento</title>
+<title>Gestão Logística - V5.46 Controle de Publicação + Configurações</title>
 <style>
 :root{
   --bg:#f3f6fb;--card:#fff;--line:#e2e8f0;--text:#152033;--muted:#667085;
@@ -20,6 +20,21 @@ button,input,select{font:inherit}button{cursor:pointer}
 .brand h1{font-size:17px;margin:0}.brand small{display:block;color:var(--muted);margin-top:3px}
 .nav{display:flex;gap:5px;flex-wrap:wrap}.nav button{border:0;background:transparent;padding:9px 10px;border-radius:10px;color:var(--muted);font-weight:800;font-size:13px}
 .nav button.active{background:#eef4ff;color:var(--blue)}
+.settings-nav-wrap{position:relative;display:inline-flex;align-items:center}
+.nav .settings-gear{width:38px;min-width:38px;padding:8px;border-radius:10px;font-size:17px;line-height:1}
+.settings-menu{display:none;position:absolute;right:0;top:44px;z-index:100020;width:210px;padding:7px;background:#fff;border:1px solid var(--line);border-radius:12px;box-shadow:0 18px 45px rgba(16,24,40,.18)}
+.settings-menu.open{display:block}.settings-menu-title{padding:6px 8px 8px;font-size:9px;font-weight:950;color:var(--muted);text-transform:uppercase;border-bottom:1px solid #edf0f5;margin-bottom:4px}
+.settings-menu button{display:block!important;width:100%;text-align:left;border:0!important;background:#fff!important;color:#344054!important;padding:9px 10px!important;border-radius:8px!important;font-size:10px!important;font-weight:850!important}
+.settings-menu button:hover{background:#f2f4f7!important}
+.app-release-banner{margin:9px 0;padding:9px 11px;border:1px solid #fedf89;background:#fffaeb;border-radius:10px;color:#93370d;font-size:10px;font-weight:850;line-height:1.45}
+.app-release-banner.ready{border-color:#abefc6;background:#ecfdf3;color:#05603a}
+.whatsapp-row{grid-template-columns:minmax(170px,1fr) minmax(250px,330px) auto!important;align-items:end!important}
+.whatsapp-inline-edit{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:6px;align-items:end}
+.whatsapp-inline-edit label{grid-column:1/-1;display:block;font-size:8px;font-weight:950;color:var(--muted);text-transform:uppercase;margin-bottom:-2px}
+.whatsapp-inline-edit input{width:100%;min-height:34px;border:1px solid var(--line);border-radius:8px;padding:7px 9px;background:#fff;font:inherit;font-size:10px}
+.whatsapp-inline-edit .btn{min-height:34px}
+@media(max-width:600px){.whatsapp-row{grid-template-columns:1fr!important}.whatsapp-inline-edit{grid-template-columns:1fr auto}}
+
 main{max-width:1580px;margin:auto;padding:20px}.view{display:none}.view.active{display:block}
 .hero{display:flex;justify-content:space-between;align-items:flex-start;gap:20px;margin-bottom:15px}.hero h2{font-size:28px;margin:0 0 6px}.hero p{margin:0;color:var(--muted);line-height:1.5;max-width:900px}
 .actions{display:flex;gap:8px;flex-wrap:wrap}.btn{border:1px solid var(--line);background:#fff;border-radius:10px;padding:10px 13px;font-weight:850;color:var(--text)}.btn.primary{background:var(--blue);border-color:var(--blue);color:#fff}.btn.primary:hover{background:var(--blue2)}.btn.danger{color:var(--red)}.btn.success{background:var(--green);border-color:var(--green);color:white}.btn.small{padding:7px 9px;font-size:12px}
@@ -511,15 +526,21 @@ main{max-width:1580px;margin:auto;padding:20px}.view{display:none}.view.active{d
 </head>
 <body>
 <header class="top"><div class="topin">
- <div class="brand"><div class="logo">R</div><div><h1>Gestão Logística - Embarques e Rotas V5.44</h1><small>Rotas • ESPD • Frota • Embarques automáticos</small></div></div>
+ <div class="brand"><div class="logo">R</div><div><h1>Gestão Logística - Embarques e Rotas V5.46</h1><small>Rotas • ESPD • Frota • Embarques automáticos</small></div></div>
  <nav class="nav">
   <button class="active" data-view="planning">Embarques</button>
   <button data-view="routeanalysis">Central de Rotas</button>
-  <button data-view="routes">Rotas Fixas</button>
-  <button data-view="fleet">Frota</button>
-  <button data-view="driverapps">Motoristas</button>
-  <button data-view="sync">ESPD</button>
-  <button data-view="data">Base ESPD</button>
+  <div class="settings-nav-wrap">
+   <button type="button" class="settings-gear" id="settingsGearBtn" title="Configurações">⚙</button>
+   <div class="settings-menu" id="settingsMenu">
+    <div class="settings-menu-title">Configurações</div>
+    <button type="button" data-settings-view="routes">Rotas Fixas</button>
+    <button type="button" data-settings-view="sync">ESPD</button>
+    <button type="button" data-settings-view="data">Base ESPD</button>
+    <button type="button" data-settings-view="driverapps">Motoristas</button>
+    <button type="button" data-settings-view="fleet">Frota</button>
+   </div>
+  </div>
  </nav>
 </div></header>
 
@@ -551,17 +572,7 @@ main{max-width:1580px;margin:auto;padding:20px}.view{display:none}.view.active{d
  <div class="panel" style="padding:0;border:0;background:transparent">
   <div class="shipment-orders-only-note">Para consultar pedidos e itens: <b>Resumo de embarques da semana → clique no dia → clique no embarque → clique no pedido.</b></div>
  </div>
-
-  <section class="route-final-panel">
-   <div class="route-final-head">
-    <div><h4>Situação dos embarques em entrega</h4><small>Aqui você acompanha por motorista as entregas, canhotos, ocorrências e conclusão da rota. Os pedidos e itens continuam sendo consultados pelo Resumo de embarques da semana.</small></div>
-    <span class="badge review" id="routeFinalizationCount">0 finalizadas</span>
-   </div>
-   <div id="routeFinalizationHost" class="route-final-list"><div class="ra-empty">Aguardando canhotos dos motoristas.</div></div>
-  </section>
-  
-
- <div class="panel">
+<div class="panel">
   <div class="formgrid">
    <div class="formfield"><label>ÚLTIMO EMBARQUE CONHECIDO</label><input id="lastShipmentInput" type="number" min="1" value="93716"></div>
    <div class="formfield"><label>PESO ELEVADO A PARTIR DE (KG)</label><input id="heavyThreshold" type="number" min="1" value="1500"></div>
@@ -642,7 +653,7 @@ main{max-width:1580px;margin:auto;padding:20px}.view{display:none}.view.active{d
     <select id="mapDriverFilter" title="Filtrar motorista">
      <option value="TODOS">Todos os motoristas</option>
     </select>
-    <button class="btn small primary" id="generateDriverRoutes">🧭 Gerar rotas dos motoristas</button>
+    <button class="btn small" id="generateDriverRoutes">Pré-calcular selecionado (não envia ao App)</button>
     <button class="btn small" id="refreshRouteMap">↻ Atualizar mapa</button>
     <label class="completed-map-switch"><input id="showCompletedRoutesMap" type="checkbox"> Mostrar rotas concluídas no mapa</label>
    </div>
@@ -682,6 +693,7 @@ main{max-width:1580px;margin:auto;padding:20px}.view{display:none}.view.active{d
    </div>
    <div id="centralShipmentRoutingHost" class="central-shipment-routing-list"><div class="ra-empty">Nenhum embarque disponível no filtro atual.</div></div>
   </section>
+  <div id="driverAppReleaseStatus" class="app-release-banner">🔒 Apps dos Motoristas bloqueados. Nenhum pedido ou rota será publicado até clicar em <b>Roteirizar todos e liberar Apps</b>.</div>
   <div class="route-ops-grid">
    <div class="route-map-half"><div id="routeMap"></div></div>
    <aside class="route-operations-side">
@@ -695,14 +707,26 @@ main{max-width:1580px;margin:auto;padding:20px}.view{display:none}.view.active{d
      <div><span>Reentregas</span><b id="opsRedeliveries">0</b></div>
     </div>
     <div class="routing-queue-actions">
-     <button type="button" class="btn primary" id="routeAllTrucksBtn">🧭 Roteirizar todos os caminhões</button>
+     <button type="button" class="btn primary" id="routeAllTrucksBtn">🧭 Roteirizar todos e liberar Apps</button>
     </div>
     <div id="routingQueueHost" class="routing-queue"><div class="ra-empty">Nenhum caminhão aguardando roteirização.</div></div>
     <div class="compact-live-title"><b>🚚 Motoristas / caminhões ao vivo</b><span class="badge open" id="liveTruckCount">0 online</span></div>
     <div id="liveTrackingHost" class="live-tracking-list compact"><div class="ra-empty">Aguardando Apps dos Motoristas.</div></div>
    </aside>
   </div>
-<section class="redelivery-panel informational">
+
+
+  <section class="route-final-panel">
+   <div class="route-final-head">
+    <div><h4>Situação dos embarques em entrega</h4><small>Acompanhe por motorista as entregas, canhotos, ocorrências e conclusão das rotas. Para pedidos e itens, continue usando a aba Embarques.</small></div>
+    <span class="badge review" id="routeFinalizationCount">0 finalizadas</span>
+   </div>
+   <div id="routeFinalizationHost" class="route-final-list"><div class="ra-empty">Aguardando canhotos dos motoristas.</div></div>
+  </section>
+  
+
+ 
+  <section class="redelivery-panel informational">
    <div class="redelivery-head">
     <div><h4>Reentregas e ocorrências</h4><small>Mostra o motivo informado pelo motorista e a próxima data em que existe rota fixa para aquela cidade. Não existe mais etapa de aprovação.</small></div>
     <span id="redeliveryCount" class="badge review">0 pendentes</span>
@@ -765,14 +789,14 @@ main{max-width:1580px;margin:auto;padding:20px}.view{display:none}.view.active{d
  <div class="hero">
   <div>
    <h2>Apps dos Motoristas</h2>
-   <p>Cada motorista da frota possui um app vinculado ao Gestão Logística. Quando uma rota é gerada, o app daquele motorista recebe automaticamente as paradas, pedidos, endereços e sequência de entrega.</p>
+   <p>Cada motorista possui um App vinculado, mas nenhuma rota ou pedido é liberado automaticamente. Os Apps só recebem as viagens depois do comando “Roteirizar todos e liberar Apps” na Central de Rotas.</p>
   </div>
   <div class="actions">
    <button class="btn primary" onclick="activateView('routeanalysis')">🧭 Gerar/atualizar rotas</button>
    <button class="btn" onclick="renderDriverApps()">↻ Atualizar apps</button>
   </div>
  </div>
- <div class="driver-app-help"><b>Fluxo:</b> gere a rota na Análise inteligente → o sistema vincula a rota ao App do motorista → pede/confirma o WhatsApp → abre a conversa pronta. <b>Se estiver local</b>, envia a rota completa com links de navegação. <b>Se estiver publicado</b>, inclui também o link do App do Motorista.</div>
+ <div class="driver-app-help"><b>Fluxo:</b> vincule o ESPD → confira os embarques → vá à Central de Rotas → clique <b>Roteirizar todos e liberar Apps</b>. Antes desse clique, os Apps ficam em <b>Aguardando roteirização</b>.</div>
  <div class="grid4">
   <div class="metric"><small>Apps vinculados</small><strong id="daTotal">0</strong><span>Motoristas cadastrados</span></div>
   <div class="metric"><small>Com WhatsApp</small><strong id="daPhones">0</strong><span>Número salvo</span></div>
@@ -783,7 +807,7 @@ main{max-width:1580px;margin:auto;padding:20px}.view{display:none}.view.active{d
 </section>
 
 <section id="sync" class="view">
- <div class="hero"><div><h2>ESPD vinculado</h2><p>O ESPD agora é a fonte mestre da operação. Ao vincular, substituir ou salvar uma nova versão, o sistema relê automaticamente pedidos, itens, pesos, valores, cidades, clientes e números de embarque; atualiza os embarques abertos e invalida somente rotas pendentes que ficaram desatualizadas. Histórico finalizado e canhotos são preservados.</p></div><div class="actions"><button class="btn primary" id="pickFile">📁 Vincular ESPD CSV/Excel</button><button class="btn" id="remapColumns">↻ Remapear colunas</button><button class="btn danger" id="unlinkFile">Desvincular</button></div></div>
+ <div class="hero"><div><h2>ESPD vinculado</h2><p>O ESPD agora é a fonte mestre da operação. Ao vincular, substituir ou salvar uma nova versão, o sistema relê automaticamente pedidos, itens, pesos, valores, cidades, clientes e números de embarque; atualiza os embarques abertos e invalida somente rotas pendentes que ficaram desatualizadas. Histórico finalizado e canhotos são preservados.</p></div><div class="actions"><button class="btn primary" id="pickFile">📁 Vincular ESPD CSV/Excel</button><button class="btn" id="remapColumns">↻ Remapear colunas</button><button class="btn danger" id="unlinkFile">Desvincular e limpar operação</button></div></div>
  <div class="espd-master-banner"><b>Fonte mestre automática:</b> cada nova leitura do ESPD substitui os dados operacionais dos pedidos pelo conteúdo mais recente. Pesos e valores são recalculados por item; pedidos que mudaram de embarque são reconciliados; pedidos removidos deixam os embarques abertos; rotas pendentes desatualizadas são marcadas para nova geração.</div>
  <div class="panel">
   <div class="live"><span class="dot"></span> Monitoramento automático a cada 2 segundos</div>
@@ -925,7 +949,7 @@ let routes=loadJSON(ROUTE_KEY,ORIGINAL_ROUTES),fleet=loadJSON(FLEET_KEY,ORIGINAL
 const EMBEDDED_FIREBASE_CONFIG={"apiKey":"AIzaSyBmEX1QM6pJmMO116YTADhqMKOhWl5Nz8Q","authDomain":"gestao-logistica-4c606.firebaseapp.com","databaseURL":"https://gestao-logistica-4c606-default-rtdb.firebaseio.com/","projectId":"gestao-logistica-4c606","storageBucket":"gestao-logistica-4c606.firebasestorage.app","appId":"1:484709506190:web:52590b0888a1da0f1efddf"};
 const EMBEDDED_FIREBASE_CONFIG_TEXT=JSON.stringify(EMBEDDED_FIREBASE_CONFIG,null,2);
 
-let settings=loadJSON(SETTINGS_KEY,{lastShipment:93716,heavyThreshold:1500,fleetPriority:"CASA",publicAppBaseUrl:"",autoWhatsAppAfterRouting:true,deliveryProofWhatsApp:"",firebaseConfigText:EMBEDDED_FIREBASE_CONFIG_TEXT,driverAppPublications:{}});
+let settings=loadJSON(SETTINGS_KEY,{lastShipment:93716,heavyThreshold:1500,fleetPriority:"CASA",publicAppBaseUrl:"",autoWhatsAppAfterRouting:true,deliveryProofWhatsApp:"",firebaseConfigText:EMBEDDED_FIREBASE_CONFIG_TEXT,driverAppPublications:{},espdOperationalRevision:"",bulkRoutingRevision:"",bulkRoutingAt:""});
 
 const ROUTE_GEO_KEY="logistica_route_geo_v55";
 const DEPOT_COORD={lat:-22.261541,lon:-45.764269,name:"COOPERRITA - ORIGEM"};
@@ -944,7 +968,7 @@ let routeMap=null;
 let routeMapLayers=[];
 let municipalityIndex=null;
 let municipalityIndexPromise=null;
-let driverRouteGenerationBusy=false;
+let driverRouteGenerationBusy=false,bulkRoutePublishMode=false;
 const DRIVER_ROUTE_COLORS=["#2563eb","#7c3aed","#059669","#d97706","#dc2626","#0891b2","#c026d3","#65a30d","#ea580c","#4f46e5","#0f766e","#be123c","#9333ea","#0369a1","#a16207"];
 let firebaseRuntimePromise=null;
 let firebaseTrackingUnsubs=[];
@@ -970,6 +994,9 @@ if(typeof settings.autoWhatsAppAfterRouting!=="boolean")settings.autoWhatsAppAft
 if(typeof settings.deliveryProofWhatsApp!=="string")settings.deliveryProofWhatsApp="";
 if(typeof settings.firebaseConfigText!=="string"||!settings.firebaseConfigText.trim())settings.firebaseConfigText=EMBEDDED_FIREBASE_CONFIG_TEXT;
 if(!settings.driverAppPublications||typeof settings.driverAppPublications!=="object")settings.driverAppPublications={};
+if(typeof settings.espdOperationalRevision!=="string")settings.espdOperationalRevision="";
+if(typeof settings.bulkRoutingRevision!=="string")settings.bulkRoutingRevision="";
+if(typeof settings.bulkRoutingAt!=="string")settings.bulkRoutingAt="";
 delete settings.milkOnlyMaxWeight;
 delete settings.allocationWeightCutoff;
 delete settings.selectedAllocationRules;
@@ -978,15 +1005,20 @@ function persistRouteGeo(){localStorage.setItem(ROUTE_GEO_KEY,JSON.stringify(rou
 function persistDeliveryGeo(){localStorage.setItem(DELIVERY_GEO_KEY,JSON.stringify(deliveryGeoCache))}
 
 /* NAV */
+function closeSettingsMenu(){$("settingsMenu")?.classList.remove("open")}
 function activateView(viewId){
  document.querySelectorAll(".view").forEach(x=>x.classList.remove("active"));
  const target=$(viewId);if(target)target.classList.add("active");
- document.querySelectorAll(".nav button").forEach(x=>x.classList.toggle("active",x.dataset.view===viewId||viewId==="daydetail"&&x.dataset.view==="planning"));
+ document.querySelectorAll(".nav button[data-view]").forEach(x=>x.classList.toggle("active",x.dataset.view===viewId||viewId==="daydetail"&&x.dataset.view==="planning"));
+ closeSettingsMenu();
  if(viewId==="routeanalysis")setTimeout(()=>{initRouteMap();if(routeMap)routeMap.invalidateSize();autoConnectFirebaseTracking()},80);
  if(viewId==="driverapps")renderDriverApps();
  window.scrollTo({top:0,behavior:"smooth"})
 }
-document.querySelectorAll(".nav button").forEach(b=>b.onclick=()=>activateView(b.dataset.view));
+document.querySelectorAll(".nav button[data-view]").forEach(b=>b.onclick=()=>activateView(b.dataset.view));
+$("settingsGearBtn").addEventListener("click",e=>{e.stopPropagation();$("settingsMenu").classList.toggle("open")});
+document.querySelectorAll("[data-settings-view]").forEach(b=>b.addEventListener("click",()=>activateView(b.dataset.settingsView)));
+document.addEventListener("click",e=>{if(!e.target.closest(".settings-nav-wrap"))closeSettingsMenu()});
 
 /* ROTAS */
 let routeFilter="TODOS",routeEditing=null;
@@ -1030,6 +1062,57 @@ function firebaseConfigToken(){
 function firebasePublicationForDriver(driver){
  return settings.driverAppPublications?.[norm(driver)]||null
 }
+
+function currentEspdOperationalRevision(){
+ if(!currentFile||!aggregatedOrders.length)return"";
+ const source=[currentFile.name||"",currentFile.lastModified||0,currentFile.size||0,currentFileKind||"",currentSheetIndex||0,currentTable.rows?.length||0,aggregatedOrders.length].join("|");
+ return`espd_${fastStableHash(source)}`
+}
+function driverAppsUnlocked(){
+ return !!settings.espdOperationalRevision&&settings.bulkRoutingRevision===settings.espdOperationalRevision
+}
+function routeBelongsToCurrentEspd(route){
+ return !!route&&!!settings.espdOperationalRevision&&String(route.espdRevision||"")===String(settings.espdOperationalRevision)
+}
+function updateDriverAppReleaseUi(){
+ const el=$("driverAppReleaseStatus");if(!el)return;
+ if(driverAppsUnlocked()){
+   el.className="app-release-banner ready";
+   el.innerHTML=`✓ Apps liberados pela roteirização geral${settings.bulkRoutingAt?` em <b>${new Date(settings.bulkRoutingAt).toLocaleString("pt-BR")}</b>`:""}.`
+ }else{
+   el.className="app-release-banner";
+   el.innerHTML='🔒 Apps dos Motoristas bloqueados. Nenhum pedido ou rota será publicado até clicar em <b>Roteirizar todos e liberar Apps</b>.'
+ }
+}
+function waitingDriverBundle(driver,appId,reason){
+ return{v:2,type:"WAITING_FOR_ROUTING",status:"WAITING_FOR_ROUTING",id:`DRIVER_APP|${appId}`,trackingSessionId:appId,publicationRevision:secureRandomId("wait"),publishedAt:new Date().toISOString(),driver,origin:{name:DEPOT_COORD.name,lat:DEPOT_COORD.lat,lon:DEPOT_COORD.lon},routes:[],plates:[],shipments:[],totalDistance:0,totalDuration:0,totalStops:0,orderCount:0,routedOrderCount:0,proofRequired:true,proofWhatsApp:deliveryProofWhatsAppNumber(),message:reason||"Aguardando roteirização geral."}
+}
+async function publishDriverAppsWaiting(reason,{clearOperational=false}={}){
+ if(!firebaseConfigReady())return;
+ const pubs=Object.values(settings.driverAppPublications||{}).filter(p=>p?.appId&&p?.driver);
+ if(!pubs.length)return;
+ try{
+   const rt=await getFirebaseRuntime();
+   for(const pub of pubs){
+     const bundle=waitingDriverBundle(pub.driver,pub.appId,reason);
+     if(clearOperational){
+       await rt.dbMod.set(rt.dbMod.ref(rt.db,`driverApps/${pub.appId}`),{bundle});
+       await rt.dbMod.remove(rt.dbMod.ref(rt.db,`tracking/${pub.appId}`)).catch(()=>{})
+     }else await rt.dbMod.set(rt.dbMod.ref(rt.db,`driverApps/${pub.appId}/bundle`),bundle);
+     settings.driverAppPublications[norm(pub.driver)]={...pub,revision:bundle.publicationRevision,signature:"",orderCount:0,totalStops:0,routeCount:0,updatedAt:bundle.publishedAt,waitingForRouting:true}
+   }
+   persist();renderDriverApps();renderWhatsAppDispatch()
+ }catch(e){console.error("Apps aguardando roteirização:",e)}
+}
+function registerCurrentEspdRevision(){
+ const next=currentEspdOperationalRevision();if(!next)return false;
+ if(next===settings.espdOperationalRevision)return false;
+ settings.espdOperationalRevision=next;settings.bulkRoutingRevision="";settings.bulkRoutingAt="";
+ persist();updateDriverAppReleaseUi();
+ setTimeout(()=>publishDriverAppsWaiting("ESPD atualizado. Aguardando Roteirizar todos e liberar Apps.").catch(console.error),0);
+ return true
+}
+
 function secureRandomId(prefix="app"){
  const bytes=new Uint8Array(16);
  if(globalThis.crypto?.getRandomValues)crypto.getRandomValues(bytes);
@@ -1091,7 +1174,7 @@ async function saveFirebaseConfiguration(){
 }
 
 async function publishAllExistingDriverApps(){
- if(!firebaseConfigReady())return{published:0,failed:0};
+ if(!firebaseConfigReady()||!driverAppsUnlocked())return{published:0,failed:0};
  const drivers=new Set();
  Object.values(plans||{}).forEach(plan=>{
    Object.values(plan?.driverRoutes||{}).forEach(route=>{
@@ -1202,6 +1285,7 @@ async function readPublishedDriverBundle(appId){
  return legacy?.bundle||legacy
 }
 async function publishDriverAppBundle(driver,routesList){
+ if(!driverAppsUnlocked())throw new Error("Apps bloqueados: clique em Roteirizar todos e liberar Apps.");
  const valid=(routesList||[]).filter(r=>!r?.error&&r?.stops?.length);
  if(!valid.length)throw new Error(`Nenhuma viagem válida encontrada para ${driver}.`);
  if(!firebaseConfigReady())throw new Error("Firebase não configurado.");
@@ -1221,11 +1305,11 @@ async function publishDriverAppBundle(driver,routesList){
  bundle.publicationRevision=revision;
  bundle.routeSignature=signature;
  bundle.publishedAt=new Date().toISOString();
- bundle.appBuild="V5.44";
+ bundle.appBuild="V5.46";
 
  const safeBundle=cleanFirebaseObject(bundle);
 
- // V5.44: as viagens ficam em /bundle e os canhotos em /deliveryProofs.
+ // V5.46: as viagens ficam em /bundle e os canhotos em /deliveryProofs.
  // Isso evita carregar fotos grandes toda vez que o motorista abre o App.
  const rootRef=rt.dbMod.ref(rt.db,`driverApps/${publication.appId}`);
  const oldSnap=await rt.dbMod.get(rootRef);
@@ -1262,6 +1346,7 @@ async function publishDriverAppBundle(driver,routesList){
  return candidate
 }
 async function ensureDriverAppPublished(driver,routesList){
+ if(!driverAppsUnlocked())throw new Error("Apps bloqueados: clique em Roteirizar todos e liberar Apps.");
  if(!firebaseConfigReady())return null;
  const valid=(routesList||[]).filter(r=>!r?.error&&r?.stops?.length);
  if(!valid.length)throw new Error(`Nenhuma viagem válida encontrada para ${driver}.`);
@@ -1281,15 +1366,16 @@ async function ensureDriverAppPublished(driver,routesList){
  return publishDriverAppBundle(driver,valid)
 }
 function publishedDriverAppUrl(driver){
+ if(!driverAppsUnlocked())return"";
  const pub=firebasePublicationForDriver(driver);
  if(!pub?.appId)return"";
  const publicBase=normalizedPublicBaseUrl();
  if(!publicBase&&!/^https?:$/.test(location.protocol))return"";
  const url=publicBase?new URL("motorista.html",publicBase):new URL("motorista.html",window.location.href);
 
- // V5.44: Firebase já está embutido no motorista.html.
+ // V5.46: Firebase já está embutido no motorista.html.
  // O WhatsApp recebe somente um link curto; não há mais JSON/configuração no hash.
- url.searchParams.set("v","544");
+ url.searchParams.set("v","546");
  url.hash=`app=${encodeURIComponent(pub.appId)}&rev=${encodeURIComponent(pub.revision||"")}&orders=${encodeURIComponent(pub.orderCount||0)}&stops=${encodeURIComponent(pub.totalStops||0)}&driver=${encodeURIComponent(pub.driver||driver)}`;
  return url.href
 }
@@ -1495,7 +1581,7 @@ function renderRedeliveryPanels(){
 }
 function closeRedeliveryModal(){$("redeliveryModal")?.classList.remove("open");currentRedeliveryCase=null}
 function openRedeliveryApproval(appId,eventId){
- alert("Na V5.44 não existe aprovação manual. A próxima rota é calculada automaticamente.");return;
+ alert("Na V5.46 não existe aprovação manual. A próxima rota é calculada automaticamente.");return;
 
  const state=proofStateForApp(appId),event=state.events?.[eventId];if(!event)return alert("Ocorrência não encontrada.");
  const approval=state.redelivery?.[eventId]||null;currentRedeliveryCase={appId,eventId,event,approval};
@@ -1827,10 +1913,10 @@ function renderLiveTrackingPanel(){
  const filter=$("mapDriverFilter")?.value||"TODOS";
  const pubs=Object.values(settings.driverAppPublications||{}).filter(p=>p?.driver&&p?.appId);
  const driverNames=new Set([...pubs.map(p=>p.driver),...[...liveTruckPositions.values()].map(t=>t.driver).filter(Boolean)]);
- const rows=[...driverNames].filter(d=>filter==="TODOS"||norm(d)===norm(filter)).map(driver=>({
-   driver,
-   live:[...liveTruckPositions.values()].find(t=>norm(t.driver)===norm(driver))||null
- })).sort((a,b)=>String(a.driver).localeCompare(String(b.driver),"pt-BR"));
+ const finalRows=routeFinalizationRows(),finalByDriver=new Map();
+ finalRows.forEach(r=>{const k=norm(r.pub.driver);if(!finalByDriver.has(k))finalByDriver.set(k,[]);finalByDriver.get(k).push(r)});
+ const liveByDriver=new Map([...liveTruckPositions.values()].filter(t=>t.driver).map(t=>[norm(t.driver),t]));
+ const rows=[...driverNames].filter(d=>filter==="TODOS"||norm(d)===norm(filter)).map(driver=>({driver,live:liveByDriver.get(norm(driver))||null,routeRows:finalByDriver.get(norm(driver))||[]})).sort((a,b)=>String(a.driver).localeCompare(String(b.driver),"pt-BR"));
 
  const online=rows.filter(r=>r.live&&trackingAgeSeconds(r.live)<=60).length;
  count.textContent=`${online} online`;if($("opsOnlineDrivers"))$("opsOnlineDrivers").textContent=online;
@@ -1842,7 +1928,7 @@ function renderLiveTrackingPanel(){
    const completed=t&&Number.isFinite(Number(t.completedStops))?Number(t.completedStops):null;
    const remaining=t&&Number.isFinite(Number(t.remainingStops))?Number(t.remainingStops):null;
    const total=completed!==null&&remaining!==null?completed+remaining:null;
-   const routeRows=routeFinalizationRows().filter(r=>norm(r.pub.driver)===norm(row.driver));
+   const routeRows=row.routeRows||[];
    return `<div class="live-truck" role="button" tabindex="0" onclick="openDriverOperationalDetail('${encodeURIComponent(row.driver)}')" onkeydown="if(event.key==='Enter')openDriverOperationalDetail('${encodeURIComponent(row.driver)}')">
     <div class="live-truck-icon">🚚</div>
     <div><b><span class="live-dot ${st.cls}"></span>${esc(row.driver)}${plate?` • ${esc(plate)}`:""}</b><small>${esc(st.label)} • ${routeRows.filter(r=>!r.finalized).length} rota(s) pendente(s) • ${routeRows.filter(r=>r.finalized).length} finalizada(s)</small></div>
@@ -1938,6 +2024,16 @@ function saveFleetWhatsApp(index,value){
  renderDriverApps()
 }
 
+
+function whatsappDispatchInputId(driver){return`waDispatch_${fastStableHash(norm(driver))}`}
+function saveWhatsAppDispatchPhone(encodedDriver){
+ const driver=decodeURIComponent(encodedDriver),entry=fleetEntryForDriver(driver);if(!entry)return alert(`Motorista ${driver} não encontrado.`);
+ const input=$(whatsappDispatchInputId(driver));if(!input)return;
+ const raw=String(input.value||"").trim();
+ if(raw&&!validWhatsAppNumber(raw)){input.focus();return alert("Número inválido. Informe DDD + telefone, por exemplo: (35) 99999-9999.")}
+ entry.whatsapp=raw;persist();renderFleet();renderDriverApps();renderWhatsAppDispatch();toast(raw?`WhatsApp de ${driver} atualizado.`:`WhatsApp de ${driver} removido.`)
+}
+function focusWhatsAppDispatchPhone(driver){const input=$(whatsappDispatchInputId(driver));if(input){input.focus();input.select?.()}}
 function latestRouteForDriver(driver){
  let latest=null;
  Object.values(plans||{}).forEach(plan=>{
@@ -2034,7 +2130,7 @@ function renderDriverApps(){
    const phoneOk=validWhatsAppNumber(v.whatsapp);
    const appRoutes=routesForDriverApp(v.driver);
    const route=appRoutes.length?appRoutes[appRoutes.length-1]:null;
-   const routeOk=appRoutes.length>0;
+   const routeOk=driverAppsUnlocked()&&appRoutes.length>0;
    if(phoneOk)phones++;
    if(routeOk)routesCount++;
    if(phoneOk&&routeOk)ready++;
@@ -2554,7 +2650,21 @@ async function pickESPD(){
  }catch(e){if(e.name!=="AbortError")alert(e.message||e)}
 }
 async function restoreHandle(){try{const h=await dbGet(HANDLE_KEY);if(!h)return;fileHandle=h;if(await ensurePermission(h,false)){await readLinkedFile(false);startMonitor()}else setState("ESPD lembrado; vincule novamente para renovar a permissão.","warn")}catch(e){console.warn(e)}}
-async function unlinkESPD(){stopMonitor();clearSheetCaches();fileHandle=null;currentFile=null;workbookCache=null;csvTable=null;currentFileKind="";currentTable={columns:[],rows:[]};aggregatedOrders=[];lastModified=lastSize=0;await dbDel(HANDLE_KEY);setState("Nenhum ESPD vinculado.","");$("sheetSelect").innerHTML="";renderData();syncPlanning(false)}
+async function unlinkESPD(){
+ if(!confirm("Desvincular o ESPD e limpar toda a operação atual?\n\nSerão removidos pedidos, embarques, rotas geradas, mapas/cache e dados publicados nos Apps. Motoristas/Frota e Rotas Fixas permanecem cadastrados."))return;
+ stopMonitor();clearSheetCaches();setState("Limpando operação e Apps dos Motoristas...","warn");
+ await publishDriverAppsWaiting("ESPD desvinculado. Aguardando nova roteirização.",{clearOperational:true}).catch(console.error);
+ fileHandle=null;currentFile=null;workbookCache=null;csvTable=null;currentFileKind="";
+ currentTable={columns:[],rows:[]};aggregatedOrders=[];detected={};mappingDetails={};lastModified=lastSize=0;
+ plans={};clientCities={};routeGeoCache={};deliveryGeoCache={};
+ driverProofStates=new Map();routeCompletionState=new Map();liveTruckPositions=new Map();
+ settings.espdOperationalRevision="";settings.bulkRoutingRevision="";settings.bulkRoutingAt="";
+ Object.keys(settings.driverAppPublications||{}).forEach(k=>settings.driverAppPublications[k]={...settings.driverAppPublications[k],signature:"",orderCount:0,totalStops:0,routeCount:0,waitingForRouting:true});
+ persist();persistRouteGeo();persistDeliveryGeo();stopLiveTrackingSubscriptions();await dbDel(HANDLE_KEY);
+ $("sheetSelect").innerHTML="";setState("Nenhum ESPD vinculado. Operação limpa; motoristas/frota e rotas fixas preservados.","");
+ renderData();renderPlanning();renderDriverApps();renderRoutingQueue();renderCentralShipmentRouting();renderLiveTrackingPanel();renderRouteFinalizationPanel();renderRedeliveryPanels();renderWhatsAppDispatch();updateDriverAppReleaseUi();
+ toast("ESPD desvinculado e operação limpa.")
+}
 function startMonitor(){stopMonitor();monitorTimer=setInterval(checkChanges,2000)}function stopMonitor(){if(monitorTimer){clearInterval(monitorTimer);monitorTimer=null}}
 async function checkChanges(){if(!fileHandle)return;try{if(!(await ensurePermission(fileHandle,false)))return setState("Permissão ao ESPD interrompida.","warn");const f=await fileHandle.getFile();if(f.lastModified!==lastModified||f.size!==lastSize)await readFileObject(f,true)}catch(e){setState("Erro ao acessar ESPD: "+e.message,"bad")}}
 async function readLinkedFile(force=false){if(!fileHandle)return toast("Nenhum ESPD vinculado.");if(!(await ensurePermission(fileHandle,true)))throw new Error("Sem permissão.");const f=await fileHandle.getFile();if(force||f.lastModified!==lastModified||f.size!==lastSize)await readFileObject(f,true)}
@@ -2619,9 +2729,11 @@ async function loadSelectedSheet(){
    setState("Mapeando colunas e pedidos...","warn");await yieldUI();
    detectFields();aggregateOrders();detectLastShipment(false);
    const espdRefresh=refreshOperationalDataFromESPD();
+   const espdRevisionChanged=registerCurrentEspdRevision();
    updateFileInfo();renderData();syncPlanning(true);renderRedeliveryPanels();
    const geoTest=testCoordinateSummary();
-   setState(`ESPD sincronizado: ${aggregatedOrders.length} pedido(s) • ${espdRefresh.updated} atualizado(s) • ${espdRefresh.removed} removido(s) • ${geoTest.stops?`${geoTest.stops} parada(s) com coordenada direta de teste • `:""}${espdRefresh.renumbered} embarque(s) reconciliado(s).`,"ok")
+   setState(`ESPD sincronizado: ${aggregatedOrders.length} pedido(s) • ${espdRefresh.updated} atualizado(s) • ${espdRefresh.removed} removido(s) • ${geoTest.stops?`${geoTest.stops} parada(s) com coordenada direta de teste • `:""}${espdRefresh.renumbered} embarque(s) reconciliado(s)${espdRevisionChanged?" • Apps bloqueados até roteirização geral":""}.`,"ok");
+   updateDriverAppReleaseUi();renderRoutingQueue();renderWhatsAppDispatch()
  }catch(e){
    console.error(e);setState("Falha ao ler a planilha: "+(e.message||e),"bad");throw e
  }
@@ -3016,7 +3128,7 @@ function deliveryCoordinateCacheKey(stop){
  return `ADDR:${norm(stop?.address||"")}`
 }
 async function geocodeDeliveryStop(stop){
- // Arquivo de teste V5.44: coordenadas explícitas têm prioridade total.
+ // Arquivo de teste V5.46: coordenadas explícitas têm prioridade total.
  if(validDeliveryCoordinates(stop?.lat,stop?.lon)){
    return{
      lat:Number(stop.lat),lon:Number(stop.lon),
@@ -3494,8 +3606,9 @@ function routingQueueRows(){
    drivers.forEach(driver=>{
      const shipments=shipmentsForDriverOnPlan(plan,driver);
      const existing=plan.driverRoutes?.[driver];
-     if(existing&&!existing.error)return;
-     rows.push({dayKey:info.key,day:info.day,driver,shipments:shipments.map(s=>s.shipment),orders:shipments.reduce((n,s)=>n+(s.orders||[]).length,0),error:existing?.error||""})
+     const currentRoute=existing&&!existing.error&&routeBelongsToCurrentEspd(existing);
+     if(currentRoute&&driverAppsUnlocked())return;
+     rows.push({dayKey:info.key,day:info.day,driver,shipments:shipments.map(s=>s.shipment),orders:shipments.reduce((n,s)=>n+(s.orders||[]).length,0),error:existing?.error||"",precalculated:!!currentRoute})
    })
  });
  return rows.sort((a,b)=>String(a.dayKey).localeCompare(String(b.dayKey))||String(a.driver).localeCompare(String(b.driver),"pt-BR"))
@@ -3503,17 +3616,19 @@ function routingQueueRows(){
 function renderRoutingQueue(){
  const host=$("routingQueueHost"),waiting=$("opsWaitingRoutes");if(!host||!waiting)return;
  const rows=routingQueueRows();waiting.textContent=rows.length;
- if(!rows.length){host.innerHTML='<div class="ra-empty">✓ Todos os caminhões do filtro já possuem rota gerada.</div>';return}
- host.innerHTML=rows.map(r=>`<div class="routing-queue-row"><div><b>${esc(r.driver)} • ${esc(r.day)}</b><small>Emb. ${r.shipments.map(esc).join(", ")||"—"} • ${r.orders} pedido(s)${r.error?`<br><span style="color:#b42318">${esc(r.error)}</span>`:""}</small></div><span class="badge review">AGUARDANDO</span></div>`).join("")
+ if(!rows.length){host.innerHTML=`<div class="ra-empty">${driverAppsUnlocked()?"✓ Todos os caminhões foram roteirizados e liberados aos Apps.":"Nenhum caminhão com pedidos aguardando rota."}</div>`;return}
+ host.innerHTML=rows.map(r=>`<div class="routing-queue-row"><div><b>${esc(r.driver)} • ${esc(r.day)}</b><small>Emb. ${r.shipments.map(esc).join(", ")||"—"} • ${r.orders} pedido(s)${r.error?`<br><span style="color:#b42318">${esc(r.error)}</span>`:""}${r.precalculated?`<br><span style="color:#175cd3;font-weight:900">Pré-calculada na central • NÃO enviada ao App</span>`:""}</small></div><span class="badge review">${r.precalculated?"AGUARDANDO LIBERAÇÃO":"AGUARDANDO ROTA"}</span></div>`).join("")
 }
 async function routeAllPendingTrucks(){
  if(driverRouteGenerationBusy)return;
+ if(!settings.espdOperationalRevision||!aggregatedOrders.length)return alert("Vincule um ESPD válido antes de liberar os Apps dos Motoristas.");
  const select=$("mapDriverFilter"),previous=select?.value||"TODOS";
- if(select)select.value="TODOS";
+ if(select)select.value="TODOS";bulkRoutePublishMode=true;
  try{await generateDriverRoutes()}
  finally{
+   bulkRoutePublishMode=false;
    if(select&&[...select.options].some(o=>o.value===previous))select.value=previous;
-   renderRoutingQueue();renderLiveTrackingPanel();renderWeeklyRouteMap()
+   updateDriverAppReleaseUi();renderRoutingQueue();renderLiveTrackingPanel();renderWeeklyRouteMap();renderWhatsAppDispatch()
  }
 }
 function selectedMapDays(){
@@ -3604,7 +3719,7 @@ async function buildDriverRoute(dayInfo,driver){
  const points=[{lat:DEPOT_COORD.lat,lon:DEPOT_COORD.lon},...stops];
  const matrix=await osrmDeliveryMatrix(points);
 
- // V5.44: distância real pela rua + continuidade de via.
+ // V5.46: distância real pela rua + continuidade de via.
  // Ao entrar em uma rua com várias entregas, descarrega os clientes próximos
  // nessa mesma via antes de sair, quando isso evita deslocamentos desnecessários.
  const seq=streetAwareDeliveryOrder(matrix.distances,stops);
@@ -3631,8 +3746,10 @@ async function buildDriverRoute(dayInfo,driver){
  const optimizedPoints=[{lat:DEPOT_COORD.lat,lon:DEPOT_COORD.lon},...optimizedStops];
  const finalRoute=await osrmDeliveryRoute(optimizedPoints);
  const existingRoute=ensurePlanDriverRoutes(plan)[driver];
+ const sameEspdExisting=existingRoute&&!existingRoute.error&&routeBelongsToCurrentEspd(existingRoute);
  const route={
-   generatedAt:existingRoute&&!existingRoute.error&&existingRoute.generatedAt?existingRoute.generatedAt:new Date().toISOString(),
+   generatedAt:sameEspdExisting&&existingRoute.generatedAt?existingRoute.generatedAt:new Date().toISOString(),
+   espdRevision:settings.espdOperationalRevision||"",
    dayKey:dayInfo.key,
    day:dayInfo.day,
    driver,
@@ -3723,7 +3840,7 @@ async function generateDriverRoutes(){
  // Para um motorista específico, reserva uma aba ainda dentro do clique do usuário.
  // Assim o navegador permite abrir o WhatsApp após o processamento assíncrono.
  let preparedWindow=null;
- if(initialDriverFilter!=="TODOS"){
+ if(bulkRoutePublishMode&&initialDriverFilter!=="TODOS"){
    preparedWindow=window.open("about:blank","_blank");
    if(preparedWindow){
      preparedWindow.document.write('<!doctype html><title>Gerando rota</title><body style="font-family:Arial;padding:24px"><h2>Gerando rota do motorista...</h2><p>Ao concluir, o sistema pedirá/confirma o WhatsApp e abrirá a mensagem com o App da rota.</p></body>')
@@ -3753,12 +3870,12 @@ async function generateDriverRoutes(){
        }
 
        const existingRoute=plan.driverRoutes?.[driver];
-       if(existingRoute&&!existingRoute.error&&centralRouteIsFinalized(existingRoute)){
+       const existingCurrent=existingRoute&&!existingRoute.error&&routeBelongsToCurrentEspd(existingRoute);
+       if(existingCurrent&&centralRouteIsFinalized(existingRoute)){
          skippedFinalized++;
          continue
        }
-
-       if(existingRoute&&!existingRoute.error){
+       if(existingCurrent){
          try{reactivatedNoTime+=await reactivateNoTimeEventsForRoute(driver,existingRoute)}catch(e){console.warn("Reativação de não entregues",driver,e)}
        }
 
@@ -3788,8 +3905,13 @@ async function generateDriverRoutes(){
    renderWeeklyRouteMap();
    renderDriverApps();
 
-   // Publica o App completo no Firebase para gerar link curto e habilitar GPS.
-   if(firebaseConfigReady()){
+   // Só a roteirização geral libera/publica no celular.
+   if(bulkRoutePublishMode){
+     settings.bulkRoutingRevision=settings.espdOperationalRevision;
+     settings.bulkRoutingAt=new Date().toISOString();
+     persist();updateDriverAppReleaseUi()
+   }
+   if(bulkRoutePublishMode&&firebaseConfigReady()){
      const driversToPublish=driverFilter==="TODOS"
        ? [...new Set(days.flatMap(info=>{
            const plan=plans[info.key];
@@ -3816,7 +3938,13 @@ async function generateDriverRoutes(){
      return
    }
 
-   // Motorista específico: SEMPRE pede/confirma o WhatsApp depois de gerar a rota.
+   if(!bulkRoutePublishMode){
+     if(preparedWindow)preparedWindow.close();
+     renderWhatsAppDispatch();
+     toast("Pré-cálculo concluído. Nada foi enviado aos Apps. Use Roteirizar todos e liberar Apps.");
+     return
+   }
+   // Depois da liberação geral, os envios individuais permanecem disponíveis.
    if(driverFilter!=="TODOS"){
      const routesList=routesForDriverApp(driverFilter);
      if(!routesList.length){
@@ -3871,7 +3999,7 @@ async function generateDriverRoutes(){
    }else{
      if(preparedWindow)preparedWindow.close();
      renderWhatsAppDispatch();
-     toast("Apps dos motoristas atualizados. Use a central de WhatsApp ou a aba Apps dos Motoristas para enviar cada rota.")
+     toast("Roteirização geral concluída. Apps liberados; agora você pode enviar as rotas pelo WhatsApp.")
    }
  }finally{
    driverRouteGenerationBusy=false;
@@ -3890,6 +4018,7 @@ function savedDriverRoutesForMap(options={}){
      if(!r||r.dayKey!==info.key)return;
      if(filterDriver!=="TODOS"&&norm(r.driver)!==norm(filterDriver))return;
      const finalized=centralRouteIsFinalized(r);
+     if(!routeBelongsToCurrentEspd(r)&&!finalized)return;
      if(onlyCompleted&&!finalized)return;
      if(!includeCompleted&&finalized)return;
      out.push(r)
@@ -4049,6 +4178,7 @@ function normalizedPublicBaseUrl(){
  }catch{return""}
 }
 function driverAppUrlForRoutes(driver,routesList){
+ if(!driverAppsUnlocked())return"";
  const valid=(routesList||[]).filter(r=>!r?.error&&r?.stops?.length);
  if(!valid.length)return"";
 
@@ -4061,7 +4191,7 @@ function driverAppUrlForRoutes(driver,routesList){
  // Compatibilidade sem Firebase.
  const publicBase=normalizedPublicBaseUrl();
  const url=publicBase?new URL("motorista.html",publicBase):new URL("motorista.html",window.location.href);
- url.searchParams.set("v","544");
+ url.searchParams.set("v","546");
  url.hash=encodeDriverAppPayload(compactDriverBundle(driver,valid));
  return url.href
 }
@@ -4076,6 +4206,7 @@ function driverGpsReady(){
  return driverAppIsShareable()&&firebaseConfigReady()
 }
 async function prepareVerifiedDriverApp(driver,routesList){
+ if(!driverAppsUnlocked())throw new Error("Nenhuma rota pode entrar no App antes de Roteirizar todos e liberar Apps.");
  const valid=(routesList||[]).filter(r=>!r?.error&&r?.stops?.length);
  if(!valid.length)throw new Error(`Nenhuma viagem válida encontrada para ${driver}.`);
 
@@ -4094,7 +4225,7 @@ async function prepareVerifiedDriverApp(driver,routesList){
  const url=driverAppUrlForRoutes(driver,valid);
  if(!url)throw new Error(`Não foi possível gerar o link do App de ${driver}.`);
  if(firebaseConfigReady()&&url.includes("&cfg=")){
-   throw new Error("Foi detectado um link antigo com configuração Firebase embutida. Atualize o sistema para a V5.44.")
+   throw new Error("Foi detectado um link antigo com configuração Firebase embutida. Atualize o sistema para a V5.46.")
  }
  return url
 }
@@ -4168,15 +4299,11 @@ function allSavedRoutesForDriver(driver){
  return result.sort((a,b)=>String(a.dayKey).localeCompare(String(b.dayKey)))
 }
 function routesForDriverApp(driver){
- const week=currentWeekRoutesForDriver(driver);
- if(week.length)return week;
- const selected=routesForDriverInCurrentSelection(driver);
- if(selected.length)return selected;
- const all=allSavedRoutesForDriver(driver);
- if(all.length){
-   const latestDay=all[all.length-1].dayKey;
-   return all.filter(r=>r.dayKey===latestDay)
- }
+ const currentOnly=list=>(list||[]).filter(routeBelongsToCurrentEspd);
+ const week=currentOnly(currentWeekRoutesForDriver(driver));if(week.length)return week;
+ const selected=currentOnly(routesForDriverInCurrentSelection(driver));if(selected.length)return selected;
+ const all=currentOnly(allSavedRoutesForDriver(driver));
+ if(all.length){const latestDay=all[all.length-1].dayKey;return all.filter(r=>r.dayKey===latestDay)}
  return[]
 }
 
@@ -4256,52 +4383,36 @@ function whatsappUrlForRoutes(driver,routesList){
 }
 async function sendWhatsAppForDriver(encodedDriver){
  const driver=decodeURIComponent(encodedDriver);
+ if(!driverAppsUnlocked())return alert("Os Apps ainda estão bloqueados. Clique em Roteirizar todos e liberar Apps.");
  const routesList=routesForDriverApp(driver);
- if(!routesList.length)return alert("Nenhuma rota gerada para este motorista.");
-
+ if(!routesList.length)return alert("Nenhuma rota da versão atual do ESPD foi liberada para este motorista.");
+ const phone=whatsappForDriver(driver);
+ if(!validWhatsAppNumber(phone)){focusWhatsAppDispatchPhone(driver);return alert(`Cadastre o WhatsApp de ${driver} nesta lista e clique em Salvar.`)}
  let appUrl="";
- try{appUrl=await prepareVerifiedDriverApp(driver,routesList)}
- catch(e){
-   console.error(e);
-   alert(`O WhatsApp não será aberto porque as viagens de ${driver} ainda não foram confirmadas no Firebase.\n\n${e.message||e}`);
-   return
- }
-
- let phone=whatsappForDriver(driver);
- const entry=fleetEntryForDriver(driver);
- const answer=prompt(`WhatsApp para mandar o App de ${driver}:`,entry?.whatsapp||"");
- if(answer===null)return;
- phone=normalizeWhatsAppNumber(answer);
- if(!validWhatsAppNumber(phone))return alert("WhatsApp inválido. Informe DDD + telefone.");
-
- if(entry){entry.whatsapp=answer.trim();persist();renderFleet();renderDriverApps()}
-
+ try{appUrl=await prepareVerifiedDriverApp(driver,routesList)}catch(e){console.error(e);alert(`O WhatsApp não será aberto: ${e.message||e}`);return}
  const msg=whatsappMessageForRoutes(driver,routesList,appUrl);
  window.open(`https://wa.me/${phone}?text=${encodeURIComponent(msg)}`,"_blank","noopener")
 }
 function renderWhatsAppDispatch(){
  const host=$("whatsappDispatchHost");if(!host)return;
- const routesList=savedDriverRoutesForMap().filter(r=>!r.error&&r.stops?.length);
- const byDriver=new Map();
- routesList.forEach(r=>{
-   if(!byDriver.has(r.driver))byDriver.set(r.driver,[]);
-   byDriver.get(r.driver).push(r)
- });
- if(!byDriver.size){host.innerHTML="";return}
-
+ const routesList=savedDriverRoutesForMap().filter(r=>!r.error&&r.stops?.length&&routeBelongsToCurrentEspd(r));
+ const byDriver=new Map();routesList.forEach(r=>{if(!byDriver.has(r.driver))byDriver.set(r.driver,[]);byDriver.get(r.driver).push(r)});
+ const drivers=[...fleet].sort((a,b)=>String(a.driver).localeCompare(String(b.driver),"pt-BR"));
+ if(!drivers.length){host.innerHTML="";return}
  host.innerHTML=`<section class="whatsapp-dispatch">
-   <div class="whatsapp-dispatch-head">
-    <div><b>WhatsApp — envio das rotas</b><small style="display:block;color:var(--muted);margin-top:2px">A conversa abre pronta. Em modo local, envia a rota completa com links de navegação; em modo público, inclui também o App do Motorista.</small></div>
-    <span class="badge open">${byDriver.size} motorista(s)</span>
-   </div>
-   <div class="whatsapp-dispatch-list">${[...byDriver.entries()].sort((a,b)=>a[0].localeCompare(b[0],"pt-BR")).map(([driver,rs])=>{
-     const entry=fleetEntryForDriver(driver),ok=entry&&validWhatsAppNumber(entry.whatsapp);
-     return `<div class="whatsapp-row">
-       <div><b>${esc(driver)}</b><small>${rs.map(r=>esc(r.day)).join(" • ")} • ${rs.reduce((n,r)=>n+(r.orderCount||0),0)} pedido(s) • <span class="${ok?"whatsapp-ready":"whatsapp-warn"}">${ok?`WhatsApp +${whatsappForDriver(driver)}`:"WhatsApp não cadastrado"}</span></small></div>
-       <button type="button" class="btn small primary" onclick="sendWhatsAppForDriver('${encodeURIComponent(driver)}')">${ok?"💬 Enviar rota":"💬 Informar WhatsApp e enviar"}</button>
-     </div>`
-   }).join("")}</div>
-  </section>`
+  <div class="whatsapp-dispatch-head">
+   <div><b>WhatsApp — envio das rotas</b><small style="display:block;color:var(--muted);margin-top:2px">Edite e salve o telefone aqui. O envio só é liberado depois de “Roteirizar todos e liberar Apps”.</small></div>
+   <span class="badge ${driverAppsUnlocked()?"ready":"review"}">${driverAppsUnlocked()?"APPS LIBERADOS":"APPS BLOQUEADOS"}</span>
+  </div>
+  <div class="whatsapp-dispatch-list">${drivers.map(v=>{
+   const driver=v.driver,rs=byDriver.get(driver)||[],ok=validWhatsAppNumber(v.whatsapp),released=driverAppsUnlocked()&&rs.length>0;
+   return `<div class="whatsapp-row">
+    <div><b>${esc(driver)}</b><small>${rs.length?`${rs.map(r=>esc(r.day)).join(" • ")} • ${rs.reduce((n,r)=>n+(r.orderCount||0),0)} pedido(s)`:"Sem rota liberada"} • <span class="${ok?"whatsapp-ready":"whatsapp-warn"}">${ok?`WhatsApp +${whatsappForDriver(driver)}`:"WhatsApp não cadastrado"}</span></small></div>
+    <div class="whatsapp-inline-edit"><label>Telefone do motorista</label><input id="${whatsappDispatchInputId(driver)}" type="tel" inputmode="tel" value="${esc(v.whatsapp||"")}" placeholder="(35) 99999-9999"><button type="button" class="btn small" onclick="saveWhatsAppDispatchPhone('${encodeURIComponent(driver)}')">Salvar</button></div>
+    <button type="button" class="btn small primary" ${released&&ok?"":"disabled"} onclick="sendWhatsAppForDriver('${encodeURIComponent(driver)}')">${released?"💬 Enviar rota":"🔒 Aguardando roteirização"}</button>
+   </div>`
+  }).join("")}</div>
+ </section>`
 }
 function googleMapsUrlForDriverRoute(route){
  if(!route?.stops?.length)return"";
@@ -4323,7 +4434,7 @@ function openDriverRouteInGoogleMaps(encodedDay,encodedDriver){
 function renderDriverRouteSummary(){
  const host=$("driverRouteSummary");if(!host)return;
  const routesList=savedDriverRoutesForMap();
- if(!routesList.length){host.innerHTML="";const wh=$("whatsappDispatchHost");if(wh)wh.innerHTML="";return}
+ if(!routesList.length){host.innerHTML="";renderWhatsAppDispatch();return}
 
  host.innerHTML=routesList
    .sort((a,b)=>(a.dayKey||"").localeCompare(b.dayKey||"")||String(a.driver).localeCompare(String(b.driver),"pt-BR"))
@@ -5715,7 +5826,7 @@ $("pickFile").onclick=pickESPD;
 $("remapColumns").onclick=()=>{
  if(!currentTable.columns?.length)return toast("Vincule um arquivo primeiro.");
  const t0=performance.now();
- detectFields();aggregateOrders();detectLastShipment(false);updateFileInfo();renderData();syncPlanning(true);
+ detectFields();aggregateOrders();detectLastShipment(false);registerCurrentEspdRevision();updateFileInfo();renderData();syncPlanning(true);updateDriverAppReleaseUi();renderRoutingQueue();renderWhatsAppDispatch();
  toast(`Colunas remapeadas em ${((performance.now()-t0)/1000).toFixed(2)}s sem reler o arquivo.`)
 };
 $("unlinkFile").onclick=unlinkESPD;
@@ -5778,7 +5889,7 @@ $("showCompletedRoutesMap").addEventListener("change",()=>{renderWeeklyRouteMap(
 $("raDay").addEventListener("change",()=>{renderRouteAnalysis([]);if(routeMap)renderWeeklyRouteMap()});
 
 /* INIT */
-renderRoutes();renderFleet();renderDriverApps();renderClientMap();renderPlanning();initRouteAnalysisDays();refreshDriverFilter();renderRoutingQueue();renderCentralShipmentRouting();renderLiveTrackingPanel();renderRouteFinalizationPanel();renderRedeliveryPanels();detectFields();loadMunicipalityIndex();restoreHandle();
+renderRoutes();renderFleet();renderDriverApps();renderClientMap();renderPlanning();initRouteAnalysisDays();refreshDriverFilter();renderRoutingQueue();renderCentralShipmentRouting();renderLiveTrackingPanel();renderRouteFinalizationPanel();renderRedeliveryPanels();renderWhatsAppDispatch();updateDriverAppReleaseUi();detectFields();loadMunicipalityIndex();restoreHandle();
 setTimeout(()=>autoConnectFirebaseTracking(),450);
 </script>
 </body>

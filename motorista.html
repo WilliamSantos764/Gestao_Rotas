@@ -10,7 +10,7 @@
 <meta name="apple-mobile-web-app-title" content="Motorista">
 <link rel="manifest" href="./manifest.webmanifest">
 <link rel="apple-touch-icon" href="./icons/icon-192.png">
-<title>App do Motorista - V5.44 Embarques + Acompanhamento</title>
+<title>App do Motorista - V5.46 Controle de Publicação</title>
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
 <style>
 :root{--bg:#f2f4f7;--card:#fff;--text:#101828;--muted:#667085;--line:#d0d5dd;--accent:#155eef;--ok:#027a48;--warn:#b54708}
@@ -179,7 +179,7 @@ footer{padding:14px;text-align:center;color:var(--muted);font-size:10px}
   </details>
   <div id="error" class="empty" style="display:none"></div>
 </div>
-<footer>App de rota gerado pelo sistema de Gestão Logística. • V5.44 — reentregas sincronizadas</footer>
+<footer>App de rota gerado pelo sistema de Gestão Logística. • V5.46 — reentregas sincronizadas</footer>
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script>
 const $=id=>document.getElementById(id);
@@ -307,6 +307,7 @@ async function firebaseRuntimeFromConfig(cfg){
 function onlineBundleMatches(payload,expected){
  if(!payload)return false;
  if(expected.driver&&String(payload.driver||"").trim().toUpperCase()!==String(expected.driver).trim().toUpperCase())return false;
+ if(payload.status==="WAITING_FOR_ROUTING"||payload.type==="WAITING_FOR_ROUTING")return true;
  if(!Array.isArray(payload.routes)||!payload.routes.length)return false;
 
  // Se for exatamente a revisão do link, confere também os totais.
@@ -363,7 +364,7 @@ async function loadPayload(){
  if(!params.has("orders"))expected.orders=NaN;
  if(!params.has("stops"))expected.stops=NaN;
 
- // V5.44: NÃO depende mais do cfg enviado pelo WhatsApp.
+ // V5.46: NÃO depende mais do cfg enviado pelo WhatsApp.
  // O Firebase oficial do Gestão Logística já está dentro deste arquivo.
  let cfg=EMBEDDED_FIREBASE_CONFIG;
 
@@ -377,7 +378,7 @@ async function loadPayload(){
        cfg=legacyCfg
      }
    }catch(e){
-     console.warn("Configuração antiga do link estava cortada; usando Firebase embutido da V5.44.",e)
+     console.warn("Configuração antiga do link estava cortada; usando Firebase embutido da V5.46.",e)
    }
  }
 
@@ -396,6 +397,16 @@ async function loadPayload(){
  return{payload,tracking:{...rt,appId,cfg,expected}}
 }
 function normalizePayload(data){
+ if(data&&(data.status==="WAITING_FOR_ROUTING"||data.type==="WAITING_FOR_ROUTING")){
+   return{
+     v:2,type:"WAITING_FOR_ROUTING",status:"WAITING_FOR_ROUTING",
+     id:data.id||"",generatedAt:data.publishedAt||data.generatedAt||new Date().toISOString(),
+     publicationRevision:data.publicationRevision||"",driver:data.driver||"",
+     origin:data.origin||{name:"COOPERRITA",lat:-22.261541,lon:-45.764269},
+     plates:[],shipments:[],totalDistance:0,totalDuration:0,totalStops:0,
+     orderCount:0,routedOrderCount:0,routes:[],message:data.message||"Aguardando roteirização da central."
+   }
+ }
  if(data?.v===2&&Array.isArray(data.routes))return data;
  if(data?.stops?.length){
    return{
@@ -413,7 +424,40 @@ function normalizePayload(data){
 }
 
 let onlineBundleUnsub=null;
+
+function isWaitingForRoutingPayload(payload){
+ return !!payload&&(payload.status==="WAITING_FOR_ROUTING"||payload.type==="WAITING_FOR_ROUTING"||!Array.isArray(payload.routes)||payload.routes.length===0)
+}
+function showWaitingForRoutingState(message=""){
+ if(watchId!==null){try{navigator.geolocation.clearWatch(watchId)}catch{}watchId=null}
+ $("gpsGate")?.classList.remove("show");
+ document.body.classList.remove("gps-locked");
+ if($("map"))$("map").style.display="none";
+ if($("stops"))$("stops").style.display="none";
+ if($("completedRoutesBox"))$("completedRoutesBox").style.display="none";
+ if($("error")){
+   $("error").style.display="block";
+   $("error").textContent=message||app?.message||"Aguardando a central clicar em “Roteirizar todos e liberar Apps”. Nenhum pedido ou rota foi liberado para este motorista."
+ }
+ $("gpsBadge").textContent="Aguardando rota";
+ $("gpsBadge").style.color="#93370d";
+ $("gpsStatus").textContent="Nenhuma rota/pedido liberado. Aguarde a roteirização geral na central.";
+ $("rerouteBtn").disabled=true;
+ if(currentPolyline&&map){try{map.removeLayer(currentPolyline)}catch{}currentPolyline=null}
+}
+function showRoutingPayloadState(){
+ if($("error"))$("error").style.display="none";
+ if($("map"))$("map").style.display="block";
+ if($("stops"))$("stops").style.display="block";
+ $("rerouteBtn").disabled=!currentLocation
+}
 function syncHeaderFromApp(){
+ if(isWaitingForRoutingPayload(app)){
+   $("title").textContent=app?.driver?`App do ${app.driver}`:"App do Motorista";
+   $("subtitle").textContent="Aguardando roteirização da central";
+   $("kStops").textContent="0";$("kOrders").textContent="0";$("kKm").textContent="0 km";
+   return
+ }
  const orders=uniqueOrders(app),days=[...new Set((app.routes||[]).map(r=>r.day).filter(Boolean))];
  const plates=[...new Set((app.routes||[]).flatMap(r=>r.plates||[]).filter(Boolean))];
  const shipments=[...new Set((app.routes||[]).flatMap(r=>r.shipments||[]).filter(x=>x!==undefined&&x!==null))];
@@ -474,12 +518,19 @@ function startOnlineBundleSync(){
      if(String(next.publicationRevision||"")===String(app?.publicationRevision||""))return;
      const liveState=captureLiveRouteState(app);
      app=restoreLiveRouteState(next,liveState);
+     syncHeaderFromApp();
+     if(isWaitingForRoutingPayload(app)){
+       done={};proofRecords={};retakeRequests={};deliveryEvents={};redeliveryApprovals={};
+       showWaitingForRoutingState(app.message);
+       return
+     }
+     showRoutingPayloadState();
      done=loadDone(app);
      hydrateDeliveryProofs().then(()=>{renderStops();updateProgress();rebuildMap({fit:false})}).catch(console.error);
-     syncHeaderFromApp();
      liveRouteFitted=false;
      renderStops();updateProgress();rebuildMap({fit:!currentLocation});
-     $("gpsStatus").textContent="✓ Viagens atualizadas automaticamente pela central.";
+     $("gpsStatus").textContent="✓ Nova operação liberada pela central. Ative o GPS para iniciar.";
+     enforceGpsRequirement();
      if(currentLocation)requestLiveRouteRecalc(false)
    }catch(e){console.error("Sincronização das viagens:",e)}
  })
@@ -881,7 +932,7 @@ async function withTimeout(promise,ms,label){
 }
 function proofViewerUrl(proofId){
  const url=new URL("canhoto.html",window.location.href);
- url.searchParams.set("v","544");
+ url.searchParams.set("v","546");
  url.hash=`app=${encodeURIComponent(tracking.appId)}&proof=${encodeURIComponent(proofId)}`;
  return url.href
 }
@@ -991,13 +1042,13 @@ async function confirmDeliveryProof(){
    if(waWindow&&!waWindow.closed)waWindow.location.href=waUrl;
    else window.location.href=waUrl
  }catch(e){
-   console.error("Canhoto V5.44:",e);
+   console.error("Canhoto V5.46:",e);
    if(waWindow&&!waWindow.closed)try{waWindow.close()}catch{}
    const msg=String(e?.message||e);
 
    let hint="";
    if(/permission|denied/i.test(msg)){
-     hint="\n\nO Realtime Database bloqueou o canhoto. Publique o firebase-rules.json da V5.44."
+     hint="\n\nO Realtime Database bloqueou o canhoto. Publique o firebase-rules.json da V5.46."
    }else if(/demorou|network|internet/i.test(msg)){
      hint="\n\nConfira a internet do celular e toque novamente em “Enviar canhoto e concluir”."
    }
@@ -1571,25 +1622,30 @@ async function boot(){
  try{
    const loaded=await loadPayload();
    app=normalizePayload(loaded.payload);tracking=loaded.tracking;
-   if(!flatStops(app).length)throw new Error("Este App não possui entregas.");
+   syncHeaderFromApp();
+   startOnlineBundleSync();
+   showInstallState();
+
+   if(isWaitingForRoutingPayload(app)){
+     showWaitingForRoutingState(app.message);
+     return
+   }
+
    done=loadDone(app);
    await hydrateDeliveryProofs();
-
-   syncHeaderFromApp();
+   showRoutingPayloadState();
    renderStops();updateProgress();rebuildMap({fit:true});
-   startOnlineBundleSync();
    startOnlineProofSync();
-   showInstallState();
    enforceGpsRequirement();
 
    if(tracking){
-     $("gpsStatus").textContent="Todas as entregas foram carregadas. O GPS é obrigatório para liberar o App, desenhar a rota e compartilhar a posição com a central.";
+     $("gpsStatus").textContent="Todas as entregas foram liberadas pela central. O GPS é obrigatório para desenhar a rota e compartilhar a posição.";
    }else{
-     $("gpsStatus").textContent="Entregas carregadas. O GPS é obrigatório para liberar o App e desenhar a rota. Este link não está conectado ao rastreamento online da central.";
+     $("gpsStatus").textContent="Entregas liberadas. O GPS é obrigatório para desenhar a rota.";
    }
  }catch(e){
    $("gpsGate").classList.remove("show");document.body.classList.remove("gps-locked");$("map").style.display="none";$("stops").style.display="none";$("error").style.display="block";
-   $("error").textContent=(e.message||String(e))+"\n\nSe este link veio do WhatsApp, peça à central para abrir a V5.44, gerar/atualizar a rota do motorista e enviar o link novamente.";$("subtitle").textContent="Não foi possível abrir as entregas.";
+   $("error").textContent=(e.message||String(e))+"\n\nSe este link veio do WhatsApp, peça à central para abrir a V5.46 e clicar em “Roteirizar todos e liberar Apps”.";$("subtitle").textContent="Não foi possível abrir as entregas.";
    $("gpsStatus").textContent=e.message||String(e)
  }
 }

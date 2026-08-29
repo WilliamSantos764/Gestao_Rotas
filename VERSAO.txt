@@ -1,5 +1,6 @@
-Gestão Logística V5.44
-Removido bloco Embarques do próximo dia útil.
-Pedidos consultados pelo Resumo de embarques da semana.
-Cartões de acompanhamento dos motoristas/entregas movidos para Embarques.
-Central de Rotas permanece compacta.
+Gestão Logística V5.46
+Apps recebem rotas/pedidos somente após Roteirizar todos e liberar Apps.
+WhatsApp editável diretamente em WhatsApp — envio das rotas.
+Desvincular ESPD limpa toda a operação preservando Motoristas/Frota/Rotas Fixas.
+Menu principal reduzido a Embarques + Central de Rotas + engrenagem.
+Apps instalados exibem Aguardando roteirização quando bloqueados.

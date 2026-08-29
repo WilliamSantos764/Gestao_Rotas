@@ -113,7 +113,7 @@ A entrega planejada é sempre no **próximo dia útil**:
 
 Exemplo: se o embarque for preparado na sexta-feira, os pedidos analisados serão os das rotas de segunda-feira.
 
-## Dashboard semanal V5.44
+## Dashboard semanal V5.46
 
 A tela principal agora possui uma visão visual de **segunda a sexta**.
 
@@ -141,7 +141,7 @@ Quando ainda existem pedidos daquela rota a serem alocados, o cartão informa is
 
 O dashboard calcula a semana operacional de segunda a sexta, sempre ignorando sábado e domingo.
 
-## V5.44 — embarque automático por rota
+## V5.46 — embarque automático por rota
 
 A regra operacional agora é:
 
@@ -169,7 +169,7 @@ Quando não existe peso real no ESPD, o dashboard mostra a **porcentagem de pedi
 
 Quando uma fonte de peso real estiver disponível, o sistema também pode mostrar ocupação do caminhão e aplicar a meta de 80%.
 
-## V5.44 — dashboard com detalhamento por dia, cidade e pedido
+## V5.46 — dashboard com detalhamento por dia, cidade e pedido
 
 A tela principal agora funciona em níveis:
 
@@ -211,7 +211,7 @@ O detalhe mostra os itens do pedido:
 
 Os itens são salvos junto ao pedido no momento em que ele é alocado, permitindo consultar o conteúdo posteriormente mesmo se o ESPD for atualizado.
 
-## V5.44 — análise inteligente de rotas
+## V5.46 — análise inteligente de rotas
 
 Nova aba **Análise de rotas**.
 
@@ -232,7 +232,7 @@ O objetivo é encontrar pedidos de outras rotas que podem complementar um embarq
 
 ### Segurança operacional
 
-As recomendações são apenas sugestões. A V5.44 **não move pedidos automaticamente** entre embarques.
+As recomendações são apenas sugestões. A V5.46 **não move pedidos automaticamente** entre embarques.
 
 O usuário pode revisar:
 - pedido;
@@ -251,7 +251,7 @@ A análise usa, no navegador:
 
 As coordenadas resolvidas ficam em cache local para reduzir novas consultas.
 
-## V5.44 — embarques clicáveis
+## V5.46 — embarques clicáveis
 
 A visualização do dashboard foi simplificada.
 
@@ -292,7 +292,7 @@ Os pedidos são agrupados por **cidade**.
 
 Cada pedido continua clicável e abre todos os itens/produtos, quantidades, valores, crédito e situação.
 
-## V5.44 — mapa semanal e antecipação de rotas futuras
+## V5.46 — mapa semanal e antecipação de rotas futuras
 
 A aba **Análise de rotas** agora possui um mapa operacional.
 
@@ -336,9 +336,9 @@ Se confirmado:
 
 Nenhum pedido futuro é antecipado sem confirmação do usuário.
 
-## V5.44 — leite, derivados e filtros de alocação
+## V5.46 — leite, derivados e filtros de alocação
 
-A V5.44 classifica cada pedido pelos itens que existem dentro dele.
+A V5.46 classifica cada pedido pelos itens que existem dentro dele.
 
 ### Categorias
 
@@ -387,7 +387,7 @@ Ao abrir um embarque, existe também um filtro visual para mostrar:
 - todos os laticínios;
 - outros.
 
-## V5.44 — regras selecionáveis de alocação
+## V5.46 — regras selecionáveis de alocação
 
 A alocação automática não usa mais um único filtro.
 
@@ -442,7 +442,7 @@ Se o pedido estiver sem peso:
 Trocar as regras afeta apenas novos pedidos.
 O sistema não remove automaticamente pedidos que já estavam alocados.
 
-## V5.44 — recálculo automático ao mudar as regras
+## V5.46 — recálculo automático ao mudar as regras
 
 As caixas de seleção agora funcionam como regras vivas de montagem.
 
@@ -476,7 +476,7 @@ Esses pedidos são preservados mesmo que o filtro atual não corresponda.
 
 Para embarques abertos criados em versões anteriores, pedidos que não estejam marcados como antecipação manual são considerados automáticos para efeito do recálculo.
 
-## V5.44 — mapeamento automático de colunas
+## V5.46 — mapeamento automático de colunas
 
 O arquivo importado não precisa mais seguir um cabeçalho rígido.
 
@@ -500,7 +500,7 @@ Exemplos reconhecidos:
 
 Também são identificados cliente, nome, item, descrição, crédito, situação, quantidades, valores, representante e datas.
 
-## V5.44 — identificação de planilha otimizada
+## V5.46 — identificação de planilha otimizada
 
 A leitura foi alterada para reduzir o tempo de identificação de arquivos grandes.
 
@@ -518,7 +518,7 @@ A leitura foi alterada para reduzir o tempo de identificação de arquivos grand
 
 Essas mudanças são especialmente importantes para relatórios ESPD com milhares ou dezenas de milhares de linhas.
 
-## V5.44 — correção do travamento em “Identificando estrutura”
+## V5.46 — correção do travamento em “Identificando estrutura”
 
 A leitura de Excel foi refeita para evitar bloqueio na etapa inicial.
 
@@ -532,13 +532,13 @@ A leitura de Excel foi refeita para evitar bloqueio na etapa inicial.
 - leitura do arquivo e descompactação possuem timeout;
 - qualquer falha gera mensagem explícita, evitando ficar preso em “Identificando estrutura”.
 
-## V5.44 — correção do erro `unzip is not defined`
+## V5.46 — correção do erro `unzip is not defined`
 
-Foi removida a função `parseWorkbook()` antiga que permaneceu duplicada na V5.44.
+Foi removida a função `parseWorkbook()` antiga que permaneceu duplicada na V5.46.
 
 Ela sobrescrevia o leitor novo e tentava executar `unzip()`, função que já havia sido substituída pelo leitor seguro.
 
-A V5.44 mantém somente o leitor novo baseado em:
+A V5.46 mantém somente o leitor novo baseado em:
 - `buildZipIndex`;
 - `extractZipEntry`;
 - `DecompressionStream`;
@@ -547,7 +547,7 @@ A V5.44 mantém somente o leitor novo baseado em:
 
 O fluxo de progresso e as mensagens de erro continuam ativos.
 
-## V5.44 — leitor Excel robusto com fallback direto
+## V5.46 — leitor Excel robusto com fallback direto
 
 A correção foi feita usando o arquivo real `espd094 (1).xlsx`.
 
@@ -579,7 +579,7 @@ Também foram incluídas variações encontradas no arquivo real, como:
 
 O arquivo original ainda não possui Cidade, Peso e Embarque; esses campos são reportados como ausentes, mas a planilha deve ser aberta e suas colunas existentes identificadas normalmente.
 
-## V5.44 — correção de `parseSharedBytes is not defined`
+## V5.46 — correção de `parseSharedBytes is not defined`
 
 A função que lê `xl/sharedStrings.xml` foi adicionada ao arquivo final.
 
@@ -604,7 +604,7 @@ A versão foi validada com o arquivo real `espd094 (1).xlsx`, executando:
 O teste confirmou os cabeçalhos reais:
 `Num Pedido`, `Dt Emissao`, `Cliente`, `Nome Cliente`, `Item`, `Desc Item`, `Representate`, `Usr Impl`, `Qtd Ped`, `Qtd Atende`, `Valor`, `Dt Cancela` e outros.
 
-## V5.44 — suporte a XML com namespace/prefixo
+## V5.46 — suporte a XML com namespace/prefixo
 
 A planilha `ESPD094_TESTE_COMPLETO_TODAS_FUNCOES.xlsx` foi usada como teste de compatibilidade.
 
@@ -626,7 +626,7 @@ Enquanto outros arquivos XLSX utilizam:
 - `<si>`
 - `<t>`
 
-A V5.44 reconhece os dois formatos.
+A V5.46 reconhece os dois formatos.
 
 Também foi ampliado o fallback de abas:
 - nomes do `workbook.xml`;
@@ -635,7 +635,7 @@ Também foi ampliado o fallback de abas:
 
 ### Testes realizados
 
-A V5.44 foi testada contra:
+A V5.46 foi testada contra:
 
 1. `espd094 (1).xlsx`
 2. `ESPD094_TESTE_COMPLETO_TODAS_FUNCOES.xlsx`
@@ -647,7 +647,7 @@ Na base de teste completa, o leitor deve encontrar:
 
 e escolher automaticamente `ESPD_TESTE` por possuir os cabeçalhos operacionais do software.
 
-## V5.44 — cálculo do peso por pedido e alocação por capacidade
+## V5.46 — cálculo do peso por pedido e alocação por capacidade
 
 O peso agora é calculado no nível do pedido.
 
@@ -708,7 +708,7 @@ Na planilha de teste:
 - pedido `9910006` possui duas linhas e deve calcular **2.900 kg** pela soma;
 - pedidos sem peso continuam com `peso pendente`, sem inventar kg.
 
-## V5.44 — leite puro somente manual
+## V5.46 — leite puro somente manual
 
 Foram removidos da interface:
 - filtros de derivados;
@@ -739,7 +739,7 @@ Pedidos acima de **1.200 kg** recebem destaque e o botão `Embarcar manualmente`
 
 O botão permite escolher um embarque aberto da rota, valida a capacidade do caminhão e pede confirmação. Depois de inserido manualmente, o pedido recebe `allocationSource = MANUAL_MILK` e não é removido pelo recálculo automático.
 
-## V5.44 — roteirização porta a porta por embarque
+## V5.46 — roteirização porta a porta por embarque
 
 A base de teste pode trazer:
 - Ponto Entrega Teste
@@ -785,7 +785,7 @@ A geocodificação usa OpenStreetMap/Nominatim e a matriz/rota rodoviária usa o
 
 Para operação produtiva em escala, recomenda-se trocar os serviços públicos por um provedor próprio/comercial.
 
-## V5.44 — rotas de entrega por motorista na Análise inteligente
+## V5.46 — rotas de entrega por motorista na Análise inteligente
 
 A aba `Análise de rotas` agora possui:
 
@@ -843,7 +843,7 @@ Abaixo do mapa aparece um cartão por rota gerada, contendo:
 - primeiras paradas;
 - botão para abrir a sequência no Google Maps.
 
-## V5.44 — perto para longe + App do Motorista
+## V5.46 — perto para longe + App do Motorista
 
 ### Ordem obrigatória
 
@@ -896,7 +896,7 @@ Quando o projeto estiver publicado em GitHub Pages ou outro servidor HTTP/HTTPS,
 
 Se o projeto estiver sendo aberto localmente com `file://`, o link funciona no mesmo computador, mas para abrir em outro celular é necessário publicar a pasta do projeto.
 
-## V5.44 — WhatsApp por motorista
+## V5.46 — WhatsApp por motorista
 
 ### Cadastro
 
@@ -976,7 +976,7 @@ Esta versão utiliza o fluxo padrão do WhatsApp (`wa.me`): abre a conversa cert
 
 O envio sem nenhuma confirmação humana exige WhatsApp Business Platform / Cloud API, credenciais Meta e um backend autorizado. Isso não pode ser feito com segurança somente em um arquivo HTML estático.
 
-## V5.44 — Apps dos Motoristas vinculados ao Gestão Logística
+## V5.46 — Apps dos Motoristas vinculados ao Gestão Logística
 
 Foi criada a aba `Apps dos Motoristas`.
 
@@ -1040,7 +1040,7 @@ Cada cartão mostra:
 
 O App continua sendo parte do mesmo projeto GitHub/VS Code.
 
-## V5.44 — WhatsApp funciona também com o sistema aberto localmente
+## V5.46 — WhatsApp funciona também com o sistema aberto localmente
 
 Foi removido o alerta:
 
@@ -1077,7 +1077,7 @@ A URL pública passou a ser opcional para o envio pelo WhatsApp.
 
 Ela só é necessária se você quiser que o motorista abra o App HTML completo no próprio celular.
 
-## V5.44 — um único App com todas as entregas do motorista
+## V5.46 — um único App com todas as entregas do motorista
 
 O link do App do Motorista não representa mais apenas uma rota isolada.
 
@@ -1122,10 +1122,10 @@ No modo local, o WhatsApp continua recebendo todas as entregas em texto e links 
 ### Compatibilidade
 
 O novo `motorista.html` aceita:
-- links V5.44 com múltiplas rotas (`v:2`);
+- links V5.46 com múltiplas rotas (`v:2`);
 - links antigos com uma rota (`v:1`), convertidos automaticamente.
 
-## V5.44 — GPS do motorista + monitoramento em tempo real
+## V5.46 — GPS do motorista + monitoramento em tempo real
 
 ### Correção do link com todas as entregas
 
@@ -1200,7 +1200,7 @@ A versão usa:
 
 A configuração Web do projeto Firebase é colada diretamente dentro da Análise inteligente de rotas.
 
-## V5.44 — Firebase já integrado ao software
+## V5.46 — Firebase já integrado ao software
 
 O projeto Firebase fornecido para o Gestão Logística já foi incorporado nesta versão.
 
@@ -1256,7 +1256,7 @@ Exemplo:
 
 Esse endereço permite que o WhatsApp envie um link acessível ao celular e que o navegador autorize geolocalização.
 
-## Correção V5.44 — link do App do Motorista
+## Correção V5.46 — link do App do Motorista
 
 Esta versão corrige o caso em que o link enviado pelo WhatsApp abria o App mas não carregava as viagens do motorista.
 
@@ -1281,7 +1281,7 @@ Substitua **os dois arquivos** no repositório:
 
 Se somente `index.html` for atualizado, o link poderá abrir uma versão antiga do App do Motorista.
 
-## V5.44 — traçado da rota no mapa do motorista
+## V5.46 — traçado da rota no mapa do motorista
 
 O App do Motorista agora desenha a rota rodoviária no próprio mapa.
 
@@ -1309,9 +1309,9 @@ Atualize no GitHub Pages:
 
 Confirme no rodapé do celular:
 
-`V5.44 — traçado rodoviário`
+`V5.46 — traçado rodoviário`
 
-## V5.44 — PWA instalável, GPS obrigatório e mapa estável
+## V5.46 — PWA instalável, GPS obrigatório e mapa estável
 
 ### 1. Linha da rota contínua
 
@@ -1374,7 +1374,7 @@ Todos devem preservar a mesma estrutura de pastas deste ZIP.
 
 A instalação como PWA melhora o acesso e a experiência, mas navegadores móveis podem limitar ou suspender geolocalização quando o App fica fechado ou o aparelho entra em modos agressivos de economia de bateria. O rastreamento desta versão é baseado no GPS do navegador/PWA.
 
-## V5.44 — canhoto obrigatório e WhatsApp
+## V5.46 — canhoto obrigatório e WhatsApp
 
 A entrega só pode ser concluída depois de fotografar e salvar o canhoto.
 
@@ -1401,7 +1401,7 @@ Ative Firebase Storage e publique `firebase-storage-rules.txt`.
 Publique também `firebase-rules.json` atualizado no Realtime Database.
 
 
-## V5.44 — correção do travamento do canhoto
+## V5.46 — correção do travamento do canhoto
 
 O canhoto não usa mais Firebase Storage.
 
@@ -1414,7 +1414,7 @@ Há tempo limite na preparação, gravação e confirmação. Se a internet falh
 
 O WhatsApp recebe um link `canhoto.html`, que mostra a foto, motorista, cliente, pedidos, embarques, data/hora e GPS.
 
-A V5.44 inclui novamente toda a PWA:
+A V5.46 inclui novamente toda a PWA:
 - manifest.webmanifest
 - sw.js
 - icons/
@@ -1422,7 +1422,7 @@ A V5.44 inclui novamente toda a PWA:
 
 Não é necessário Firebase Storage.
 
-## V5.44 — finalização das rotas e canhotos na central
+## V5.46 — finalização das rotas e canhotos na central
 
 A central ganhou o painel `Finalização das rotas e canhotos`.
 
@@ -1464,7 +1464,7 @@ A central acompanha esses metadados em tempo real e só baixa a imagem completa 
 
 Canhotos antigos da V5.34 são migrados automaticamente para metadados na primeira conexão.
 
-## V5.44 — rotas pendentes e concluídas separadas
+## V5.46 — rotas pendentes e concluídas separadas
 
 ### Gestão Logística / central
 
@@ -1503,7 +1503,7 @@ O motorista pode marcar:
 
 Se a central excluir um canhoto e pedir nova foto, a rota sai de Concluídas e volta imediatamente para Pendentes.
 
-## V5.44 — gerar somente rotas pendentes + exceções do motorista
+## V5.46 — gerar somente rotas pendentes + exceções do motorista
 
 ### Geração de rotas
 
@@ -1546,7 +1546,7 @@ Dentro de `driverApps/<appId>`:
 As regras atuais de `driverApps/$appId` já abrangem esse caminho.
 
 
-## V5.44 — ESPD fonte mestre + reentregas
+## V5.46 — ESPD fonte mestre + reentregas
 
 O ESPD passa a ser a fonte mestre: nova leitura atualiza automaticamente pedidos, itens, pesos, valores, clientes, cidades, endereços e embarques abertos. Pedidos removidos saem dos embarques automáticos abertos; pedidos existentes são atualizados; números oficiais de embarque são reconciliados quando possível. Histórico fechado, rotas finalizadas, canhotos e reentregas são preservados.
 
@@ -1566,9 +1566,9 @@ Canhoto retido e Não deu tempo exigem aprovação da central e data de reentreg
 7. Ao gerar a rota daquela data, a reentrega segue normalmente para o App.
 8. Quando o motorista envia o novo canhoto, a pendência é encerrada automaticamente.
 
-## V5.44 — roteirização de teste com coordenadas fixas
+## V5.46 — roteirização de teste com coordenadas fixas
 
-Para eliminar falhas de geocodificação durante testes, a V5.44 reconhece duas novas colunas opcionais:
+Para eliminar falhas de geocodificação durante testes, a V5.46 reconhece duas novas colunas opcionais:
 
 - `Latitude Teste`
 - `Longitude Teste`
@@ -1585,7 +1585,7 @@ As paradas também passam a ser consolidadas primeiro por `ID Parada Teste`, evi
 
 O arquivo de teste V2 possui coordenadas em todas as 77 paradas, portanto a geração das rotas de teste não depende mais de encontrar cada estabelecimento pelo nome/endereço.
 
-## V5.44 — descarga na frente do estabelecimento / otimização por rua
+## V5.46 — descarga na frente do estabelecimento / otimização por rua
 
 A roteirização agora trata cada cliente como uma parada de descarga de caminhão.
 
@@ -1614,7 +1614,7 @@ O recálculo pelo GPS usa a mesma lógica de rua.
 ### Limite técnico
 OpenStreetMap/OSRM informa a malha viária, mas não garante vaga legal, doca, lado permitido para carga/descarga ou restrição municipal específica de caminhão. O motorista deve parar em local seguro e permitido.
 
-## V5.44 — Embarques e Central de Rotas reorganizados
+## V5.46 — Embarques e Central de Rotas reorganizados
 
 A versão reorganiza a interface sem remover funcionalidades.
 
@@ -1659,7 +1659,7 @@ Foi criado o bloco `Roteirização por embarque`. Ele substitui o acesso ao mapa
 ### Mapa
 O mapa principal foi reduzido de 560 px para 380 px de altura no desktop e 320 px no celular, deixando a tela mais limpa sem perder interação.
 
-## V5.44 — correção da linha azul no App do Motorista
+## V5.46 — correção da linha azul no App do Motorista
 
 A linha azul contínua foi reforçada para não desaparecer durante sincronizações.
 
@@ -1674,7 +1674,7 @@ Correções:
 
 A organização da V5.41 (Embarques / Central de Rotas) foi mantida sem alterações funcionais.
 
-## V5.44 — Central de Rotas compacta
+## V5.46 — Central de Rotas compacta
 
 - Novo botão `Roteirizar todos os caminhões`.
 - A fila lateral mostra apenas motoristas ainda sem rota; ao gerar a rota com sucesso, eles desaparecem dessa fila.
@@ -1686,7 +1686,7 @@ A organização da V5.41 (Embarques / Central de Rotas) foi mantida sem alteraç
 - Aprovação manual de reentrega foi removida.
 - Canhoto retido e Não deu tempo são registrados automaticamente e o sistema mostra a próxima data/dia/rota fixa da cidade.
 
-## V5.44 — acompanhamento movido para Embarques
+## V5.46 — acompanhamento movido para Embarques
 
 - Removido da aba Embarques o bloco `Embarques do próximo dia útil`.
 - Para consultar pedidos/itens: `Resumo de embarques da semana → dia → embarque → pedido`.
@@ -1694,3 +1694,75 @@ A organização da V5.41 (Embarques / Central de Rotas) foi mantida sem alteraç
 - Os cartões completos por motorista/rota (entregas, concluídas, canhoto retido, não entregues e status por cliente) foram movidos para a aba `Embarques`.
 - A `Central de Rotas` continua compacta e focada em mapa, roteirização, fila, caminhões ao vivo e ocorrências.
 - Nenhuma função de canhoto, rastreamento, rota ou pedido foi removida.
+
+## V5.46 — Situação dos embarques movida para Central de Rotas
+
+Alteração apenas de organização:
+
+- o bloco `Situação dos embarques em entrega` foi retirado da aba `Embarques`;
+- o mesmo bloco foi movido para `Central de Rotas`;
+- continuam disponíveis motorista, entregas, concluídas, canhoto retido, não entregues, status de cada cliente e acesso aos canhotos;
+- nenhuma regra de roteirização, Firebase, GPS, pedidos ou canhotos foi alterada.
+
+## V5.46 — controle de publicação, limpeza operacional e engrenagem
+
+### Regra obrigatória dos Apps
+Nenhuma rota e nenhum pedido entra no App do Motorista apenas por importar o ESPD ou por pré-calcular uma rota.
+
+O único comando que libera a operação aos celulares é:
+
+`Roteirizar todos e liberar Apps`
+
+Antes disso:
+- os Apps mostram `Aguardando roteirização da central`;
+- total de pedidos = 0;
+- total de paradas = 0;
+- nenhuma linha de trajeto operacional é mostrada;
+- envio pelo WhatsApp fica bloqueado.
+
+`Pré-calcular selecionado` serve apenas para conferir uma rota na central e não publica nada.
+
+Quando o ESPD muda, a versão operacional muda e os Apps são bloqueados novamente até nova roteirização geral.
+
+### WhatsApp editável
+Em `WhatsApp — envio das rotas` cada motorista possui:
+- campo de telefone editável;
+- botão `Salvar`;
+- status do número;
+- botão de envio, liberado somente depois da roteirização geral.
+
+O telefone salvo é usado nos próximos envios e também aparece no cadastro da frota/motorista.
+
+### Desvincular ESPD
+`Desvincular e limpar operação` remove:
+- pedidos importados;
+- embarques;
+- pendências;
+- rotas geradas da operação;
+- cache de mapas/geocodificação;
+- rastreamento operacional visível;
+- conteúdo de rota/pedidos publicado nos Apps.
+
+São preservados como cadastros mestres:
+- Motoristas;
+- Frota;
+- Rotas Fixas;
+- telefones dos motoristas.
+
+Os Apps instalados permanecem com o mesmo vínculo, porém ficam em `Aguardando roteirização`.
+
+### Navegação
+Na barra principal ficam visíveis somente:
+- `Embarques`
+- `Central de Rotas`
+- `⚙ Configurações`
+
+A engrenagem abre:
+- Rotas Fixas
+- ESPD
+- Base ESPD
+- Motoristas
+- Frota
+
+### Otimização de velocidade
+A V5.46 reduz recomputações repetidas na lista de rastreamento, reaproveitando o agrupamento de status por motorista em uma única passagem. A publicação Firebase também deixa de ocorrer automaticamente a cada abertura da Central de Rotas quando os Apps estão bloqueados.
