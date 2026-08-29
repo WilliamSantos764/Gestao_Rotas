@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Gestão Logística - V5.26 App com Todas as Entregas</title>
+<title>Gestão Logística - V5.25 WhatsApp Local</title>
 <style>
 :root{
   --bg:#f3f6fb;--card:#fff;--line:#e2e8f0;--text:#152033;--muted:#667085;
@@ -342,7 +342,7 @@ main{max-width:1580px;margin:auto;padding:20px}.view{display:none}.view.active{d
 </head>
 <body>
 <header class="top"><div class="topin">
- <div class="brand"><div class="logo">R</div><div><h1>Gestão Logística - Rotas e Embarques V5.26</h1><small>Rotas • ESPD • Frota • Embarques automáticos</small></div></div>
+ <div class="brand"><div class="logo">R</div><div><h1>Gestão Logística - Rotas e Embarques V5.25</h1><small>Rotas • ESPD • Frota • Embarques automáticos</small></div></div>
  <nav class="nav">
   <button class="active" data-view="planning">Dashboard semanal</button>
   <button data-view="routeanalysis">Análise de rotas</button>
@@ -803,24 +803,22 @@ function promptWhatsAppForDriver(driver){
  renderDriverApps();
  return digits
 }
-function appRoutesForDriver(driver){
- return routesForDriverApp(driver)
-}
 function appRouteForDriver(driver){
- const routesList=appRoutesForDriver(driver);
- return routesList.length?routesList[routesList.length-1]:null
+ const filtered=routesForDriverInCurrentSelection(driver);
+ if(filtered.length)return filtered[filtered.length-1];
+ return latestRouteForDriver(driver)
 }
 function openLinkedDriverApp(encodedDriver){
  const driver=decodeURIComponent(encodedDriver);
- const routesList=appRoutesForDriver(driver);
- if(!routesList.length)return alert(`Ainda não existe rota gerada para ${driver}. Vá em Análise de rotas e gere a roteirização.`);
- const url=driverAppUrlForRoutes(driver,routesList);
+ const route=appRouteForDriver(driver);
+ if(!route)return alert(`Ainda não existe rota gerada para ${driver}. Vá em Análise de rotas e gere a roteirização.`);
+ const url=driverAppUrl(route);
  window.open(url,"_blank","noopener")
 }
 function sendLinkedDriverApp(encodedDriver){
  const driver=decodeURIComponent(encodedDriver);
- const routesList=appRoutesForDriver(driver);
- if(!routesList.length)return alert(`Ainda não existe rota gerada para ${driver}. Gere a rota primeiro.`);
+ const route=appRouteForDriver(driver);
+ if(!route)return alert(`Ainda não existe rota gerada para ${driver}. Gere a rota primeiro.`);
 
  let phone=whatsappForDriver(driver);
  if(!validWhatsAppNumber(phone))phone=promptWhatsAppForDriver(driver);
@@ -834,7 +832,7 @@ function sendLinkedDriverApp(encodedDriver){
    if(entry){entry.whatsapp=answer.trim();persist();renderFleet();renderDriverApps()}
  }
 
- const msg=whatsappMessageForRoutes(driver,routesList);
+ const msg=whatsappMessageForRoutes(driver,[route]);
  const url=`https://wa.me/${phone}?text=${encodeURIComponent(msg)}`;
  window.open(url,"_blank","noopener")
 }
@@ -844,23 +842,14 @@ function renderDriverApps(){
 
  host.innerHTML=fleet.map((v,i)=>{
    const phoneOk=validWhatsAppNumber(v.whatsapp);
-   const appRoutes=routesForDriverApp(v.driver);
-   const route=appRoutes.length?appRoutes[appRoutes.length-1]:null;
-   const routeOk=appRoutes.length>0;
+   const route=latestRouteForDriver(v.driver);
+   const routeOk=!!route;
    if(phoneOk)phones++;
    if(routeOk)routesCount++;
    if(phoneOk&&routeOk)ready++;
 
-   const allOrders=new Set();
-   const allShipments=new Set();
-   let allStops=0;
-   appRoutes.forEach(r=>{
-     allStops+=r.stops?.length||0;
-     (r.shipments||[]).forEach(x=>allShipments.add(String(x)));
-     (r.stops||[]).forEach(s=>(s.orders||[]).forEach(o=>o.id&&allOrders.add(String(o.id))))
-   });
-   const routeInfo=routeOk
-     ? `${appRoutes.length} rota(s) • Emb. ${[...allShipments].map(esc).join(", ")} • ${allStops} parada(s) • ${allOrders.size} pedido(s)`
+   const routeInfo=route
+     ? `${esc(route.day||"")} • Emb. ${(route.shipments||[]).map(esc).join(", ")} • ${route.stops?.length||0} parada(s) • ${route.routedOrderCount??route.orderCount??0} pedido(s)`
      : "Nenhuma rota gerada ainda.";
 
    const routeDate=route?.generatedAt
@@ -887,7 +876,7 @@ function renderDriverApps(){
     <div class="app-status">
      <span>Última rota vinculada</span>
      <b>${routeInfo}</b>
-     ${routeDate?`<div class="app-route-meta">Atualizado em ${esc(routeDate)} • o app reúne TODAS as entregas disponíveis • ordem de cada dia: mais perto → mais longe</div>`:""}
+     ${routeDate?`<div class="app-route-meta">Gerada em ${esc(routeDate)} • ordem: mais perto → mais longe</div>`:""}
     </div>
 
     <div class="app-actions">
@@ -2197,7 +2186,7 @@ async function generateDriverRoutes(){
 
    // Motorista específico: SEMPRE pede/confirma o WhatsApp depois de gerar a rota.
    if(driverFilter!=="TODOS"){
-     const routesList=routesForDriverApp(driverFilter);
+     const routesList=routesForDriverInCurrentSelection(driverFilter);
      if(!routesList.length){
        if(preparedWindow)preparedWindow.close();
        return
@@ -2304,74 +2293,6 @@ function compactDriverRoute(route){
    }))
  }
 }
-function compactDriverBundle(driver,routesList){
- const routesClean=(routesList||[])
-   .filter(r=>!r?.error&&r?.stops?.length)
-   .sort((a,b)=>String(a.dayKey).localeCompare(String(b.dayKey)));
-
- const orderIds=new Set();
- const plates=new Set();
- const shipments=new Set();
- let totalDistance=0,totalDuration=0,totalStops=0;
-
- const routes=routesClean.map((route,routeIndex)=>{
-   (route.plates||[]).forEach(x=>x&&plates.add(String(x)));
-   (route.shipments||[]).forEach(x=>x!==undefined&&x!==null&&shipments.add(String(x)));
-   totalDistance+=num(route.totalDistance);
-   totalDuration+=num(route.totalDuration);
-   totalStops+=(route.stops||[]).length;
-
-   return{
-     id:`${route.dayKey}|${route.driver}|${route.generatedAt}`,
-     generatedAt:route.generatedAt,
-     dayKey:route.dayKey,
-     day:route.day,
-     driver:route.driver,
-     plates:route.plates||[],
-     shipments:route.shipments||[],
-     totalDistance:route.totalDistance||0,
-     totalDuration:route.totalDuration||0,
-     sortMode:"NEAREST_TO_FARTHEST_FROM_DEPOT",
-     stops:(route.stops||[]).map((s,i)=>({
-       n:i+1,
-       name:s.deliveryPoint||s.city||`Parada ${i+1}`,
-       city:s.city||"",
-       address:s.address||"",
-       lat:s.lat,lon:s.lon,
-       distanceFromDepot:s.distanceFromDepot||0,
-       legDistance:s.legDistance||0,
-       orders:(s.orders||[]).map(o=>{
-         const id=String(o.id||"");
-         if(id)orderIds.add(id);
-         return{
-           id,
-           clientName:o.clientName||"",
-           clientCode:o.clientCode||"",
-           shipment:o._shipment||""
-         }
-       })
-     }))
-   }
- });
-
- return{
-   v:2,
-   type:"DRIVER_ALL_DELIVERIES",
-   id:`${norm(driver)}|${routes.map(r=>r.dayKey).join("+")}|${Date.now()}`,
-   generatedAt:new Date().toISOString(),
-   driver,
-   origin:{name:DEPOT_COORD.name,lat:DEPOT_COORD.lat,lon:DEPOT_COORD.lon},
-   plates:[...plates],
-   shipments:[...shipments],
-   totalDistance,
-   totalDuration,
-   totalStops,
-   orderCount:orderIds.size,
-   routedOrderCount:orderIds.size,
-   sortMode:"NEAREST_TO_FARTHEST_FROM_DEPOT",
-   routes
- }
-}
 function normalizedPublicBaseUrl(){
  const raw=String(settings.publicAppBaseUrl||"").trim();
  if(!raw)return"";
@@ -2383,92 +2304,42 @@ function normalizedPublicBaseUrl(){
    return u.href
  }catch{return""}
 }
-function driverAppUrlForRoutes(driver,routesList){
- const valid=(routesList||[]).filter(r=>!r?.error&&r?.stops?.length);
- if(!valid.length)return"";
- const publicBase=normalizedPublicBaseUrl();
- const url=publicBase?new URL("motorista.html",publicBase):new URL("motorista.html",window.location.href);
- url.hash=encodeDriverAppPayload(compactDriverBundle(driver,valid));
- return url.href
-}
 function driverAppUrl(route){
  if(!route?.stops?.length)return"";
- return driverAppUrlForRoutes(route.driver,[route])
+ const publicBase=normalizedPublicBaseUrl();
+ const url=publicBase?new URL("motorista.html",publicBase):new URL("motorista.html",window.location.href);
+ url.hash=encodeDriverAppPayload(compactDriverRoute(route));
+ return url.href
 }
 function driverAppIsShareable(){
  return !!normalizedPublicBaseUrl()||/^https?:$/.test(location.protocol)
 }
 function openDriverDeliveryApp(encodedDay,encodedDriver){
  const dayKey=decodeURIComponent(encodedDay),driver=decodeURIComponent(encodedDriver);
- let routesList=routesForDriverApp(driver);
- if(!routesList.length){
-   const route=plans[dayKey]?.driverRoutes?.[driver];
-   if(route?.stops?.length)routesList=[route]
- }
- if(!routesList.length)return alert("Gere a rota deste motorista primeiro.");
- const url=driverAppUrlForRoutes(driver,routesList);
+ const route=plans[dayKey]?.driverRoutes?.[driver];
+ if(!route?.stops?.length)return alert("Gere a rota deste motorista primeiro.");
+ const url=driverAppUrl(route);
  window.open(url,"_blank","noopener")
 }
 async function copyDriverAppLink(encodedDay,encodedDriver){
  const dayKey=decodeURIComponent(encodedDay),driver=decodeURIComponent(encodedDriver);
- let routesList=routesForDriverApp(driver);
- if(!routesList.length){
-   const route=plans[dayKey]?.driverRoutes?.[driver];
-   if(route?.stops?.length)routesList=[route]
- }
- if(!routesList.length)return alert("Gere a rota deste motorista primeiro.");
- const url=driverAppUrlForRoutes(driver,routesList);
+ const route=plans[dayKey]?.driverRoutes?.[driver];
+ if(!route?.stops?.length)return alert("Gere a rota deste motorista primeiro.");
+ const url=driverAppUrl(route);
  try{
    if(navigator.clipboard&&window.isSecureContext){
      await navigator.clipboard.writeText(url);
-     toast(`Link com todas as entregas de ${driver} copiado.`);
+     toast("Link do App do Motorista copiado.");
      return
    }
  }catch{}
- prompt(`Copie este link. Ele contém todas as entregas roteirizadas de ${driver}:`,url)
+ prompt("Copie este link e envie ao motorista:",url)
 }
 
 function routesForDriverInCurrentSelection(driver){
  return savedDriverRoutesForMap()
    .filter(r=>!r.error&&r.stops?.length&&norm(r.driver)===norm(driver))
    .sort((a,b)=>String(a.dayKey).localeCompare(String(b.dayKey)))
-}
-function currentWeekRoutesForDriver(driver){
- const result=[];
- weekDatesFor(weekReferenceDate()).forEach(d=>{
-   const dayKey=localDateKey(d);
-   const plan=plans[dayKey];
-   if(!plan?.driverRoutes)return;
-   Object.values(plan.driverRoutes).forEach(r=>{
-     if(!r||r.error||!r.stops?.length)return;
-     if(norm(r.driver)!==norm(driver))return;
-     result.push(r)
-   })
- });
- return result.sort((a,b)=>String(a.dayKey).localeCompare(String(b.dayKey)))
-}
-function allSavedRoutesForDriver(driver){
- const result=[];
- Object.values(plans||{}).forEach(plan=>{
-   Object.values(plan?.driverRoutes||{}).forEach(r=>{
-     if(!r||r.error||!r.stops?.length)return;
-     if(norm(r.driver)!==norm(driver))return;
-     result.push(r)
-   })
- });
- return result.sort((a,b)=>String(a.dayKey).localeCompare(String(b.dayKey)))
-}
-function routesForDriverApp(driver){
- const week=currentWeekRoutesForDriver(driver);
- if(week.length)return week;
- const selected=routesForDriverInCurrentSelection(driver);
- if(selected.length)return selected;
- const all=allSavedRoutesForDriver(driver);
- if(all.length){
-   const latestDay=all[all.length-1].dayKey;
-   return all.filter(r=>r.dayKey===latestDay)
- }
- return[]
 }
 
 function stopNavigationUrl(stop){
@@ -2484,25 +2355,18 @@ function whatsappShareMode(){
  return driverAppIsShareable()?"APP_PUBLICO":"ROTA_LOCAL"
 }
 function whatsappMessageForRoutes(driver,routesList){
- const validRoutes=(routesList||[]).filter(r=>!r?.error&&r?.stops?.length).sort((a,b)=>String(a.dayKey).localeCompare(String(b.dayKey)));
- const plate=[...new Set(validRoutes.flatMap(r=>r.plates||[]).filter(Boolean))].join(" / ");
+ const plate=[...new Set(routesList.flatMap(r=>r.plates||[]).filter(Boolean))].join(" / ");
  const publicMode=driverAppIsShareable();
-
- const uniqueOrders=new Set();
- validRoutes.forEach(r=>(r.stops||[]).forEach(s=>(s.orders||[]).forEach(o=>o.id&&uniqueOrders.add(String(o.id)))));
- const totalStops=validRoutes.reduce((n,r)=>n+(r.stops?.length||0),0);
-
  const lines=[
    `Olá ${driver}!`,
    ``,
-   `Todas as suas entregas roteirizadas estão prontas.`,
-   `Sequência de cada dia: da entrega mais próxima da Cooperrita para a mais distante.`,
-   plate?`Veículo(s): ${plate}`:"",
-   `Total: ${uniqueOrders.size} pedido(s) • ${totalStops} parada(s)`,
+   `Sua rota de entrega está pronta.`,
+   `Sequência: da entrega mais próxima da Cooperrita para a mais distante.`,
+   plate?`Veículo: ${plate}`:"",
    ``
  ].filter(x=>x!==undefined&&x!=="");
 
- validRoutes.forEach(r=>{
+ routesList.forEach(r=>{
    lines.push(`*${r.day}*`);
    lines.push(`Embarque(s): ${(r.shipments||[]).join(", ")}`);
    lines.push(`Pedidos: ${r.routedOrderCount??r.orderCount??0}/${r.orderCount??r.routedOrderCount??0}`);
@@ -2510,8 +2374,12 @@ function whatsappMessageForRoutes(driver,routesList){
    lines.push(`Distância estimada: ${(num(r.totalDistance)/1000).toLocaleString("pt-BR",{maximumFractionDigits:1})} km`);
    lines.push(``);
 
-   if(!publicMode){
-     lines.push(`📍 *Entregas de ${r.day}:*`);
+   if(publicMode){
+     lines.push(`📱 *App da rota:*`);
+     lines.push(driverAppUrl(r));
+     lines.push(``);
+   }else{
+     lines.push(`📍 *Rota de entregas:*`);
      (r.stops||[]).forEach((s,i)=>{
        const orders=(s.orders||[]).map(o=>o.id).filter(Boolean).join(", ");
        lines.push(`${i+1}ª — ${s.deliveryPoint||s.city||"Entrega"}`);
@@ -2523,18 +2391,15 @@ function whatsappMessageForRoutes(driver,routesList){
        const nav=stopNavigationUrl(s);
        if(nav)lines.push(`Navegar: ${nav}`);
        lines.push(``);
-     })
+     });
    }
  });
 
  if(publicMode){
-   lines.push(`📱 *App do Motorista — TODAS AS ENTREGAS:*`);
-   lines.push(driverAppUrlForRoutes(driver,validRoutes));
-   lines.push(``);
-   lines.push(`Abra este único link para visualizar todas as suas entregas, separadas por dia e embarque.`);
+   lines.push(`Abra o App da rota e siga as paradas numeradas.`);
  }else{
-   lines.push(`Siga as sequências acima. Todas as entregas roteirizadas estão nesta mensagem.`);
-   lines.push(`O App completo permanece vinculado ao Gestão Logística neste computador.`);
+   lines.push(`Siga a sequência acima, da parada 1 até a última.`);
+   lines.push(`O App do Motorista também fica disponível dentro do Gestão Logística neste computador.`);
  }
  return lines.join("\n")
 }
@@ -2546,7 +2411,11 @@ function whatsappUrlForRoutes(driver,routesList){
 }
 function sendWhatsAppForDriver(encodedDriver){
  const driver=decodeURIComponent(encodedDriver);
- const routesList=routesForDriverApp(driver);
+ const routesList=routesForDriverInCurrentSelection(driver);
+ if(!routesList.length){
+   const latest=latestRouteForDriver(driver);
+   if(latest)routesList.push(latest)
+ }
  if(!routesList.length)return alert("Nenhuma rota gerada para este motorista.");
 
  let phone=whatsappForDriver(driver);
