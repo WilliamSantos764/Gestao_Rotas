@@ -10,7 +10,7 @@
 <meta name="apple-mobile-web-app-title" content="Motorista">
 <link rel="manifest" href="./manifest.webmanifest">
 <link rel="apple-touch-icon" href="./icons/icon-192.png">
-<title>App do Motorista - V5.37 Exceções de Entrega</title>
+<title>App do Motorista - V5.38 Reentregas Sincronizadas</title>
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
 <style>
 :root{--bg:#f2f4f7;--card:#fff;--text:#101828;--muted:#667085;--line:#d0d5dd;--accent:#155eef;--ok:#027a48;--warn:#b54708}
@@ -142,7 +142,7 @@ footer{padding:14px;text-align:center;color:var(--muted);font-size:10px}
   <p id="subtitle">Carregando rota...</p>
 </header>
 <div class="wrap">
-  <div class="rule">✓ O GPS é obrigatório. Em cada entrega o motorista pode fotografar o canhoto ou registrar <b>Canhoto retido</b> / <b>Não deu tempo de entregar</b>. Todas as ocorrências são enviadas em tempo real para a central.</div>
+  <div class="rule">✓ O GPS é obrigatório. Canhoto retido e “não deu tempo” ficam aguardando aprovação da central. Depois da aprovação, a rota original é arquivada e a reentrega programada aparece como nova rota pendente.</div>
   <section id="installBox" class="installbox">
    <div><strong>📲 Instalar App do Motorista</strong><small id="installHint">Instale no celular para abrir pelo ícone, como um aplicativo.</small></div>
    <button id="installBtn" type="button" class="installbtn">Instalar App no celular</button>
@@ -179,7 +179,7 @@ footer{padding:14px;text-align:center;color:var(--muted);font-size:10px}
   </details>
   <div id="error" class="empty" style="display:none"></div>
 </div>
-<footer>App de rota gerado pelo sistema de Gestão Logística. • V5.37 — pendentes + concluídas</footer>
+<footer>App de rota gerado pelo sistema de Gestão Logística. • V5.38 — reentregas sincronizadas</footer>
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script>
 const $=id=>document.getElementById(id);
@@ -363,7 +363,7 @@ async function loadPayload(){
  if(!params.has("orders"))expected.orders=NaN;
  if(!params.has("stops"))expected.stops=NaN;
 
- // V5.37: NÃO depende mais do cfg enviado pelo WhatsApp.
+ // V5.38: NÃO depende mais do cfg enviado pelo WhatsApp.
  // O Firebase oficial do Gestão Logística já está dentro deste arquivo.
  let cfg=EMBEDDED_FIREBASE_CONFIG;
 
@@ -377,7 +377,7 @@ async function loadPayload(){
        cfg=legacyCfg
      }
    }catch(e){
-     console.warn("Configuração antiga do link estava cortada; usando Firebase embutido da V5.37.",e)
+     console.warn("Configuração antiga do link estava cortada; usando Firebase embutido da V5.38.",e)
    }
  }
 
@@ -496,7 +496,13 @@ function retakeRequestForFlat(flat){
  for(const key of proofKeysForFlat(flat)){if(retakeRequests[key])return retakeRequests[key]}
  return null
 }
-function isStopDelivered(flat){return !retakeRequestForFlat(flat)&&(!!proofRecordForFlat(flat)?.deliveredAt||isCanhotoRetido(flat))}
+function isStopDelivered(flat){
+ if(retakeRequestForFlat(flat))return false;
+ if(!!proofRecordForFlat(flat)?.deliveredAt)return true;
+ const event=deliveryEventForFlat(flat);
+ if(!event)return false;
+ return ["CANHOTO_RETIDO","NAO_DEU_TEMPO"].includes(event.status)&&exceptionApproved(flat)
+}
 
 function deliveryEventForFlat(flat){
  for(const key of proofKeysForFlat(flat)){
@@ -513,6 +519,19 @@ function deliveryEventKeyForFlat(flat){
  }
  return proofKeyForFlat(flat)
 }
+
+function redeliveryApprovalForFlat(flat){
+ for(const key of proofKeysForFlat(flat)){
+   if(redeliveryApprovals[key])return redeliveryApprovals[key]
+ }
+ const event=deliveryEventForFlat(flat);
+ if(event?.eventId&&redeliveryApprovals[event.eventId])return redeliveryApprovals[event.eventId];
+ return null
+}
+function exceptionApproved(flat){
+ const a=redeliveryApprovalForFlat(flat);
+ return a?.status==="APPROVED"||a?.status==="COMPLETED"
+}
 function isCanhotoRetido(flat){
  return deliveryEventForFlat(flat)?.status==="CANHOTO_RETIDO"
 }
@@ -520,7 +539,11 @@ function isStopDeferredNoTime(flat){
  return deliveryEventForFlat(flat)?.status==="NAO_DEU_TEMPO"
 }
 function isStopActionable(flat){
- return !isStopDelivered(flat)&&!isStopDeferredNoTime(flat)
+ if(isStopDelivered(flat))return false;
+ const event=deliveryEventForFlat(flat);
+ if(event?.status==="CANHOTO_RETIDO")return false;
+ if(event?.status==="NAO_DEU_TEMPO")return false;
+ return true
 }
 function stopCompletionTimestamp(flat){
  const proof=proofRecordForFlat(flat);
@@ -565,20 +588,23 @@ async function hydrateDeliveryProofs(){
      if(Object.keys(missing).length)await tracking.dbMod.update(metaRef,missing)
    }
 
-   const [retakeSnap,eventSnap]=await Promise.all([
+   const [retakeSnap,eventSnap,approvalSnap]=await Promise.all([
      tracking.dbMod.get(tracking.dbMod.ref(tracking.db,`driverApps/${tracking.appId}/retakeRequests`)),
-     tracking.dbMod.get(tracking.dbMod.ref(tracking.db,`driverApps/${tracking.appId}/deliveryEvents`))
+     tracking.dbMod.get(tracking.dbMod.ref(tracking.db,`driverApps/${tracking.appId}/deliveryEvents`)),
+     tracking.dbMod.get(tracking.dbMod.ref(tracking.db,`driverApps/${tracking.appId}/redeliveryApprovals`))
    ]);
    retakeRequests=retakeSnap.exists()?(retakeSnap.val()||{}):{};
-   deliveryEvents=eventSnap.exists()?(eventSnap.val()||{}):{}
+   deliveryEvents=eventSnap.exists()?(eventSnap.val()||{}):{};
+   redeliveryApprovals=approvalSnap.exists()?(approvalSnap.val()||{}):{}
  }catch(e){console.warn("Não foi possível carregar status das entregas:",e)}
 }
-let onlineProofUnsub=null,onlineRetakeUnsub=null,onlineDeliveryEventUnsub=null;
+let onlineProofUnsub=null,onlineRetakeUnsub=null,onlineDeliveryEventUnsub=null,onlineRedeliveryApprovalUnsub=null;
 function startOnlineProofSync(){
  if(!tracking?.dbMod||!tracking?.db||!tracking?.appId)return;
  if(onlineProofUnsub){try{onlineProofUnsub()}catch{} onlineProofUnsub=null}
  if(onlineRetakeUnsub){try{onlineRetakeUnsub()}catch{} onlineRetakeUnsub=null}
  if(onlineDeliveryEventUnsub){try{onlineDeliveryEventUnsub()}catch{} onlineDeliveryEventUnsub=null}
+ if(onlineRedeliveryApprovalUnsub){try{onlineRedeliveryApprovalUnsub()}catch{} onlineRedeliveryApprovalUnsub=null}
 
  onlineProofUnsub=tracking.dbMod.onValue(
    tracking.dbMod.ref(tracking.db,`driverApps/${tracking.appId}/deliveryProofMeta`),
@@ -612,6 +638,18 @@ function startOnlineProofSync(){
      }
    },
    e=>console.error("Exceções de entrega:",e)
+ );
+
+ onlineRedeliveryApprovalUnsub=tracking.dbMod.onValue(
+   tracking.dbMod.ref(tracking.db,`driverApps/${tracking.appId}/redeliveryApprovals`),
+   snap=>{
+     redeliveryApprovals=snap.exists()?(snap.val()||{}):{};
+     renderStops();updateProgress();rebuildMap({fit:false});
+     if(Object.values(redeliveryApprovals).some(a=>a?.status==="APPROVED")){
+       $("gpsStatus").textContent="↻ A central aprovou/programou uma reentrega. A rota original é arquivada após a aprovação."
+     }
+   },
+   e=>console.error("Programação de reentrega:",e)
  )
 }
 function stopFlatByGlobal(n){return flatStops(app).find(s=>s._global===Number(n))||null}
@@ -620,7 +658,8 @@ function stopProofSummary(flat){
  const stop=route.stops?.[flat._stopIndex]||flat;
  const orders=(stop.orders||[]).map(o=>String(o.id||"")).filter(Boolean);
  const shipments=[...new Set((stop.orders||[]).map(o=>String(o.shipment||"")).filter(Boolean))];
- return{route,stop,orders,shipments,name:stop.name||stop.city||`Parada ${flat._global}`,day:route.day||flat._day||"",dayKey:route.dayKey||flat._dayKey||"",routeGeneratedAt:route.generatedAt||"",routeId:route.id||""}
+ const redeliveryEventIds=[...new Set((stop.orders||[]).map(o=>String(o.redeliveryEventId||"")).filter(Boolean))];
+ return{route,stop,orders,shipments,redeliveryEventIds,name:stop.name||stop.city||`Parada ${flat._global}`,day:route.day||flat._day||"",dayKey:route.dayKey||flat._dayKey||"",routeGeneratedAt:route.generatedAt||"",routeId:route.id||""}
 }
 
 async function registerDeliveryException(global,status){
@@ -804,7 +843,7 @@ async function withTimeout(promise,ms,label){
 }
 function proofViewerUrl(proofId){
  const url=new URL("canhoto.html",window.location.href);
- url.searchParams.set("v","537");
+ url.searchParams.set("v","538");
  url.hash=`app=${encodeURIComponent(tracking.appId)}&proof=${encodeURIComponent(proofId)}`;
  return url.href
 }
@@ -841,7 +880,7 @@ async function confirmDeliveryProof(){
      routeGeneratedAt:summary.routeGeneratedAt||"",
      routeId:summary.routeId||"",
      client:summary.name,address:summary.stop.address||"",city:summary.stop.city||"",
-     orders:summary.orders,shipments:summary.shipments,
+     orders:summary.orders,shipments:summary.shipments,redeliveryEventIds:summary.redeliveryEventIds||[],
      deliveredAt:new Date().toISOString(),
      whatsapp:normalizePhoneBR(app.proofWhatsApp||""),
      viewerUrl,
@@ -886,6 +925,15 @@ async function confirmDeliveryProof(){
      }
    }));
 
+   // Novo canhoto de uma reentrega encerra automaticamente o lembrete na central.
+   await Promise.all((summary.redeliveryEventIds||[]).map(async eventId=>{
+     const approval=redeliveryApprovals[eventId];
+     if(!approval)return;
+     const completed={...approval,status:"COMPLETED",completedAt:new Date().toISOString(),completedBy:"CANHOTO_REENTREGA"};
+     await tracking.dbMod.set(tracking.dbMod.ref(tracking.db,`driverApps/${tracking.appId}/redeliveryApprovals/${eventId}`),completed).catch(()=>{});
+     redeliveryApprovals[eventId]=completed
+   }));
+
    proofRecords[proofId]=metaRecord;
    proofKeysForFlat(flat).forEach(key=>delete retakeRequests[key]);
    done[flat._global]=true;
@@ -905,13 +953,13 @@ async function confirmDeliveryProof(){
    if(waWindow&&!waWindow.closed)waWindow.location.href=waUrl;
    else window.location.href=waUrl
  }catch(e){
-   console.error("Canhoto V5.37:",e);
+   console.error("Canhoto V5.38:",e);
    if(waWindow&&!waWindow.closed)try{waWindow.close()}catch{}
    const msg=String(e?.message||e);
 
    let hint="";
    if(/permission|denied/i.test(msg)){
-     hint="\n\nO Realtime Database bloqueou o canhoto. Publique o firebase-rules.json da V5.37."
+     hint="\n\nO Realtime Database bloqueou o canhoto. Publique o firebase-rules.json da V5.38."
    }else if(/demorou|network|internet/i.test(msg)){
      hint="\n\nConfira a internet do celular e toque novamente em “Enviar canhoto e concluir”."
    }
@@ -1036,7 +1084,7 @@ function renderPendingRouteBlock(r,ri){
      <div class="distance">${s.distanceFromCurrent!=null?`${km(dist)} da localização atual`:`${km(dist)} da Cooperrita`}</div>
     </div></div>
     <div class="orders">${(s.orders||[]).map(o=>`<div class="order"><b>Pedido ${esc(o.id)}</b>${o.clientName?` — ${esc(o.clientName)}`:""}${o.shipment?`<br><small>Embarque ${esc(o.shipment)}</small>`:""}</div>`).join("")}</div>
-    ${retake?`<div class="proof-retake-alert">⚠ CENTRAL SOLICITOU NOVO CANHOTO${retake.reason?`<br>${esc(retake.reason)}`:""}. Tire outra foto para concluir novamente esta entrega.</div>`:retained?`<div class="exception-retained-note">⚠ CANHOTO RETIDO • entrega registrada como realizada${event.observation?`<br>${esc(event.observation)}`:""}.</div>`:noTime?`<div class="exception-notime-note">⏱ NÃO DEU TEMPO DE ENTREGAR${event.observation?`<br>${esc(event.observation)}`:""}. Esta parada não participa mais do trajeto atual e continua pendente na central.</div>`:isDone?`<div class="proof-ok">✓ Entrega concluída com canhoto em ${proof?.deliveredAt?new Date(proof.deliveredAt).toLocaleString("pt-BR"):"—"}.</div>`:`<div class="proof-note">📷 Para concluir normalmente, fotografe o canhoto. Se houver exceção, use uma das opções abaixo.</div>`}
+    ${retake?`<div class="proof-retake-alert">⚠ CENTRAL SOLICITOU NOVO CANHOTO${retake.reason?`<br>${esc(retake.reason)}`:""}. Tire outra foto para concluir novamente esta entrega.</div>`:retained?`<div class="exception-retained-note">⚠ CANHOTO RETIDO${exceptionApproved(f)?` • APROVADO • reentrega ${esc(redeliveryApprovalForFlat(f)?.scheduledDate||"programada")}`:" • AGUARDANDO APROVAÇÃO DA CENTRAL"}${event.observation?`<br>${esc(event.observation)}`:""}.</div>`:noTime?`<div class="exception-notime-note">⏱ NÃO DEU TEMPO DE ENTREGAR${exceptionApproved(f)?` • APROVADO • nova tentativa ${esc(redeliveryApprovalForFlat(f)?.scheduledDate||"programada")}`:" • AGUARDANDO APROVAÇÃO DA CENTRAL"}${event.observation?`<br>${esc(event.observation)}`:""}.</div>`:isDone?`<div class="proof-ok">✓ Entrega concluída com canhoto em ${proof?.deliveredAt?new Date(proof.deliveredAt).toLocaleString("pt-BR"):"—"}.</div>`:`<div class="proof-note">📷 Para concluir normalmente, fotografe o canhoto. Se houver exceção, use uma das opções abaixo.</div>`}
     <div class="actions"><a class="btn nav" href="${navUrl(s)}" target="_blank" rel="noopener">🧭 Navegar até esta entrega</a>
     ${isDone&&proof?.viewerUrl&&!retake?`<a class="btn proofview" href="${esc(proof.viewerUrl)}" target="_blank" rel="noopener">📄 Ver canhoto</a>`:retained?`<span class="btn exception-retained">⚠ Canhoto retido registrado</span>`:noTime?`<button class="btn exception-reactivate" type="button" data-reactivate="${global}">↩ Voltar para entregar</button>`:`<button class="donebtn proofbtn" type="button" data-stop="${global}">${retake?"📷 Tirar NOVA foto do canhoto":"📷 Tirar foto do canhoto"}</button>`}</div>
     ${!retake&&!isDone&&!noTime?`<div class="delivery-exception-actions"><button class="btn exception-retained" type="button" data-retained="${global}">⚠ Canhoto retido</button><button class="btn exception-notime" type="button" data-notime="${global}">⏱ Não deu tempo de entregar</button></div>`:""}
@@ -1057,7 +1105,7 @@ function renderCompletedRouteBlock(r,ri){
      const f=flatStops(app).find(x=>x._routeIndex===ri&&x._stopIndex===si);
      const proof=f?proofRecordForFlat(f):null,event=f?deliveryEventForFlat(f):null;
      return`<div class="completed-stop-row">
-      <div><b>${si+1}. ${esc(s.name||s.city||"Entrega")}</b><small>${esc(s.address||"")} • ${(s.orders||[]).map(o=>`Ped. ${esc(o.id)}`).join(" • ")}${event?.status==="CANHOTO_RETIDO"?`<br><span style="color:#93370d;font-weight:900">⚠ Canhoto retido${event.observation?` — ${esc(event.observation)}`:""}</span>`:""}</small></div>
+      <div><b>${si+1}. ${esc(s.name||s.city||"Entrega")}</b><small>${esc(s.address||"")} • ${(s.orders||[]).map(o=>`Ped. ${esc(o.id)}`).join(" • ")}${event?.status==="CANHOTO_RETIDO"?`<br><span style="color:#93370d;font-weight:900">⚠ Canhoto retido • reentrega ${esc(redeliveryApprovalForFlat(f)?.scheduledDate||"programada")}${event.observation?` — ${esc(event.observation)}`:""}</span>`:event?.status==="NAO_DEU_TEMPO"?`<br><span style="color:#b42318;font-weight:900">⏱ Não deu tempo • nova tentativa ${esc(redeliveryApprovalForFlat(f)?.scheduledDate||"programada")}</span>`:""}</small></div>
       ${proof?.viewerUrl?`<a class="btn proofview" href="${esc(proof.viewerUrl)}" target="_blank" rel="noopener">📄 Canhoto</a>`:event?.status==="CANHOTO_RETIDO"?`<span class="btn exception-retained">Retido</span>`:""}
      </div>`
    }).join("")}
@@ -1361,7 +1409,7 @@ async function startGps(){
    try{await optimizeFromCurrentLocation(false)}catch(e){$("gpsStatus").textContent=e.message||String(e)}
  },gpsError,{enableHighAccuracy:true,maximumAge:0,timeout:15000})
 }
-let app=null,done={},proofRecords={},retakeRequests={},deliveryEvents={},map=null,mapStopLayer=null,mapBaseLayer=null,currentLocation=null,currentMarker=null,currentPolyline=null,tracking=null,watchId=null,lastPublish=0,routeCalcBusy=false,lastRouteRefreshAt=0,lastRoutedLocation=null,routeRefreshTimer=null,liveRouteFitted=false,pendingProofGlobal=null,pendingProofFile=null,proofPreviewUrl="",proofUploadBusy=false;
+let app=null,done={},proofRecords={},retakeRequests={},deliveryEvents={},redeliveryApprovals={},map=null,mapStopLayer=null,mapBaseLayer=null,currentLocation=null,currentMarker=null,currentPolyline=null,tracking=null,watchId=null,lastPublish=0,routeCalcBusy=false,lastRouteRefreshAt=0,lastRoutedLocation=null,routeRefreshTimer=null,liveRouteFitted=false,pendingProofGlobal=null,pendingProofFile=null,proofPreviewUrl="",proofUploadBusy=false;
 async function boot(){
  try{
    const loaded=await loadPayload();
@@ -1384,7 +1432,7 @@ async function boot(){
    }
  }catch(e){
    $("gpsGate").classList.remove("show");document.body.classList.remove("gps-locked");$("map").style.display="none";$("stops").style.display="none";$("error").style.display="block";
-   $("error").textContent=(e.message||String(e))+"\n\nSe este link veio do WhatsApp, peça à central para abrir a V5.37, gerar/atualizar a rota do motorista e enviar o link novamente.";$("subtitle").textContent="Não foi possível abrir as entregas.";
+   $("error").textContent=(e.message||String(e))+"\n\nSe este link veio do WhatsApp, peça à central para abrir a V5.38, gerar/atualizar a rota do motorista e enviar o link novamente.";$("subtitle").textContent="Não foi possível abrir as entregas.";
    $("gpsStatus").textContent=e.message||String(e)
  }
 }

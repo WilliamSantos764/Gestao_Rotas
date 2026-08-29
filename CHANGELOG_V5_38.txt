@@ -1,0 +1,13 @@
+V5.38 - ESPD Mestre + Reentregas
+
+- ESPD atualiza automaticamente snapshots dos pedidos em embarques abertos.
+- Recalcula pesos/valores e reconcilia número oficial de embarque quando possível.
+- Remove pedidos desaparecidos do ESPD de embarques automáticos abertos.
+- Preserva históricos fechados, canhotos e reentregas.
+- Aba Cliente -> Cidade removida da navegação.
+- Canhoto retido e Não deu tempo exigem aprovação da central.
+- Canhoto retido exige produto/quantidade.
+- Central define data de reentrega.
+- Reentrega vira pedido REENTREGA-<eventId> no planejamento.
+- Dashboard mostra lembretes.
+- Novo canhoto da reentrega encerra a pendência automaticamente.

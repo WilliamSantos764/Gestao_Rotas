@@ -1,6 +1,4 @@
-Gestão Logística V5.37
-Geração ignora rotas já concluídas.
-Rotas pendentes preservam identidade e canhotos existentes.
-App: Canhoto retido e Não deu tempo de entregar.
-Ocorrências enviadas em tempo real para a central.
-Não deu tempo sai do trajeto atual e é reativado ao gerar a rota novamente.
+Gestão Logística V5.38
+ESPD fonte mestre.
+Reentregas aprovadas/programadas na central.
+Aba Cliente -> Cidade removida da navegação.

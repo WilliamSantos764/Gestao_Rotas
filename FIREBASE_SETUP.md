@@ -1,6 +1,6 @@
-# Firebase já integrado na V5.37
+# Firebase já integrado na V5.38
 
-A configuração Web do projeto Firebase já está gravada no Gestão Logística V5.37.
+A configuração Web do projeto Firebase já está gravada no Gestão Logística V5.38.
 Você não precisa mais copiar o JSON para o sistema.
 
 Este arquivo permanece como referência para:
@@ -92,17 +92,17 @@ Exemplo:
 10. Na central clique em **Conectar caminhões ao vivo**.
 
 
-## V5.37 — conferência do link
+## V5.38 — conferência do link
 
 A central agora verifica a gravação em `driverApps/<appId>` antes de enviar o link ao motorista.
 Se o WhatsApp não abrir, verifique primeiro:
 
 1. Authentication > Anonymous habilitado.
 2. Realtime Database Rules publicadas.
-3. `index.html` e `motorista.html` V5.37 publicados no mesmo diretório HTTPS.
+3. `index.html` e `motorista.html` V5.38 publicados no mesmo diretório HTTPS.
 
 
-## V5.37 — link curto
+## V5.38 — link curto
 
 O `motorista.html` agora contém a configuração Web Firebase usada pelo projeto.
 Não existe mais necessidade de transportar `firebaseConfig` no link do WhatsApp.
@@ -116,7 +116,7 @@ A leitura das viagens continua sendo feita em:
 `driverApps/<appId>`
 
 
-## V5.37 — arquivos PWA
+## V5.38 — arquivos PWA
 
 No GitHub Pages, publique também:
 
@@ -127,7 +127,7 @@ No GitHub Pages, publique também:
 A instalação PWA e a geolocalização exigem que o site esteja em HTTPS.
 
 
-## V5.37 — Firebase Storage para canhotos
+## V5.38 — Firebase Storage para canhotos
 1. Firebase Console → Build → Storage → Começar.
 2. Aba Rules/Regras.
 3. Cole `firebase-storage-rules.txt`.
@@ -136,7 +136,7 @@ A instalação PWA e a geolocalização exigem que o site esteja em HTTPS.
 6. Cole/publicar `firebase-rules.json` atualizado.
 
 
-## V5.37 — sem Firebase Storage
+## V5.38 — sem Firebase Storage
 
 Canhotos usam apenas Realtime Database.
 
@@ -145,12 +145,12 @@ Caminho:
 
 As regras existentes de `driverApps/$appId` já abrangem esse conteúdo para usuários autenticados.
 
-Publique a pasta completa da V5.37 no GitHub Pages.
+Publique a pasta completa da V5.38 no GitHub Pages.
 
 
-## V5.37 — novos dados no Realtime Database
+## V5.38 — novos dados no Realtime Database
 
-A V5.37 usa também, dentro de `driverApps/<appId>`:
+A V5.38 usa também, dentro de `driverApps/<appId>`:
 
 - `deliveryProofs` — foto completa;
 - `deliveryProofMeta` — dados leves para a central;
@@ -159,9 +159,9 @@ A V5.37 usa também, dentro de `driverApps/<appId>`:
 As regras atuais de `driverApps/$appId` já abrangem esses filhos.
 
 
-## V5.37 — deliveryEvents
+## V5.38 — deliveryEvents
 
-A V5.37 utiliza:
+A V5.38 utiliza:
 `driverApps/<appId>/deliveryEvents`
 
 Status possíveis:
@@ -169,3 +169,7 @@ Status possíveis:
 - `NAO_DEU_TEMPO`
 
 Não é necessário alterar as regras porque o caminho está dentro de `driverApps/$appId`.
+
+
+## V5.38 — redeliveryApprovals
+Usa `driverApps/<appId>/redeliveryApprovals/<eventId>` para aprovações e programação. As regras existentes de `driverApps/$appId` já abrangem este caminho.
