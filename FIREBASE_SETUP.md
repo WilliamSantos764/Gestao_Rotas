@@ -1,6 +1,6 @@
-# Firebase já integrado na V5.28
+# Firebase já integrado na V5.29
 
-A configuração Web do projeto Firebase já está gravada no Gestão Logística V5.28.
+A configuração Web do projeto Firebase já está gravada no Gestão Logística V5.29.
 Você não precisa mais copiar o JSON para o sistema.
 
 Este arquivo permanece como referência para:
@@ -90,3 +90,13 @@ Exemplo:
 8. O App recalcula a rota a partir da posição atual.
 9. O GPS é enviado para `tracking/<ID_DO_APP>`.
 10. Na central clique em **Conectar caminhões ao vivo**.
+
+
+## V5.29 — conferência do link
+
+A central agora verifica a gravação em `driverApps/<appId>` antes de enviar o link ao motorista.
+Se o WhatsApp não abrir, verifique primeiro:
+
+1. Authentication > Anonymous habilitado.
+2. Realtime Database Rules publicadas.
+3. `index.html` e `motorista.html` V5.29 publicados no mesmo diretório HTTPS.

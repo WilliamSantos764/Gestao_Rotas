@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Gestão Logística - V5.28 Firebase Integrado</title>
+<title>Gestão Logística - V5.29 Link Motorista Corrigido</title>
 <style>
 :root{
   --bg:#f3f6fb;--card:#fff;--line:#e2e8f0;--text:#152033;--muted:#667085;
@@ -365,7 +365,7 @@ main{max-width:1580px;margin:auto;padding:20px}.view{display:none}.view.active{d
 </head>
 <body>
 <header class="top"><div class="topin">
- <div class="brand"><div class="logo">R</div><div><h1>Gestão Logística - Rotas e Embarques V5.28</h1><small>Rotas • ESPD • Frota • Embarques automáticos</small></div></div>
+ <div class="brand"><div class="logo">R</div><div><h1>Gestão Logística - Rotas e Embarques V5.29</h1><small>Rotas • ESPD • Frota • Embarques automáticos</small></div></div>
  <nav class="nav">
   <button class="active" data-view="planning">Dashboard semanal</button>
   <button data-view="routeanalysis">Análise de rotas</button>
@@ -930,44 +930,125 @@ async function autoConnectFirebaseTracking(){
    autoConnectFirebaseTracking.busy=false
  }
 }
+function fastStableHash(value){
+ const s=String(value||"");
+ let h=2166136261>>>0;
+ for(let i=0;i<s.length;i++){
+   h^=s.charCodeAt(i);
+   h=Math.imul(h,16777619)>>>0
+ }
+ return h.toString(36)
+}
 function driverRoutesSignature(routesList){
- return (routesList||[]).map(r=>`${r.dayKey}:${r.generatedAt}:${r.stops?.length||0}:${r.orderCount||0}`).join("|")
+ const raw=(routesList||[])
+   .filter(r=>!r?.error&&r?.stops?.length)
+   .sort((a,b)=>String(a.dayKey).localeCompare(String(b.dayKey)))
+   .map(r=>{
+     const stops=(r.stops||[]).map(s=>{
+       const orders=(s.orders||[]).map(o=>String(o.id||"")).sort().join(",");
+       return [
+         String(s.address||s.deliveryPoint||s.city||""),
+         String(s.lat??""),
+         String(s.lon??""),
+         orders
+       ].join("~")
+     }).join("^");
+     return [
+       r.dayKey||"",
+       r.driver||"",
+       (r.shipments||[]).map(String).sort().join(","),
+       r.stops?.length||0,
+       r.orderCount||0,
+       stops
+     ].join("::")
+   }).join("|||");
+ return `r_${fastStableHash(raw)}_${raw.length}`
+}
+function cleanFirebaseObject(value){
+ return JSON.parse(JSON.stringify(value))
+}
+function publicationMatchesBundle(driver,publication,bundle,signature){
+ if(!publication?.appId||!bundle)return false;
+ if(norm(bundle.driver)!==norm(driver))return false;
+ if(String(bundle.routeSignature||"")!==String(signature||""))return false;
+ if(Number(bundle.orderCount||0)!==Number(publication.orderCount||0))return false;
+ if(Number(bundle.totalStops||0)!==Number(publication.totalStops||0))return false;
+ if(publication.revision&&String(bundle.publicationRevision||"")!==String(publication.revision))return false;
+ return Array.isArray(bundle.routes)&&bundle.routes.length>0
+}
+async function readPublishedDriverBundle(appId){
+ const rt=await getFirebaseRuntime();
+ const snap=await rt.dbMod.get(rt.dbMod.ref(rt.db,`driverApps/${appId}`));
+ return snap.exists()?snap.val():null
 }
 async function publishDriverAppBundle(driver,routesList){
  const valid=(routesList||[]).filter(r=>!r?.error&&r?.stops?.length);
- if(!valid.length)return null;
- if(!firebaseConfigReady())return null;
+ if(!valid.length)throw new Error(`Nenhuma viagem válida encontrada para ${driver}.`);
+ if(!firebaseConfigReady())throw new Error("Firebase não configurado.");
 
  const rt=await getFirebaseRuntime();
  const key=norm(driver);
  let publication=settings.driverAppPublications[key];
  if(!publication?.appId)publication={appId:secureRandomId("driver"),driver};
 
+ const signature=driverRoutesSignature(valid);
+ const revision=secureRandomId("rev");
  const bundle=compactDriverBundle(driver,valid);
+
+ // ID estável: o mesmo link do motorista continua válido quando novas viagens forem publicadas.
+ bundle.id=`DRIVER_APP|${publication.appId}`;
  bundle.trackingSessionId=publication.appId;
+ bundle.publicationRevision=revision;
+ bundle.routeSignature=signature;
  bundle.publishedAt=new Date().toISOString();
+ bundle.appBuild="V5.29";
 
- await rt.dbMod.set(rt.dbMod.ref(rt.db,`driverApps/${publication.appId}`),bundle);
+ const safeBundle=cleanFirebaseObject(bundle);
+ await rt.dbMod.set(rt.dbMod.ref(rt.db,`driverApps/${publication.appId}`),safeBundle);
 
- publication={
+ // A V5.29 NÃO libera o link antes de confirmar que o Firebase devolve o pacote completo.
+ const checkSnap=await rt.dbMod.get(rt.dbMod.ref(rt.db,`driverApps/${publication.appId}`));
+ if(!checkSnap.exists())throw new Error("O Firebase não devolveu as viagens após a publicação.");
+ const remote=checkSnap.val();
+
+ const candidate={
    ...publication,
    driver,
    appId:publication.appId,
-   updatedAt:bundle.publishedAt,
-   signature:driverRoutesSignature(valid),
-   orderCount:bundle.orderCount,
-   totalStops:bundle.totalStops
+   updatedAt:safeBundle.publishedAt,
+   signature,
+   revision,
+   orderCount:Number(safeBundle.orderCount||0),
+   totalStops:Number(safeBundle.totalStops||0),
+   routeCount:Array.isArray(safeBundle.routes)?safeBundle.routes.length:0,
+   verifiedAt:new Date().toISOString()
  };
- settings.driverAppPublications[key]=publication;
+ if(!publicationMatchesBundle(driver,candidate,remote,signature)){
+   throw new Error(`A conferência das viagens de ${driver} falhou. O link não será enviado.`)
+ }
+
+ settings.driverAppPublications[key]=candidate;
  persist();
- return publication
+ return candidate
 }
 async function ensureDriverAppPublished(driver,routesList){
  if(!firebaseConfigReady())return null;
+ const valid=(routesList||[]).filter(r=>!r?.error&&r?.stops?.length);
+ if(!valid.length)throw new Error(`Nenhuma viagem válida encontrada para ${driver}.`);
+
  const current=firebasePublicationForDriver(driver);
- const signature=driverRoutesSignature(routesList);
- if(current?.appId&&current.signature===signature)return current;
- return publishDriverAppBundle(driver,routesList)
+ const signature=driverRoutesSignature(valid);
+
+ // Mesmo se a assinatura local for igual, confirma se o nó ainda existe no Firebase.
+ if(current?.appId&&current.signature===signature){
+   try{
+     const remote=await readPublishedDriverBundle(current.appId);
+     if(publicationMatchesBundle(driver,current,remote,signature))return current
+   }catch(e){
+     console.warn("Não foi possível validar publicação existente; será republicada.",e)
+   }
+ }
+ return publishDriverAppBundle(driver,valid)
 }
 function publishedDriverAppUrl(driver){
  const pub=firebasePublicationForDriver(driver);
@@ -976,7 +1057,8 @@ function publishedDriverAppUrl(driver){
  const publicBase=normalizedPublicBaseUrl();
  if(!publicBase&&!/^https?:$/.test(location.protocol))return"";
  const url=publicBase?new URL("motorista.html",publicBase):new URL("motorista.html",window.location.href);
- url.hash=`app=${encodeURIComponent(pub.appId)}&cfg=${encodeURIComponent(cfgToken)}`;
+ url.searchParams.set("v","529");
+ url.hash=`app=${encodeURIComponent(pub.appId)}&cfg=${encodeURIComponent(cfgToken)}&rev=${encodeURIComponent(pub.revision||"")}&orders=${encodeURIComponent(pub.orderCount||0)}&stops=${encodeURIComponent(pub.totalStops||0)}&driver=${encodeURIComponent(pub.driver||driver)}`;
  return url.href
 }
 function stopLiveTrackingSubscriptions(){
@@ -1170,18 +1252,25 @@ async function openLinkedDriverApp(encodedDriver){
  const driver=decodeURIComponent(encodedDriver);
  const routesList=appRoutesForDriver(driver);
  if(!routesList.length)return alert(`Ainda não existe rota gerada para ${driver}. Vá em Análise de rotas e gere a roteirização.`);
- if(firebaseConfigReady()){
-   try{await ensureDriverAppPublished(driver,routesList)}catch(e){console.error(e)}
+ try{
+   const url=await prepareVerifiedDriverApp(driver,routesList);
+   window.open(url,"_blank","noopener")
+ }catch(e){
+   console.error(e);
+   alert(`Não foi possível abrir o App de ${driver} porque as viagens não foram confirmadas no Firebase.\n\n${e.message||e}`)
  }
- const url=driverAppUrlForRoutes(driver,routesList);
- window.open(url,"_blank","noopener")
 }
 async function sendLinkedDriverApp(encodedDriver){
  const driver=decodeURIComponent(encodedDriver);
  const routesList=appRoutesForDriver(driver);
  if(!routesList.length)return alert(`Ainda não existe rota gerada para ${driver}. Gere a rota primeiro.`);
- if(firebaseConfigReady()){
-   try{await ensureDriverAppPublished(driver,routesList)}catch(e){console.error(e)}
+
+ let appUrl="";
+ try{appUrl=await prepareVerifiedDriverApp(driver,routesList)}
+ catch(e){
+   console.error(e);
+   alert(`O WhatsApp não será aberto porque o Firebase ainda não confirmou todas as viagens de ${driver}.\n\n${e.message||e}`);
+   return
  }
 
  let phone=whatsappForDriver(driver);
@@ -1196,7 +1285,7 @@ async function sendLinkedDriverApp(encodedDriver){
    if(entry){entry.whatsapp=answer.trim();persist();renderFleet();renderDriverApps()}
  }
 
- const msg=whatsappMessageForRoutes(driver,routesList);
+ const msg=whatsappMessageForRoutes(driver,routesList,appUrl);
  const url=`https://wa.me/${phone}?text=${encodeURIComponent(msg)}`;
  window.open(url,"_blank","noopener")
 }
@@ -2615,7 +2704,18 @@ async function generateDriverRoutes(){
        renderDriverApps()
      }
 
-     const msg=whatsappMessageForRoutes(driverFilter,routesList);
+     let verifiedAppUrl="";
+     try{
+       verifiedAppUrl=await prepareVerifiedDriverApp(driverFilter,routesList)
+     }catch(e){
+       if(preparedWindow)preparedWindow.close();
+       console.error(e);
+       alert(`A rota foi gerada, mas o link NÃO foi enviado porque o Firebase não confirmou todas as viagens de ${driverFilter}.\n\n${e.message||e}`);
+       activateView("driverapps");
+       return
+     }
+
+     const msg=whatsappMessageForRoutes(driverFilter,routesList,verifiedAppUrl);
      const waUrl=`https://wa.me/${phone}?text=${encodeURIComponent(msg)}`;
 
      if(preparedWindow)preparedWindow.location.href=waUrl;
@@ -2771,14 +2871,16 @@ function driverAppUrlForRoutes(driver,routesList){
  const valid=(routesList||[]).filter(r=>!r?.error&&r?.stops?.length);
  if(!valid.length)return"";
 
- // Se o App estiver publicado no Firebase, o link fica curto e todas as entregas
- // são carregadas online. Isso evita que WhatsApp/navegador corte um hash enorme.
- const published=publishedDriverAppUrl(driver);
- if(published)return published;
+ // Com Firebase ativo, somente usa link que foi publicado e verificado.
+ // Isso impede o WhatsApp de receber um App vazio ou uma publicação antiga.
+ if(firebaseConfigReady()){
+   return publishedDriverAppUrl(driver)
+ }
 
- // Fallback legado: mantém funcionamento local/sem Firebase.
+ // Compatibilidade sem Firebase.
  const publicBase=normalizedPublicBaseUrl();
  const url=publicBase?new URL("motorista.html",publicBase):new URL("motorista.html",window.location.href);
+ url.searchParams.set("v","529");
  url.hash=encodeDriverAppPayload(compactDriverBundle(driver,valid));
  return url.href
 }
@@ -2791,6 +2893,26 @@ function driverAppIsShareable(){
 }
 function driverGpsReady(){
  return driverAppIsShareable()&&firebaseConfigReady()
+}
+async function prepareVerifiedDriverApp(driver,routesList){
+ const valid=(routesList||[]).filter(r=>!r?.error&&r?.stops?.length);
+ if(!valid.length)throw new Error(`Nenhuma viagem válida encontrada para ${driver}.`);
+
+ if(firebaseConfigReady()){
+   updateFirebaseUi(`Sincronizando e conferindo todas as viagens de ${driver}...`,true);
+   const pub=await ensureDriverAppPublished(driver,valid);
+   if(!pub?.appId)throw new Error(`Não foi possível publicar o App de ${driver}.`);
+   const remote=await readPublishedDriverBundle(pub.appId);
+   const signature=driverRoutesSignature(valid);
+   if(!publicationMatchesBundle(driver,pub,remote,signature)){
+     throw new Error(`O Firebase não confirmou todas as viagens de ${driver}.`)
+   }
+   updateFirebaseUi(`Firebase conectado. App de ${driver}: ${pub.orderCount} pedido(s), ${pub.totalStops} parada(s) confirmados.`,true)
+ }
+
+ const url=driverAppUrlForRoutes(driver,valid);
+ if(!url)throw new Error(`Não foi possível gerar o link do App de ${driver}.`);
+ return url
 }
 async function openDriverDeliveryApp(encodedDay,encodedDriver){
  const dayKey=decodeURIComponent(encodedDay),driver=decodeURIComponent(encodedDriver);
@@ -2814,10 +2936,13 @@ async function copyDriverAppLink(encodedDay,encodedDriver){
    if(route?.stops?.length)routesList=[route]
  }
  if(!routesList.length)return alert("Gere a rota deste motorista primeiro.");
- if(firebaseConfigReady()){
-   try{await ensureDriverAppPublished(driver,routesList)}catch(e){console.error(e)}
+ let url="";
+ try{url=await prepareVerifiedDriverApp(driver,routesList)}
+ catch(e){
+   console.error(e);
+   alert(`O link não foi copiado porque as viagens não foram confirmadas no Firebase.\n\n${e.message||e}`);
+   return
  }
- const url=driverAppUrlForRoutes(driver,routesList);
  try{
    if(navigator.clipboard&&window.isSecureContext){
      await navigator.clipboard.writeText(url);
@@ -2883,10 +3008,11 @@ function stopNavigationUrl(stop){
 function whatsappShareMode(){
  return driverAppIsShareable()?"APP_PUBLICO":"ROTA_LOCAL"
 }
-function whatsappMessageForRoutes(driver,routesList){
+function whatsappMessageForRoutes(driver,routesList,verifiedAppUrl=""){
  const validRoutes=(routesList||[]).filter(r=>!r?.error&&r?.stops?.length).sort((a,b)=>String(a.dayKey).localeCompare(String(b.dayKey)));
  const plate=[...new Set(validRoutes.flatMap(r=>r.plates||[]).filter(Boolean))].join(" / ");
- const publicMode=driverAppIsShareable();
+ const appUrl=verifiedAppUrl||driverAppUrlForRoutes(driver,validRoutes);
+ const publicMode=driverAppIsShareable()&&!!appUrl;
 
  const uniqueOrders=new Set();
  validRoutes.forEach(r=>(r.stops||[]).forEach(s=>(s.orders||[]).forEach(o=>o.id&&uniqueOrders.add(String(o.id)))));
@@ -2929,7 +3055,7 @@ function whatsappMessageForRoutes(driver,routesList){
 
  if(publicMode){
    lines.push(`📱 *App do Motorista — TODAS AS ENTREGAS + GPS:*`);
-   lines.push(driverAppUrlForRoutes(driver,validRoutes));
+   lines.push(appUrl);
    lines.push(``);
    lines.push(`Abra este único link, permita a localização e o App vai montar a rota a partir de onde você estiver. A central poderá acompanhar o caminhão quando o rastreamento online estiver configurado.`);
  }else{
@@ -2948,8 +3074,13 @@ async function sendWhatsAppForDriver(encodedDriver){
  const driver=decodeURIComponent(encodedDriver);
  const routesList=routesForDriverApp(driver);
  if(!routesList.length)return alert("Nenhuma rota gerada para este motorista.");
- if(firebaseConfigReady()){
-   try{await ensureDriverAppPublished(driver,routesList)}catch(e){console.error(e)}
+
+ let appUrl="";
+ try{appUrl=await prepareVerifiedDriverApp(driver,routesList)}
+ catch(e){
+   console.error(e);
+   alert(`O WhatsApp não será aberto porque as viagens de ${driver} ainda não foram confirmadas no Firebase.\n\n${e.message||e}`);
+   return
  }
 
  let phone=whatsappForDriver(driver);
@@ -2961,7 +3092,7 @@ async function sendWhatsAppForDriver(encodedDriver){
 
  if(entry){entry.whatsapp=answer.trim();persist();renderFleet();renderDriverApps()}
 
- const msg=whatsappMessageForRoutes(driver,routesList);
+ const msg=whatsappMessageForRoutes(driver,routesList,appUrl);
  window.open(`https://wa.me/${phone}?text=${encodeURIComponent(msg)}`,"_blank","noopener")
 }
 function renderWhatsAppDispatch(){

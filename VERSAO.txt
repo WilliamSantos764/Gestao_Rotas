@@ -1,0 +1,3 @@
+Gestão Logística V5.29
+Correção: link do App do Motorista com publicação/verificação no Firebase e sincronização de viagens.
+Ao publicar: substitua index.html E motorista.html.

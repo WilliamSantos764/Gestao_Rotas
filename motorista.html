@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#101828">
-<title>App do Motorista - V5.28 GPS Integrado</title>
+<title>App do Motorista - V5.29 GPS Sincronizado</title>
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
 <style>
 :root{--bg:#f2f4f7;--card:#fff;--text:#101828;--muted:#667085;--line:#d0d5dd;--accent:#155eef;--ok:#027a48;--warn:#b54708}
@@ -118,18 +118,68 @@ async function firebaseRuntimeFromConfig(cfg){
  const db=dbMod.getDatabase(fbapp);
  return{fbapp,auth,db,dbMod}
 }
+function onlineBundleMatches(payload,expected){
+ if(!payload)return false;
+ if(expected.driver&&String(payload.driver||"").trim().toUpperCase()!==String(expected.driver).trim().toUpperCase())return false;
+ if(!Array.isArray(payload.routes)||!payload.routes.length)return false;
+
+ // Se for exatamente a revisão do link, confere também os totais.
+ // Se a central já publicou uma revisão MAIS NOVA para o mesmo motorista,
+ // aceita a nova versão para que o mesmo link continue mostrando as viagens atuais.
+ const sameRevision=!expected.rev||String(payload.publicationRevision||"")===String(expected.rev);
+ if(sameRevision){
+   if(Number.isFinite(expected.orders)&&expected.orders>=0&&Number(payload.orderCount||0)!==expected.orders)return false;
+   if(Number.isFinite(expected.stops)&&expected.stops>=0&&Number(payload.totalStops||0)!==expected.stops)return false
+ }
+ return true
+}
+function wait(ms){return new Promise(resolve=>setTimeout(resolve,ms))}
+async function readDriverBundleWithRetry(rt,appId,expected){
+ let last=null;
+ for(let attempt=1;attempt<=10;attempt++){
+   $("gpsStatus").textContent=`Sincronizando viagens com a central... ${attempt}/10`;
+   try{
+     const snap=await rt.dbMod.get(rt.dbMod.ref(rt.db,`driverApps/${appId}`));
+     if(snap.exists()){
+       last=snap.val();
+       if(onlineBundleMatches(last,expected))return last
+     }
+   }catch(e){
+     if(attempt===10)throw e
+   }
+   await wait(650)
+ }
+ if(last){
+   throw new Error(`A central respondeu, mas o pacote de viagens ainda não está pronto. Atualize a rota na central e tente novamente.`)
+ }
+ throw new Error("As viagens deste motorista não foram encontradas no Firebase. Gere/atualize a rota na central e envie o link novamente.")
+}
 async function loadPayload(){
  const params=hashParams();
  if(!params)return{payload:legacyPayload(),tracking:null};
  const appId=params.get("app"),cfgToken=params.get("cfg");
  if(!appId||!cfgToken)throw new Error("Link online incompleto.");
  const cfg=decodeBase64Url(cfgToken);
- $("gpsStatus").textContent="Carregando todas as entregas do sistema...";
- const rt=await firebaseRuntimeFromConfig(cfg);
- const snap=await rt.dbMod.get(rt.dbMod.ref(rt.db,`driverApps/${appId}`));
- if(!snap.exists())throw new Error("As entregas deste App não foram encontradas na central.");
- const payload=snap.val();
- return{payload,tracking:{...rt,appId,cfg}}
+ const expected={
+   rev:params.get("rev")||"",
+   driver:params.get("driver")||"",
+   orders:Number(params.get("orders")),
+   stops:Number(params.get("stops"))
+ };
+ if(!params.has("orders"))expected.orders=NaN;
+ if(!params.has("stops"))expected.stops=NaN;
+
+ $("gpsStatus").textContent="Conectando ao Gestão Logística...";
+ let rt;
+ try{
+   rt=await firebaseRuntimeFromConfig(cfg)
+ }catch(e){
+   const msg=String(e?.message||e);
+   if(/operation-not-allowed|auth/i.test(msg))throw new Error("O acesso do motorista ao Firebase não foi autorizado. Ative Authentication > Anonymous no projeto Firebase.");
+   throw e
+ }
+ const payload=await readDriverBundleWithRetry(rt,appId,expected);
+ return{payload,tracking:{...rt,appId,cfg,expected}}
 }
 function normalizePayload(data){
  if(data?.v===2&&Array.isArray(data.routes))return data;
@@ -146,6 +196,38 @@ function normalizePayload(data){
    }
  }
  throw new Error("O App não possui entregas.")
+}
+
+let onlineBundleUnsub=null;
+function syncHeaderFromApp(){
+ const orders=uniqueOrders(app),days=[...new Set((app.routes||[]).map(r=>r.day).filter(Boolean))];
+ const plates=[...new Set((app.routes||[]).flatMap(r=>r.plates||[]).filter(Boolean))];
+ const shipments=[...new Set((app.routes||[]).flatMap(r=>r.shipments||[]).filter(x=>x!==undefined&&x!==null))];
+ $("title").textContent=app.driver?`App do ${app.driver}`:"App do Motorista";
+ $("subtitle").textContent=`${days.length} dia(s) • ${plates.join(" / ")||"Placa a definir"} • Emb. ${shipments.join(", ")||"—"}`;
+ $("kStops").textContent=flatStops(app).length;
+ $("kOrders").textContent=orders.size;
+ $("kKm").textContent=km((app.routes||[]).reduce((n,r)=>n+Number(r.totalDistance||0),0))
+}
+function startOnlineBundleSync(){
+ if(!tracking?.dbMod||!tracking?.db||!tracking?.appId)return;
+ if(onlineBundleUnsub){try{onlineBundleUnsub()}catch{} onlineBundleUnsub=null}
+ const ref=tracking.dbMod.ref(tracking.db,`driverApps/${tracking.appId}`);
+ onlineBundleUnsub=tracking.dbMod.onValue(ref,snap=>{
+   if(!snap.exists())return;
+   try{
+     const raw=snap.val();
+     if(!onlineBundleMatches(raw,tracking.expected||{}))return;
+     const next=normalizePayload(raw);
+     if(String(next.publicationRevision||"")===String(app?.publicationRevision||""))return;
+     app=next;
+     done=loadDone(app);
+     syncHeaderFromApp();
+     renderStops();updateProgress();rebuildMap();
+     $("gpsStatus").textContent="✓ Viagens atualizadas automaticamente pela central.";
+     if(currentLocation)optimizeFromCurrentLocation(false).catch(console.error)
+   }catch(e){console.error("Sincronização das viagens:",e)}
+ })
 }
 function flatStops(app){
  const out=[];let global=0;
@@ -338,15 +420,9 @@ async function boot(){
    if(!flatStops(app).length)throw new Error("Este App não possui entregas.");
    done=loadDone(app);
 
-   const orders=uniqueOrders(app),days=[...new Set((app.routes||[]).map(r=>r.day).filter(Boolean))];
-   const plates=[...new Set((app.routes||[]).flatMap(r=>r.plates||[]).filter(Boolean))];
-   const shipments=[...new Set((app.routes||[]).flatMap(r=>r.shipments||[]).filter(x=>x!==undefined&&x!==null))];
-
-   $("title").textContent=app.driver?`App do ${app.driver}`:"App do Motorista";
-   $("subtitle").textContent=`${days.length} dia(s) • ${plates.join(" / ")||"Placa a definir"} • Emb. ${shipments.join(", ")||"—"}`;
-   $("kStops").textContent=flatStops(app).length;$("kOrders").textContent=orders.size;
-   $("kKm").textContent=km((app.routes||[]).reduce((n,r)=>n+Number(r.totalDistance||0),0));
+   syncHeaderFromApp();
    renderStops();updateProgress();rebuildMap();
+   startOnlineBundleSync();
 
    if(tracking){
      $("gpsStatus").textContent="Todas as entregas foram carregadas. Ative o GPS para roteirizar a partir da sua localização e compartilhar a posição com a central.";
@@ -355,7 +431,7 @@ async function boot(){
    }
  }catch(e){
    $("map").style.display="none";$("stops").style.display="none";$("error").style.display="block";
-   $("error").textContent=e.message||String(e);$("subtitle").textContent="Não foi possível abrir as entregas.";
+   $("error").textContent=(e.message||String(e))+"\n\nSe este link veio do WhatsApp, peça à central para abrir a V5.29, gerar/atualizar a rota do motorista e enviar o link novamente.";$("subtitle").textContent="Não foi possível abrir as entregas.";
    $("gpsStatus").textContent=e.message||String(e)
  }
 }
