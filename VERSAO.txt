@@ -1,6 +1,5 @@
-Gestão Logística V5.43
-Mapa meia largura + Painel Operacional.
-Roteirizar todos os caminhões em um clique.
-Fila remove automaticamente caminhões já roteirizados.
-Motoristas ao vivo clicáveis com detalhes completos.
-Reentregas sem aprovação; próxima rota calculada automaticamente.
+Gestão Logística V5.44
+Removido bloco Embarques do próximo dia útil.
+Pedidos consultados pelo Resumo de embarques da semana.
+Cartões de acompanhamento dos motoristas/entregas movidos para Embarques.
+Central de Rotas permanece compacta.

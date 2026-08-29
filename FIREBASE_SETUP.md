@@ -175,5 +175,5 @@ Não é necessário alterar as regras porque o caminho está dentro de `driverAp
 Usa `driverApps/<appId>/redeliveryApprovals/<eventId>` para aprovações e programação. As regras existentes de `driverApps/$appId` já abrangem este caminho.
 
 
-## V5.43
+## V5.44
 Firebase continua integrado e automático; a configuração técnica apenas foi recolhida da visão principal.

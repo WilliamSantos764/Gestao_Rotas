@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Gestão Logística - V5.43 Central de Rotas Compacta</title>
+<title>Gestão Logística - V5.44 Embarques + Acompanhamento</title>
 <style>
 :root{
   --bg:#f3f6fb;--card:#fff;--line:#e2e8f0;--text:#152033;--muted:#667085;
@@ -511,7 +511,7 @@ main{max-width:1580px;margin:auto;padding:20px}.view{display:none}.view.active{d
 </head>
 <body>
 <header class="top"><div class="topin">
- <div class="brand"><div class="logo">R</div><div><h1>Gestão Logística - Embarques e Rotas V5.43</h1><small>Rotas • ESPD • Frota • Embarques automáticos</small></div></div>
+ <div class="brand"><div class="logo">R</div><div><h1>Gestão Logística - Embarques e Rotas V5.44</h1><small>Rotas • ESPD • Frota • Embarques automáticos</small></div></div>
  <nav class="nav">
   <button class="active" data-view="planning">Embarques</button>
   <button data-view="routeanalysis">Central de Rotas</button>
@@ -525,7 +525,7 @@ main{max-width:1580px;margin:auto;padding:20px}.view{display:none}.view.active{d
 
 <main>
 <section id="planning" class="view active">
- <div class="hero"><div><h2>Embarques</h2><p>Central operacional de pedidos e embarques. Aqui ficam os pedidos, itens, pesos, valores, status de alocação e composição de cada embarque. Clique nos pedidos para abrir todos os itens e detalhes.</p></div><div class="actions"><button class="btn primary" onclick="syncPlanning(true)">⚡ Sincronizar ESPD e planejamento</button><button class="btn" onclick="detectLastShipment()">Detectar último embarque</button></div></div>
+ <div class="hero"><div><h2>Embarques</h2><p>Central operacional de embarques. Para consultar pedidos, itens, pesos e valores, use o Resumo de embarques da semana: clique no dia, depois no embarque e no pedido.</p></div><div class="actions"><button class="btn primary" onclick="syncPlanning(true)">⚡ Sincronizar ESPD e planejamento</button><button class="btn" onclick="detectLastShipment()">Detectar último embarque</button></div></div>
  <div class="planheader">
   <div class="planmini"><span>Carregamento</span><strong id="pToday">—</strong></div>
   <div class="planmini"><span>Entrega</span><strong id="pTomorrow">—</strong></div>
@@ -548,6 +548,18 @@ main{max-width:1580px;margin:auto;padding:20px}.view{display:none}.view.active{d
   </div>
   <div id="weeklyDashboard" class="week-board"></div>
  </div>
+ <div class="panel" style="padding:0;border:0;background:transparent">
+  <div class="shipment-orders-only-note">Para consultar pedidos e itens: <b>Resumo de embarques da semana → clique no dia → clique no embarque → clique no pedido.</b></div>
+ </div>
+
+  <section class="route-final-panel">
+   <div class="route-final-head">
+    <div><h4>Situação dos embarques em entrega</h4><small>Aqui você acompanha por motorista as entregas, canhotos, ocorrências e conclusão da rota. Os pedidos e itens continuam sendo consultados pelo Resumo de embarques da semana.</small></div>
+    <span class="badge review" id="routeFinalizationCount">0 finalizadas</span>
+   </div>
+   <div id="routeFinalizationHost" class="route-final-list"><div class="ra-empty">Aguardando canhotos dos motoristas.</div></div>
+  </section>
+  
 
  <div class="panel">
   <div class="formgrid">
@@ -568,7 +580,7 @@ main{max-width:1580px;margin:auto;padding:20px}.view{display:none}.view.active{d
  </div>
 
  <div class="grid4">
-  <div class="metric"><small>Pedidos da rota do próximo dia útil</small><strong id="pmEligible">0</strong><span>Identificados no ESPD</span></div>
+  <div class="metric"><small>Pedidos elegíveis para embarque</small><strong id="pmEligible">0</strong><span>Identificados no ESPD</span></div>
   <div class="metric"><small>Embarques abertos</small><strong id="pmShipments">0</strong><span>Podem receber novos pedidos</span></div>
   <div class="metric"><small>Pendências</small><strong id="pmPending">0</strong><span>Sem cidade, peso, veículo ou revisão</span></div>
   <div class="metric"><small>Novos inseridos</small><strong id="pmNew">0</strong><span>Na última sincronização</span></div>
@@ -584,9 +596,7 @@ main{max-width:1580px;margin:auto;padding:20px}.view{display:none}.view.active{d
   </div>
   <div id="milkManualList" class="milk-manual-list"><div class="empty">Vincule o ESPD para visualizar.</div></div>
  </div>
-
- <div class="panel"><h3>Embarques do próximo dia útil</h3><p style="margin:3px 0 10px;color:var(--muted);font-size:11px">Clique no número do pedido para consultar itens, peso, valor e demais dados. Use × para retirar um pedido; ele ficará pendente de embarque até ser liberado novamente.</p><div id="shipmentsHost" class="empty">Vincule o ESPD para começar. Cidade, cliente, pedido, peso e embarque são atualizados automaticamente a partir da base.</div></div>
- <div class="panel"><h3>Pedidos pendentes de embarque</h3><p>Pedidos ainda sem embarque, incluindo pedidos retirados manualmente, cidade fora das rotas, crédito não aprovado, revisão de peso ou outras pendências.</p><div id="pendingHost" class="empty">Nenhuma pendência.</div></div>
+<div class="panel"><h3>Pedidos pendentes de embarque</h3><p>Pedidos ainda sem embarque, incluindo pedidos retirados manualmente, cidade fora das rotas, crédito não aprovado, revisão de peso ou outras pendências.</p><div id="pendingHost" class="empty">Nenhuma pendência.</div></div>
 </section>
 
 
@@ -692,14 +702,7 @@ main{max-width:1580px;margin:auto;padding:20px}.view{display:none}.view.active{d
     <div id="liveTrackingHost" class="live-tracking-list compact"><div class="ra-empty">Aguardando Apps dos Motoristas.</div></div>
    </aside>
   </div>
-  <section class="route-final-panel hidden-operational">
-   <div class="route-final-head">
-    <div><h4>Finalização das rotas e canhotos</h4><small>Quando finalizada, a rota sai automaticamente da visão operacional e do mapa. Para consultá-la novamente, ative “Mostrar rotas concluídas no mapa”. Os canhotos e o histórico continuam disponíveis aqui.</small></div>
-    <span class="badge review" id="routeFinalizationCount">0 finalizadas</span>
-   </div>
-   <div id="routeFinalizationHost" class="route-final-list"><div class="ra-empty">Aguardando canhotos dos motoristas.</div></div>
-  </section>
-  <section class="redelivery-panel informational">
+<section class="redelivery-panel informational">
    <div class="redelivery-head">
     <div><h4>Reentregas e ocorrências</h4><small>Mostra o motivo informado pelo motorista e a próxima data em que existe rota fixa para aquela cidade. Não existe mais etapa de aprovação.</small></div>
     <span id="redeliveryCount" class="badge review">0 pendentes</span>
@@ -1218,11 +1221,11 @@ async function publishDriverAppBundle(driver,routesList){
  bundle.publicationRevision=revision;
  bundle.routeSignature=signature;
  bundle.publishedAt=new Date().toISOString();
- bundle.appBuild="V5.43";
+ bundle.appBuild="V5.44";
 
  const safeBundle=cleanFirebaseObject(bundle);
 
- // V5.43: as viagens ficam em /bundle e os canhotos em /deliveryProofs.
+ // V5.44: as viagens ficam em /bundle e os canhotos em /deliveryProofs.
  // Isso evita carregar fotos grandes toda vez que o motorista abre o App.
  const rootRef=rt.dbMod.ref(rt.db,`driverApps/${publication.appId}`);
  const oldSnap=await rt.dbMod.get(rootRef);
@@ -1284,9 +1287,9 @@ function publishedDriverAppUrl(driver){
  if(!publicBase&&!/^https?:$/.test(location.protocol))return"";
  const url=publicBase?new URL("motorista.html",publicBase):new URL("motorista.html",window.location.href);
 
- // V5.43: Firebase já está embutido no motorista.html.
+ // V5.44: Firebase já está embutido no motorista.html.
  // O WhatsApp recebe somente um link curto; não há mais JSON/configuração no hash.
- url.searchParams.set("v","543");
+ url.searchParams.set("v","544");
  url.hash=`app=${encodeURIComponent(pub.appId)}&rev=${encodeURIComponent(pub.revision||"")}&orders=${encodeURIComponent(pub.orderCount||0)}&stops=${encodeURIComponent(pub.totalStops||0)}&driver=${encodeURIComponent(pub.driver||driver)}`;
  return url.href
 }
@@ -1492,7 +1495,7 @@ function renderRedeliveryPanels(){
 }
 function closeRedeliveryModal(){$("redeliveryModal")?.classList.remove("open");currentRedeliveryCase=null}
 function openRedeliveryApproval(appId,eventId){
- alert("Na V5.43 não existe aprovação manual. A próxima rota é calculada automaticamente.");return;
+ alert("Na V5.44 não existe aprovação manual. A próxima rota é calculada automaticamente.");return;
 
  const state=proofStateForApp(appId),event=state.events?.[eventId];if(!event)return alert("Ocorrência não encontrada.");
  const approval=state.redelivery?.[eventId]||null;currentRedeliveryCase={appId,eventId,event,approval};
@@ -3013,7 +3016,7 @@ function deliveryCoordinateCacheKey(stop){
  return `ADDR:${norm(stop?.address||"")}`
 }
 async function geocodeDeliveryStop(stop){
- // Arquivo de teste V5.43: coordenadas explícitas têm prioridade total.
+ // Arquivo de teste V5.44: coordenadas explícitas têm prioridade total.
  if(validDeliveryCoordinates(stop?.lat,stop?.lon)){
    return{
      lat:Number(stop.lat),lon:Number(stop.lon),
@@ -3601,7 +3604,7 @@ async function buildDriverRoute(dayInfo,driver){
  const points=[{lat:DEPOT_COORD.lat,lon:DEPOT_COORD.lon},...stops];
  const matrix=await osrmDeliveryMatrix(points);
 
- // V5.43: distância real pela rua + continuidade de via.
+ // V5.44: distância real pela rua + continuidade de via.
  // Ao entrar em uma rua com várias entregas, descarrega os clientes próximos
  // nessa mesma via antes de sair, quando isso evita deslocamentos desnecessários.
  const seq=streetAwareDeliveryOrder(matrix.distances,stops);
@@ -4058,7 +4061,7 @@ function driverAppUrlForRoutes(driver,routesList){
  // Compatibilidade sem Firebase.
  const publicBase=normalizedPublicBaseUrl();
  const url=publicBase?new URL("motorista.html",publicBase):new URL("motorista.html",window.location.href);
- url.searchParams.set("v","543");
+ url.searchParams.set("v","544");
  url.hash=encodeDriverAppPayload(compactDriverBundle(driver,valid));
  return url.href
 }
@@ -4091,7 +4094,7 @@ async function prepareVerifiedDriverApp(driver,routesList){
  const url=driverAppUrlForRoutes(driver,valid);
  if(!url)throw new Error(`Não foi possível gerar o link do App de ${driver}.`);
  if(firebaseConfigReady()&&url.includes("&cfg=")){
-   throw new Error("Foi detectado um link antigo com configuração Firebase embutida. Atualize o sistema para a V5.43.")
+   throw new Error("Foi detectado um link antigo com configuração Firebase embutida. Atualize o sistema para a V5.44.")
  }
  return url
 }
@@ -5658,7 +5661,18 @@ function renderPlanning(){
  if($("embItems"))$("embItems").textContent=embarkedItems;
  if($("embWeight"))$("embWeight").textContent=`${embarkedWeight.toLocaleString("pt-BR",{maximumFractionDigits:1})} kg`;
  if($("embValue"))$("embValue").textContent=moneyBR(embarkedValue);
- const h=$("shipmentsHost");if(!p.shipments.length){h.className="empty";h.textContent="Nenhum embarque criado ainda."; } else {h.className="shipments";h.innerHTML=p.shipments.map(s=>{const pct=(s.weightKnown!==false&&s.capacity)?Math.min(100,Math.round(s.weight/s.capacity*100)):0;const alloc=shipmentAllocationPct(p,s);return`<div class="shipment"><div class="shipmenttop"><div><h4>Embarque ${s.shipment}</h4><div class="routeLabel">${esc(s.routeLabel)}</div></div><button class="btn small ${s.status==="ABERTO"?"success":""}" onclick="closeShipment(${s.shipment})">${s.status}</button></div><div class="progress"><div style="width:${pct}%"></div></div><div class="shipmeta"><span><b>${esc(s.driver)}</b></span><span>${esc(s.truckPlate)}</span><span>${s.weightKnown===false?`Peso pendente • ${alloc}% dos pedidos da rota neste embarque`:`${s.weight.toLocaleString("pt-BR")} / ${s.capacity.toLocaleString("pt-BR")} kg (${pct}%)`}</span><span class="badge ${s.group==="CASA"?"house":"third"}">${s.group}</span></div><div class="orderlist">${s.orders.map(o=>`<div class="orderrow"><button type="button" class="btn small" onclick="openOrderDetail('${encodeURIComponent(currentPlanKey())}','${encodeURIComponent(String(s.shipment))}','${encodeURIComponent(String(o.id))}')">Ped. ${esc(o.id)}</button><div><b>${esc(o.clientName||o.clientCode)}</b><small>${esc(o.city)} • ${esc(categoryLabel(normalizeOrderCategory(o)))} • ${esc(o.credit||"SEM CRÉDITO")} • ${esc(o.status||"SEM SITUAÇÃO")} • ${esc(calculatedWeightLabel(o))}</small></div><button class="ib" title="Remover" onclick="removeOrderFromShipment(${s.shipment},'${esc(o.id)}')">×</button></div>`).join("")||'<div class="empty">Sem pedidos.</div>'}</div></div>`}).join("")}
+ const h=$("shipmentsHost");
+ if(h){
+  if(!p.shipments.length){h.className="empty";h.textContent="Nenhum embarque criado ainda."}
+  else{
+   h.className="shipments";
+   h.innerHTML=p.shipments.map(s=>{
+    const pct=(s.weightKnown!==false&&s.capacity)?Math.min(100,Math.round(s.weight/s.capacity*100)):0;
+    const alloc=shipmentAllocationPct(p,s);
+    return`<div class="shipment"><div class="shipmenttop"><div><h4>Embarque ${s.shipment}</h4><div class="routeLabel">${esc(s.routeLabel)}</div></div><button class="btn small ${s.status==="ABERTO"?"success":""}" onclick="closeShipment(${s.shipment})">${s.status}</button></div><div class="progress"><div style="width:${pct}%"></div></div><div class="shipmeta"><span><b>${esc(s.driver)}</b></span><span>${esc(s.truckPlate)}</span><span>${s.weightKnown===false?`Peso pendente • ${alloc}% dos pedidos da rota neste embarque`:`${s.weight.toLocaleString("pt-BR")} / ${s.capacity.toLocaleString("pt-BR")} kg (${pct}%)`}</span><span class="badge ${s.group==="CASA"?"house":"third"}">${s.group}</span></div><div class="orderlist">${s.orders.map(o=>`<div class="orderrow"><button type="button" class="btn small" onclick="openOrderDetail('${encodeURIComponent(currentPlanKey())}','${encodeURIComponent(String(s.shipment))}','${encodeURIComponent(String(o.id))}')">Ped. ${esc(o.id)}</button><div><b>${esc(o.clientName||o.clientCode)}</b><small>${esc(o.city)} • ${esc(categoryLabel(normalizeOrderCategory(o)))} • ${esc(o.credit||"SEM CRÉDITO")} • ${esc(o.status||"SEM SITUAÇÃO")} • ${esc(calculatedWeightLabel(o))}</small></div><button class="ib" title="Remover" onclick="removeOrderFromShipment(${s.shipment},'${esc(o.id)}')">×</button></div>`).join("")||'<div class="empty">Sem pedidos.</div>'}</div></div>`
+   }).join("")
+  }
+ }
  const ph=$("pendingHost");if(!p.pending.length){ph.className="empty";ph.textContent="Nenhuma pendência."; } else {ph.className="";ph.innerHTML=p.pending.map(o=>`<div class="pending"><div class="pinfo"><b>Pedido ${esc(o.id)} • ${esc(o.clientName||o.clientCode||"Cliente")}</b><small>${esc(o.city||"Cidade não informada")} ${o.routeLabel?"• "+esc(o.routeLabel):""} • ${esc(o.credit||"SEM CRÉDITO")} • ${esc(o.status||"SEM SITUAÇÃO")} • R$ ${o.openValue.toLocaleString("pt-BR",{minimumFractionDigits:2,maximumFractionDigits:2})} aberto • ${esc(calculatedWeightLabel(o))} • ${esc(categoryLabel(normalizeOrderCategory(o)))}</small></div><div><span class="badge ${o.reason==="PESO ELEVADO - REVISÃO"||o.reason==="REMOVIDO MANUALMENTE DO EMBARQUE"?"review":"block"}">${esc(o.reason)}</span>${o.reason==="PESO ELEVADO - REVISÃO"
  ?` <button class="btn small" onclick="approvePending('${esc(o.id)}')">Liberar</button>`
  :o.reason==="REMOVIDO MANUALMENTE DO EMBARQUE"
