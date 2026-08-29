@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#101828">
-<title>App do Motorista - V5.30 GPS Firebase Embutido</title>
+<title>App do Motorista - V5.31 Traçado GPS no Mapa</title>
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
 <style>
 :root{--bg:#f2f4f7;--card:#fff;--text:#101828;--muted:#667085;--line:#d0d5dd;--accent:#155eef;--ok:#027a48;--warn:#b54708}
@@ -25,6 +25,10 @@ header h1{font-size:18px;margin:0}header p{font-size:12px;margin:5px 0 0;color:#
 .gpsprimary{background:#155eef;color:white}.gpssecondary{background:#f2f4f7;color:#344054;border:1px solid #d0d5dd!important}
 .current-route{background:#eff8ff;border:1px solid #b2ddff;color:#175cd3;border-radius:11px;padding:9px;font-size:11px;line-height:1.45;margin-bottom:10px}
 .current-location-marker{width:32px;height:32px;border-radius:50%;background:#155eef;color:white;border:4px solid white;box-shadow:0 2px 8px #344054;display:flex;align-items:center;justify-content:center;font-size:15px}
+.maplegend{display:none;align-items:center;gap:8px;background:#fff;border:1px solid var(--line);border-radius:11px;padding:8px 10px;margin:-2px 0 10px;font-size:11px;font-weight:800;color:#344054}
+.maplegend.show{display:flex}.route-sample{width:45px;height:0;border-top:4px dashed #155eef;flex:0 0 auto}
+.next-stop-marker{width:34px;height:34px;border-radius:50%;background:#f79009;color:#fff;border:3px solid #fff;box-shadow:0 2px 8px #7a2e0e;display:flex;align-items:center;justify-content:center;font-weight:950;font-size:13px}
+
 @media(max-width:520px){.gpsactions{grid-template-columns:1fr}}
 
 #map{height:300px;border-radius:14px;border:1px solid var(--line);background:#e4e7ec;margin-bottom:10px}
@@ -54,7 +58,7 @@ footer{padding:14px;text-align:center;color:var(--muted);font-size:10px}
   <p id="subtitle">Carregando rota...</p>
 </header>
 <div class="wrap">
-  <div class="rule">✓ Este App V5.30 carrega TODAS as entregas do motorista diretamente do Firebase. Ao autorizar o GPS, a rota ativa é recalculada a partir da localização atual do caminhão.</div>
+  <div class="rule">✓ Este App V5.31 carrega TODAS as entregas do motorista diretamente do Firebase. Ao autorizar o GPS, a rota ativa é recalculada a partir da localização atual do caminhão e o caminho pelas ruas aparece tracejado no mapa.</div>
   <section class="gpsbox">
    <div class="gpshead">
     <div><h2>GPS do motorista</h2><small>Permita a localização para criar a rota a partir de onde o caminhão está e enviar sua posição em tempo real para o Gestão Logística.</small></div>
@@ -76,11 +80,12 @@ footer{padding:14px;text-align:center;color:var(--muted);font-size:10px}
     <b id="progressText">0/0 entregas concluídas</b>
     <div class="progressline"><i id="progressBar"></i></div>
   </div>
+  <div id="mapLegend" class="maplegend"><span class="route-sample"></span><span>Linha azul tracejada = caminho pelas ruas, da posição atual até todas as entregas restantes da rota ativa.</span></div>
   <div id="map"></div>
   <main id="stops"></main>
   <div id="error" class="empty" style="display:none"></div>
 </div>
-<footer>App de rota gerado pelo sistema de Gestão Logística. • V5.30</footer>
+<footer>App de rota gerado pelo sistema de Gestão Logística. • V5.31 — traçado rodoviário</footer>
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script>
 const $=id=>document.getElementById(id);
@@ -177,7 +182,7 @@ async function loadPayload(){
  if(!params.has("orders"))expected.orders=NaN;
  if(!params.has("stops"))expected.stops=NaN;
 
- // V5.30: NÃO depende mais do cfg enviado pelo WhatsApp.
+ // V5.31: NÃO depende mais do cfg enviado pelo WhatsApp.
  // O Firebase oficial do Gestão Logística já está dentro deste arquivo.
  let cfg=EMBEDDED_FIREBASE_CONFIG;
 
@@ -191,7 +196,7 @@ async function loadPayload(){
        cfg=legacyCfg
      }
    }catch(e){
-     console.warn("Configuração antiga do link estava cortada; usando Firebase embutido da V5.30.",e)
+     console.warn("Configuração antiga do link estava cortada; usando Firebase embutido da V5.31.",e)
    }
  }
 
@@ -294,6 +299,31 @@ function remainingActiveStops(){
    return{...s,_routeIndex:ri,_stopIndex:si,_global:f?f._global:si+1}
  }).filter(s=>!done[s._global])
 }
+
+function geoDistanceMeters(a,b){
+ if(!a||!b)return Infinity;
+ const R=6371000,toRad=x=>Number(x)*Math.PI/180;
+ const lat1=toRad(a.lat),lat2=toRad(b.lat),dLat=lat2-lat1,dLon=toRad(b.lon)-toRad(a.lon);
+ const h=Math.sin(dLat/2)**2+Math.cos(lat1)*Math.cos(lat2)*Math.sin(dLon/2)**2;
+ return 2*R*Math.asin(Math.min(1,Math.sqrt(h)))
+}
+function scheduleLiveRouteRefresh(){
+ if(!currentLocation||routeCalcBusy)return;
+ const now=Date.now();
+ const moved=lastRoutedLocation?geoDistanceMeters(lastRoutedLocation,currentLocation):Infinity;
+ const elapsed=now-lastRouteRefreshAt;
+
+ // Evita sobrecarregar o serviço público de rotas:
+ // recalcula após deslocamento relevante e no máximo em intervalos controlados.
+ if(lastRouteRefreshAt&&elapsed<30000&&moved<120)return;
+ clearTimeout(routeRefreshTimer);
+ routeRefreshTimer=setTimeout(()=>{
+   optimizeFromCurrentLocation(false).catch(e=>{
+     console.error("Atualização automática do traçado:",e);
+     $("gpsStatus").textContent=`GPS ativo, mas não foi possível atualizar o traçado agora: ${e.message||e}`
+   })
+ },700)
+}
 async function osrmMatrix(origin,stops){
  const points=[origin,...stops];
  const coords=points.map(p=>`${p.lon},${p.lat}`).join(";");
@@ -344,40 +374,105 @@ function renderStops(){
 }
 function rebuildMap(){
  if(!window.L||!flatStops(app).length){$("map").style.display="none";return}
+ $("map").style.display="block";
  if(map){map.remove();map=null}
  map=L.map("map");
  L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",{maxZoom:19,attribution:"&copy; OpenStreetMap"}).addTo(map);
- const bounds=[],colors=["#155eef","#7c3aed","#059669","#d97706","#dc2626","#0891b2","#c026d3"];
+
+ const allBounds=[],focusBounds=[],colors=["#155eef","#7c3aed","#059669","#d97706","#dc2626","#0891b2","#c026d3"];
+ const activeRi=activeRouteIndex(),activeRoute=app.routes?.[activeRi];
+
  if(currentLocation){
-   bounds.push([currentLocation.lat,currentLocation.lon]);
+   allBounds.push([currentLocation.lat,currentLocation.lon]);
+   focusBounds.push([currentLocation.lat,currentLocation.lon]);
    const icon=L.divIcon({className:"",html:'<div class="current-location-marker">🚚</div>',iconSize:[32,32],iconAnchor:[16,16]});
-   currentMarker=L.marker([currentLocation.lat,currentLocation.lon],{icon}).addTo(map).bindPopup("<b>Localização atual do caminhão</b>")
+   currentMarker=L.marker([currentLocation.lat,currentLocation.lon],{icon,zIndexOffset:1000})
+     .addTo(map).bindPopup("<b>Você está aqui</b><br>Localização atual do caminhão.")
  }else if(app.origin){
-   bounds.push([app.origin.lat,app.origin.lon]);
-   L.circleMarker([app.origin.lat,app.origin.lon],{radius:8,color:"#101828",weight:3,fillColor:"#fff",fillOpacity:1}).addTo(map).bindPopup("<b>Cooperrita — origem planejada</b>")
+   allBounds.push([app.origin.lat,app.origin.lon]);
+   L.circleMarker([app.origin.lat,app.origin.lon],{radius:8,color:"#101828",weight:3,fillColor:"#fff",fillOpacity:1})
+     .addTo(map).bindPopup("<b>Cooperrita — origem planejada</b>")
  }
+
+ // Traçado rodoviário real obtido do OSRM:
+ // GPS atual -> parada 1 -> parada 2 -> ... -> última entrega restante.
+ const liveGeometry=Array.isArray(activeRoute?.liveGeometry)?activeRoute.liveGeometry:[];
+ if(currentLocation&&liveGeometry.length>1){
+   currentPolyline=L.polyline(liveGeometry,{
+     color:"#155eef",
+     weight:6,
+     opacity:.92,
+     dashArray:"12 9",
+     lineCap:"round",
+     lineJoin:"round"
+   }).addTo(map).bindPopup("<b>Traçado atual da rota</b><br>Caminho calculado pelas ruas até as entregas restantes.");
+   liveGeometry.forEach(p=>focusBounds.push(p));
+   $("mapLegend").classList.add("show")
+ }else{
+   currentPolyline=null;
+   $("mapLegend").classList.remove("show")
+ }
+
  let global=0;
  (app.routes||[]).forEach((r,ri)=>{
-   const pts=[],color=colors[ri%colors.length];
+   const color=colors[ri%colors.length];
    (r.stops||[]).forEach((s,si)=>{
-     global++;pts.push([s.lat,s.lon]);bounds.push([s.lat,s.lon]);
-     const icon=L.divIcon({className:"",html:`<div style="width:26px;height:26px;border-radius:50%;display:flex;align-items:center;justify-content:center;background:${color};color:white;font-weight:900;border:2px solid white;box-shadow:0 1px 4px #555">${global}</div>`,iconSize:[26,26],iconAnchor:[13,13]});
-     L.marker([s.lat,s.lon],{icon}).addTo(map).bindPopup(`<b>${esc(r.day||"")} — entrega ${si+1}</b><br>${esc(s.name)}<br>${esc(s.address)}`)
+     global++;
+     const lat=Number(s.lat),lon=Number(s.lon);
+     if(!Number.isFinite(lat)||!Number.isFinite(lon))return;
+     allBounds.push([lat,lon]);
+
+     const f=flatStops(app).find(x=>x._routeIndex===ri&&x._stopIndex===si);
+     const isDone=f?!!done[f._global]:false;
+     if(ri===activeRi&&!isDone)focusBounds.push([lat,lon]);
+
+     const pendingActive=(ri===activeRi&&!isDone);
+     const pendingActiveStops=(r.stops||[]).filter((st,idx)=>{
+       const ff=flatStops(app).find(x=>x._routeIndex===ri&&x._stopIndex===idx);
+       return ff&&!done[ff._global]
+     });
+     const firstPending=pendingActiveStops[0]===s;
+
+     let iconHtml;
+     if(firstPending&&currentLocation){
+       iconHtml=`<div class="next-stop-marker">${si+1}</div>`
+     }else{
+       const markerColor=isDone?"#12b76a":color;
+       iconHtml=`<div style="width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;background:${markerColor};color:white;font-weight:900;border:2px solid white;box-shadow:0 1px 4px #555">${isDone?"✓":global}</div>`
+     }
+     const icon=L.divIcon({className:"",html:iconHtml,iconSize:[firstPending&&currentLocation?34:28,firstPending&&currentLocation?34:28],iconAnchor:[firstPending&&currentLocation?17:14,firstPending&&currentLocation?17:14]});
+     L.marker([lat,lon],{icon,zIndexOffset:firstPending?800:0}).addTo(map)
+       .bindPopup(`<b>${esc(r.day||"")} — ${firstPending&&currentLocation?"PRÓXIMA ENTREGA":`entrega ${si+1}`}</b><br>${esc(s.name)}<br>${esc(s.address)}${s.distanceFromCurrent!=null?`<br><b>${km(s.distanceFromCurrent)} da posição atual</b>`:""}`)
    })
  });
- if(bounds.length)map.fitBounds(bounds,{padding:[20,20]})
+
+ // Com GPS ativo, dá foco ao caminho que o motorista deve executar AGORA.
+ // Sem GPS, mostra todas as entregas do App.
+ const boundsToUse=currentLocation&&focusBounds.length>1?focusBounds:allBounds;
+ if(boundsToUse.length)map.fitBounds(boundsToUse,{padding:[24,24],maxZoom:16})
 }
 async function optimizeFromCurrentLocation(showMessage=true){
  if(!currentLocation)throw new Error("GPS ainda não localizado.");
  const ri=activeRouteIndex(),route=app.routes?.[ri];if(!route)return;
- const remaining=remainingActiveStops();
+ const remaining=remainingActiveStops().filter(s=>Number.isFinite(Number(s.lat))&&Number.isFinite(Number(s.lon)));
  if(!remaining.length){
+   route.liveGeometry=[];
+   $("mapLegend").classList.remove("show");
    $("currentRouteInfo").style.display="block";
    $("currentRouteInfo").textContent="Todas as entregas da rota ativa foram concluídas.";
+   rebuildMap();
    return
  }
- $("gpsStatus").textContent=`Calculando ${remaining.length} entrega(s) a partir da sua localização atual...`;
- const matrix=await osrmMatrix(currentLocation,remaining);
+ if(routeCalcBusy)return;
+ routeCalcBusy=true;
+ $("gpsStatus").textContent=`Calculando o caminho pelas ruas para ${remaining.length} entrega(s)...`;
+ let matrix;
+ try{
+   matrix=await osrmMatrix(currentLocation,remaining)
+ }catch(e){
+   routeCalcBusy=false;
+   throw e
+ }
  const ordered=remaining.map((s,i)=>({...s,_matrixIndex:i+1,distanceFromCurrent:matrix.distances?.[0]?.[i+1]}))
    .sort((a,b)=>(a.distanceFromCurrent??Infinity)-(b.distanceFromCurrent??Infinity));
 
@@ -390,16 +485,32 @@ async function optimizeFromCurrentLocation(showMessage=true){
  })];
 
  const pathPoints=[currentLocation,...ordered];
- const final=pathPoints.length>1?await osrmRoute(pathPoints):null;
- route.liveDistance=final?.distance||0;route.liveDuration=final?.duration||0;
- route.liveOrigin={lat:currentLocation.lat,lon:currentLocation.lon,timestamp:Date.now()};
+ let final=null;
+ try{
+   final=pathPoints.length>1?await osrmRoute(pathPoints):null;
 
- $("currentRouteInfo").style.display="block";
- $("currentRouteInfo").innerHTML=`<b>Rota a partir da localização atual:</b> ${esc(route.day||"rota")} • ${ordered.length} entrega(s) restante(s) • ${km(route.liveDistance)} estimados. A primeira parada é a mais próxima por estrada da posição atual.`;
- $("gpsStatus").textContent=`Rota atualizada às ${new Date().toLocaleTimeString("pt-BR")}.`;
- renderStops();rebuildMap();updateProgress();
- if(showMessage)alert("Rota recalculada a partir da sua localização atual.");
- publishTracking(true).catch(console.error)
+   route.liveDistance=final?.distance||0;
+   route.liveDuration=final?.duration||0;
+   route.liveOrigin={lat:currentLocation.lat,lon:currentLocation.lon,timestamp:Date.now()};
+
+   // Guarda no próprio App a geometria REAL pelas ruas.
+   // GeoJSON vem [lon,lat], Leaflet usa [lat,lon].
+   route.liveGeometry=(final?.geometry?.coordinates||[])
+     .map(c=>[Number(c[1]),Number(c[0])])
+     .filter(c=>Number.isFinite(c[0])&&Number.isFinite(c[1]));
+
+   lastRoutedLocation={lat:currentLocation.lat,lon:currentLocation.lon};
+   lastRouteRefreshAt=Date.now();
+
+   $("currentRouteInfo").style.display="block";
+   $("currentRouteInfo").innerHTML=`<b>Traçado da rota ativo:</b> ${esc(route.day||"rota")} • ${ordered.length} entrega(s) restante(s) • ${km(route.liveDistance)} estimados. <b>A linha azul tracejada no mapa mostra o caminho pelas ruas</b> da posição atual até todas as paradas restantes, na ordem indicada.`;
+   $("gpsStatus").textContent=`Traçado atualizado às ${new Date().toLocaleTimeString("pt-BR")}.`;
+   renderStops();rebuildMap();updateProgress();
+   if(showMessage)alert("Traçado da rota atualizado no mapa a partir da sua localização atual.");
+   publishTracking(true).catch(console.error)
+ }finally{
+   routeCalcBusy=false
+ }
 }
 async function publishTracking(force=false){
  if(!tracking||!currentLocation)return;
@@ -422,7 +533,9 @@ function handlePosition(pos){
  $("gpsBadge").style.color="#027a48";
  $("gpsStatus").textContent=`Localização atualizada • precisão ±${Math.round(c.accuracy||0)} m • ${new Date().toLocaleTimeString("pt-BR")}`;
  $("rerouteBtn").disabled=false;
- rebuildMap();publishTracking(false).catch(console.error)
+ rebuildMap();
+ publishTracking(false).catch(console.error);
+ scheduleLiveRouteRefresh()
 }
 function gpsError(err){
  $("gpsBadge").textContent="GPS indisponível";
@@ -440,7 +553,7 @@ async function startGps(){
    try{await optimizeFromCurrentLocation(false)}catch(e){$("gpsStatus").textContent=e.message||String(e)}
  },gpsError,{enableHighAccuracy:true,maximumAge:0,timeout:15000})
 }
-let app=null,done={},map=null,currentLocation=null,currentMarker=null,currentPolyline=null,tracking=null,watchId=null,lastPublish=0;
+let app=null,done={},map=null,currentLocation=null,currentMarker=null,currentPolyline=null,tracking=null,watchId=null,lastPublish=0,routeCalcBusy=false,lastRouteRefreshAt=0,lastRoutedLocation=null,routeRefreshTimer=null;
 async function boot(){
  try{
    const loaded=await loadPayload();
@@ -453,13 +566,13 @@ async function boot(){
    startOnlineBundleSync();
 
    if(tracking){
-     $("gpsStatus").textContent="Todas as entregas foram carregadas. Ative o GPS para roteirizar a partir da sua localização e compartilhar a posição com a central.";
+     $("gpsStatus").textContent="Todas as entregas foram carregadas. Ative o GPS para desenhar no mapa o caminho pelas ruas até os clientes e compartilhar sua posição com a central.";
    }else{
-     $("gpsStatus").textContent="Entregas carregadas. Ative o GPS para roteirizar a partir da sua localização. Este link não está conectado ao rastreamento online da central.";
+     $("gpsStatus").textContent="Entregas carregadas. Ative o GPS para desenhar no mapa o caminho pelas ruas até os clientes. Este link não está conectado ao rastreamento online da central.";
    }
  }catch(e){
    $("map").style.display="none";$("stops").style.display="none";$("error").style.display="block";
-   $("error").textContent=(e.message||String(e))+"\n\nSe este link veio do WhatsApp, peça à central para abrir a V5.30, gerar/atualizar a rota do motorista e enviar o link novamente.";$("subtitle").textContent="Não foi possível abrir as entregas.";
+   $("error").textContent=(e.message||String(e))+"\n\nSe este link veio do WhatsApp, peça à central para abrir a V5.31, gerar/atualizar a rota do motorista e enviar o link novamente.";$("subtitle").textContent="Não foi possível abrir as entregas.";
    $("gpsStatus").textContent=e.message||String(e)
  }
 }

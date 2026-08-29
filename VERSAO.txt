@@ -1,4 +1,5 @@
-Gestão Logística V5.30
-Correção definitiva do App do Motorista: Firebase embutido no motorista.html e link curto no WhatsApp.
-Erro corrigido: Unterminated string in JSON causado por cfg truncado no link.
-Publicar index.html E motorista.html.
+Gestão Logística V5.31
+App do Motorista: traçado real da rota no mapa usando GPS + OSRM.
+Linha azul tracejada: localização atual -> todas as entregas restantes da rota ativa.
+Atualização automática do traçado após deslocamento relevante.
+Publicar index.html e motorista.html.
