@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Gestão Logística - V5.32 PWA + GPS Obrigatório + Mapa Estável</title>
+<title>Gestão Logística - V5.33 Canhoto Obrigatório + WhatsApp</title>
 <style>
 :root{
   --bg:#f3f6fb;--card:#fff;--line:#e2e8f0;--text:#152033;--muted:#667085;
@@ -365,7 +365,7 @@ main{max-width:1580px;margin:auto;padding:20px}.view{display:none}.view.active{d
 </head>
 <body>
 <header class="top"><div class="topin">
- <div class="brand"><div class="logo">R</div><div><h1>Gestão Logística - Rotas e Embarques V5.32</h1><small>Rotas • ESPD • Frota • Embarques automáticos</small></div></div>
+ <div class="brand"><div class="logo">R</div><div><h1>Gestão Logística - Rotas e Embarques V5.33</h1><small>Rotas • ESPD • Frota • Embarques automáticos</small></div></div>
  <nav class="nav">
   <button class="active" data-view="planning">Dashboard semanal</button>
   <button data-view="routeanalysis">Análise de rotas</button>
@@ -493,10 +493,15 @@ main{max-width:1580px;margin:auto;padding:20px}.view{display:none}.view.active{d
    </div>
    <div class="realtime-config">
     <div class="realtime-config-head">
-     <div><h4>Rastreamento em tempo real</h4><small>Firebase do Gestão Logística já integrado. Na V5.32 o App do Motorista também possui essa configuração embutida, evitando links cortados pelo WhatsApp.</small></div>
+     <div><h4>Rastreamento em tempo real</h4><small>Firebase do Gestão Logística já integrado. Na V5.33 o App do Motorista também possui essa configuração embutida, evitando links cortados pelo WhatsApp.</small></div>
      <span class="badge review" id="firebaseConnectionBadge">NÃO CONFIGURADO</span>
     </div>
     <textarea id="firebaseConfigText" placeholder="Configuração Firebase integrada automaticamente."></textarea>
+    <div class="field" style="margin-top:8px">
+     <label>WhatsApp que recebe os canhotos de entrega</label>
+     <input id="deliveryProofWhatsApp" inputmode="tel" placeholder="Ex.: (35) 99999-9999">
+     <small>Obrigatório para concluir entregas. O motorista tira a foto do canhoto e o App abre este WhatsApp com o comprovante.</small>
+    </div>
     <div class="actions">
      <button type="button" class="btn small primary" id="saveFirebaseConfig">Salvar / reconectar</button>
      <button type="button" class="btn small" id="connectLiveTracking">📡 Conectar caminhões ao vivo</button>
@@ -716,10 +721,10 @@ function tomorrow(){
 function tomorrowDay(){return DAY_MAP[tomorrow().getDay()]}
 function loadJSON(k,f){try{const x=localStorage.getItem(k);return x?JSON.parse(x):clone(f)}catch{return clone(f)}}
 let routes=loadJSON(ROUTE_KEY,ORIGINAL_ROUTES),fleet=loadJSON(FLEET_KEY,ORIGINAL_FLEET),clientCities=loadJSON(CLIENT_KEY,{}),plans=loadJSON(PLAN_KEY,{});
-const EMBEDDED_FIREBASE_CONFIG={"apiKey":"AIzaSyBmEX1QM6pJmMO116YTADhqMKOhWl5Nz8Q","authDomain":"gestao-logistica-4c606.firebaseapp.com","databaseURL":"https://gestao-logistica-4c606-default-rtdb.firebaseio.com/","projectId":"gestao-logistica-4c606","appId":"1:484709506190:web:52590b0888a1da0f1efddf"};
+const EMBEDDED_FIREBASE_CONFIG={"apiKey":"AIzaSyBmEX1QM6pJmMO116YTADhqMKOhWl5Nz8Q","authDomain":"gestao-logistica-4c606.firebaseapp.com","databaseURL":"https://gestao-logistica-4c606-default-rtdb.firebaseio.com/","projectId":"gestao-logistica-4c606","storageBucket":"gestao-logistica-4c606.firebasestorage.app","appId":"1:484709506190:web:52590b0888a1da0f1efddf"};
 const EMBEDDED_FIREBASE_CONFIG_TEXT=JSON.stringify(EMBEDDED_FIREBASE_CONFIG,null,2);
 
-let settings=loadJSON(SETTINGS_KEY,{lastShipment:93716,heavyThreshold:1500,fleetPriority:"CASA",publicAppBaseUrl:"",autoWhatsAppAfterRouting:true,firebaseConfigText:EMBEDDED_FIREBASE_CONFIG_TEXT,driverAppPublications:{}});
+let settings=loadJSON(SETTINGS_KEY,{lastShipment:93716,heavyThreshold:1500,fleetPriority:"CASA",publicAppBaseUrl:"",autoWhatsAppAfterRouting:true,deliveryProofWhatsApp:"",firebaseConfigText:EMBEDDED_FIREBASE_CONFIG_TEXT,driverAppPublications:{}});
 
 const ROUTE_GEO_KEY="logistica_route_geo_v55";
 const DEPOT_COORD={lat:-22.261541,lon:-45.764269,name:"COOPERRITA - ORIGEM"};
@@ -755,6 +760,7 @@ const DAY_ORDER=["SEGUNDA","TERÇA","QUARTA","QUINTA","SEXTA"];
 fleet=fleet.map(v=>({...v,active:v.active!==false,whatsapp:String(v.whatsapp||"")}));
 if(typeof settings.publicAppBaseUrl!=="string")settings.publicAppBaseUrl="";
 if(typeof settings.autoWhatsAppAfterRouting!=="boolean")settings.autoWhatsAppAfterRouting=true;
+if(typeof settings.deliveryProofWhatsApp!=="string")settings.deliveryProofWhatsApp="";
 if(typeof settings.firebaseConfigText!=="string"||!settings.firebaseConfigText.trim())settings.firebaseConfigText=EMBEDDED_FIREBASE_CONFIG_TEXT;
 if(!settings.driverAppPublications||typeof settings.driverAppPublications!=="object")settings.driverAppPublications={};
 delete settings.milkOnlyMaxWeight;
@@ -804,6 +810,7 @@ function parseFirebaseConfig(){
      authDomain:String(cfg.authDomain||`${cfg.projectId}.firebaseapp.com`),
      databaseURL:String(cfg.databaseURL).replace(/\/+$/,""),
      projectId:String(cfg.projectId),
+     storageBucket:String(cfg.storageBucket||"gestao-logistica-4c606.firebasestorage.app"),
      appId:String(cfg.appId)
    }
  }catch{return null}
@@ -961,7 +968,7 @@ function driverRoutesSignature(routesList){
        r.orderCount||0,
        stops
      ].join("::")
-   }).join("|||");
+   }).join("|||")+`|||PROOF_WA=${deliveryProofWhatsAppNumber()}`;
  return `r_${fastStableHash(raw)}_${raw.length}`
 }
 function cleanFirebaseObject(value){
@@ -1001,12 +1008,12 @@ async function publishDriverAppBundle(driver,routesList){
  bundle.publicationRevision=revision;
  bundle.routeSignature=signature;
  bundle.publishedAt=new Date().toISOString();
- bundle.appBuild="V5.32";
+ bundle.appBuild="V5.33";
 
  const safeBundle=cleanFirebaseObject(bundle);
  await rt.dbMod.set(rt.dbMod.ref(rt.db,`driverApps/${publication.appId}`),safeBundle);
 
- // A V5.32 NÃO libera o link antes de confirmar que o Firebase devolve o pacote completo.
+ // A V5.33 NÃO libera o link antes de confirmar que o Firebase devolve o pacote completo.
  const checkSnap=await rt.dbMod.get(rt.dbMod.ref(rt.db,`driverApps/${publication.appId}`));
  if(!checkSnap.exists())throw new Error("O Firebase não devolveu as viagens após a publicação.");
  const remote=checkSnap.val();
@@ -1057,9 +1064,9 @@ function publishedDriverAppUrl(driver){
  if(!publicBase&&!/^https?:$/.test(location.protocol))return"";
  const url=publicBase?new URL("motorista.html",publicBase):new URL("motorista.html",window.location.href);
 
- // V5.32: Firebase já está embutido no motorista.html.
+ // V5.33: Firebase já está embutido no motorista.html.
  // O WhatsApp recebe somente um link curto; não há mais JSON/configuração no hash.
- url.searchParams.set("v","532");
+ url.searchParams.set("v","533");
  url.hash=`app=${encodeURIComponent(pub.appId)}&rev=${encodeURIComponent(pub.revision||"")}&orders=${encodeURIComponent(pub.orderCount||0)}&stops=${encodeURIComponent(pub.totalStops||0)}&driver=${encodeURIComponent(pub.driver||driver)}`;
  return url.href
 }
@@ -1185,6 +1192,13 @@ function normalizeWhatsAppNumber(value){
 function validWhatsAppNumber(value){
  const d=normalizeWhatsAppNumber(value);
  return d.length>=12&&d.length<=13&&d.startsWith("55")
+}
+
+function deliveryProofWhatsAppNumber(){
+ return normalizeWhatsAppNumber(settings.deliveryProofWhatsApp||"")
+}
+function deliveryProofWhatsAppReady(){
+ return validWhatsAppNumber(settings.deliveryProofWhatsApp||"")
 }
 function fleetEntryForDriver(driver){
  return fleet.find(v=>norm(v.driver)===norm(driver))||null
@@ -2855,6 +2869,8 @@ function compactDriverBundle(driver,routesList){
    orderCount:orderIds.size,
    routedOrderCount:orderIds.size,
    sortMode:"NEAREST_TO_FARTHEST_FROM_DEPOT",
+   proofRequired:true,
+   proofWhatsApp:deliveryProofWhatsAppNumber(),
    routes
  }
 }
@@ -2882,7 +2898,7 @@ function driverAppUrlForRoutes(driver,routesList){
  // Compatibilidade sem Firebase.
  const publicBase=normalizedPublicBaseUrl();
  const url=publicBase?new URL("motorista.html",publicBase):new URL("motorista.html",window.location.href);
- url.searchParams.set("v","532");
+ url.searchParams.set("v","533");
  url.hash=encodeDriverAppPayload(compactDriverBundle(driver,valid));
  return url.href
 }
@@ -2915,7 +2931,7 @@ async function prepareVerifiedDriverApp(driver,routesList){
  const url=driverAppUrlForRoutes(driver,valid);
  if(!url)throw new Error(`Não foi possível gerar o link do App de ${driver}.`);
  if(firebaseConfigReady()&&url.includes("&cfg=")){
-   throw new Error("Foi detectado um link antigo com configuração Firebase embutida. Atualize o sistema para a V5.32.")
+   throw new Error("Foi detectado um link antigo com configuração Firebase embutida. Atualize o sistema para a V5.33.")
  }
  return url
 }
@@ -3326,6 +3342,7 @@ function mapPopupForCity(city,day){
 }
 async function renderWeeklyRouteMap(){
  if($("publicAppBaseUrl"))$("publicAppBaseUrl").value=settings.publicAppBaseUrl||"";
+ if($("deliveryProofWhatsApp")&&document.activeElement!==$("deliveryProofWhatsApp"))$("deliveryProofWhatsApp").value=settings.deliveryProofWhatsApp||"";
  if($("autoWhatsAppAfterRouting"))$("autoWhatsAppAfterRouting").checked=settings.autoWhatsAppAfterRouting!==false;
  if($("firebaseConfigText")&&document.activeElement!==$("firebaseConfigText"))$("firebaseConfigText").value=settings.firebaseConfigText||"";
  updateFirebaseUi("",null);
@@ -4458,6 +4475,27 @@ $("autoWhatsAppAfterRouting").addEventListener("change",()=>{
  settings.autoWhatsAppAfterRouting=$("autoWhatsAppAfterRouting").checked;
  persist();
  toast(settings.autoWhatsAppAfterRouting?"WhatsApp automático ativado.":"WhatsApp automático desativado.")
+});
+$("deliveryProofWhatsApp").addEventListener("change",async()=>{
+ settings.deliveryProofWhatsApp=$("deliveryProofWhatsApp").value.trim();
+ persist();
+ const number=deliveryProofWhatsAppNumber();
+ if(settings.deliveryProofWhatsApp&&!validWhatsAppNumber(settings.deliveryProofWhatsApp)){
+   alert("WhatsApp dos canhotos inválido. Informe DDD + telefone, por exemplo: (35) 99999-9999.");
+   return
+ }
+ if(!number){
+   toast("WhatsApp dos canhotos removido. Entregas ficarão bloqueadas até configurar um número.");
+   return
+ }
+ toast("WhatsApp dos canhotos salvo. Atualizando Apps dos motoristas...");
+ try{
+   const result=await publishAllExistingDriverApps();
+   toast(`WhatsApp dos canhotos atualizado em ${result.published||0} App(s).`)
+ }catch(e){
+   console.error(e);
+   alert("Número salvo, mas não foi possível republicar os Apps agora. Gere/atualize as rotas antes de enviar aos motoristas.")
+ }
 });
 $("mapDayFilter").addEventListener("change",()=>{refreshDriverFilter();renderWeeklyRouteMap()});
 $("mapDriverFilter").addEventListener("change",()=>{renderWeeklyRouteMap();renderLiveTrackingPanel()});

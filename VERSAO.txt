@@ -1,6 +1,4 @@
-Gestão Logística V5.32
-App do Motorista instalável como PWA.
-GPS obrigatório para liberar entregas.
-Mapa Leaflet persistente, sem recriação a cada atualização GPS.
-Linha da rota azul contínua.
-Publicar index.html, motorista.html, manifest.webmanifest, sw.js e pasta icons.
+Gestão Logística V5.33
+Canhoto obrigatório para concluir entrega.
+Foto no Firebase Storage + registro no Realtime Database.
+WhatsApp receptor configurável na central.

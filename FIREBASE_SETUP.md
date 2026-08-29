@@ -1,6 +1,6 @@
-# Firebase já integrado na V5.32
+# Firebase já integrado na V5.33
 
-A configuração Web do projeto Firebase já está gravada no Gestão Logística V5.32.
+A configuração Web do projeto Firebase já está gravada no Gestão Logística V5.33.
 Você não precisa mais copiar o JSON para o sistema.
 
 Este arquivo permanece como referência para:
@@ -92,17 +92,17 @@ Exemplo:
 10. Na central clique em **Conectar caminhões ao vivo**.
 
 
-## V5.32 — conferência do link
+## V5.33 — conferência do link
 
 A central agora verifica a gravação em `driverApps/<appId>` antes de enviar o link ao motorista.
 Se o WhatsApp não abrir, verifique primeiro:
 
 1. Authentication > Anonymous habilitado.
 2. Realtime Database Rules publicadas.
-3. `index.html` e `motorista.html` V5.32 publicados no mesmo diretório HTTPS.
+3. `index.html` e `motorista.html` V5.33 publicados no mesmo diretório HTTPS.
 
 
-## V5.32 — link curto
+## V5.33 — link curto
 
 O `motorista.html` agora contém a configuração Web Firebase usada pelo projeto.
 Não existe mais necessidade de transportar `firebaseConfig` no link do WhatsApp.
@@ -116,7 +116,7 @@ A leitura das viagens continua sendo feita em:
 `driverApps/<appId>`
 
 
-## V5.32 — arquivos PWA
+## V5.33 — arquivos PWA
 
 No GitHub Pages, publique também:
 
@@ -125,3 +125,12 @@ No GitHub Pages, publique também:
 - pasta `icons/`
 
 A instalação PWA e a geolocalização exigem que o site esteja em HTTPS.
+
+
+## V5.33 — Firebase Storage para canhotos
+1. Firebase Console → Build → Storage → Começar.
+2. Aba Rules/Regras.
+3. Cole `firebase-storage-rules.txt`.
+4. Publicar.
+5. Realtime Database → Rules.
+6. Cole/publicar `firebase-rules.json` atualizado.
