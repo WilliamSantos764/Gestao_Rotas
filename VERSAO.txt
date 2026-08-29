@@ -1,6 +1,6 @@
-Gestão Logística V5.36
-Rotas concluídas saem da visão operacional e do mapa por padrão.
-Central possui opção Mostrar rotas concluídas no mapa.
-App do Motorista separa Pendentes e Concluídas.
-GPS/navegação utilizam somente rotas pendentes.
-Se canhoto for rejeitado, rota volta automaticamente para Pendentes.
+Gestão Logística V5.37
+Geração ignora rotas já concluídas.
+Rotas pendentes preservam identidade e canhotos existentes.
+App: Canhoto retido e Não deu tempo de entregar.
+Ocorrências enviadas em tempo real para a central.
+Não deu tempo sai do trajeto atual e é reativado ao gerar a rota novamente.

@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Gestão Logística - V5.36 Rotas Pendentes + Concluídas</title>
+<title>Gestão Logística - V5.37 Exceções de Entrega + Rotas Pendentes</title>
 <style>
 :root{
   --bg:#f3f6fb;--card:#fff;--line:#e2e8f0;--text:#152033;--muted:#667085;
@@ -251,13 +251,16 @@ main{max-width:1580px;margin:auto;padding:20px}.view{display:none}.view.active{d
 .driver-route-card.completed-route{border-color:#abefc6;background:#f6fef9}
 .completed-route-note{margin-top:7px;padding:7px 9px;border:1px solid #abefc6;background:#ecfdf3;color:#05603a;border-radius:9px;font-size:9px;font-weight:900}
 
-.route-final-kpis{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin-top:9px}
+.route-final-kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin-top:9px}
 .route-final-kpis div{background:#fff;border:1px solid var(--line);border-radius:9px;padding:7px}.route-final-kpis span{display:block;font-size:8px;color:var(--muted);text-transform:uppercase;font-weight:900}.route-final-kpis b{display:block;font-size:12px;margin-top:2px}
 .proof-central-list{margin-top:9px;border-top:1px solid var(--line)}
 .proof-central-row{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:8px;align-items:center;padding:9px 0;border-bottom:1px solid #edf0f5}
 .proof-central-row:last-child{border-bottom:0}.proof-central-row b{font-size:11px}.proof-central-row small{display:block;font-size:9px;color:var(--muted);margin-top:2px;line-height:1.4}
 .proof-central-actions{display:flex;gap:5px;flex-wrap:wrap;justify-content:flex-end}.proof-central-actions .btn{font-size:9px;padding:6px 8px}
 .proof-good{color:#027a48;font-weight:850}.proof-wait{color:#93370d;font-weight:850}.proof-retake{color:#b42318;font-weight:900}
+.proof-retained{color:#b54708;font-weight:950}.proof-notime{color:#b42318;font-weight:950}
+.route-final-status.retained{background:#fffaeb;color:#93370d}
+
 .proof-modal{position:fixed;inset:0;background:rgba(16,24,40,.88);z-index:100000;display:none;align-items:center;justify-content:center;padding:14px}
 .proof-modal.open{display:flex}.proof-modal-card{width:min(820px,100%);max-height:94vh;overflow:auto;background:#fff;border-radius:18px;padding:15px;box-shadow:0 24px 80px rgba(0,0,0,.45)}
 .proof-modal-head{display:flex;justify-content:space-between;gap:10px;align-items:flex-start;margin-bottom:10px}.proof-modal-head h3{margin:0;font-size:19px}.proof-modal-close{border:0;background:#f2f4f7;border-radius:9px;padding:8px 11px;font-weight:900;cursor:pointer}
@@ -411,7 +414,7 @@ main{max-width:1580px;margin:auto;padding:20px}.view{display:none}.view.active{d
 </head>
 <body>
 <header class="top"><div class="topin">
- <div class="brand"><div class="logo">R</div><div><h1>Gestão Logística - Rotas e Embarques V5.36</h1><small>Rotas • ESPD • Frota • Embarques automáticos</small></div></div>
+ <div class="brand"><div class="logo">R</div><div><h1>Gestão Logística - Rotas e Embarques V5.37</h1><small>Rotas • ESPD • Frota • Embarques automáticos</small></div></div>
  <nav class="nav">
   <button class="active" data-view="planning">Dashboard semanal</button>
   <button data-view="routeanalysis">Análise de rotas</button>
@@ -540,7 +543,7 @@ main{max-width:1580px;margin:auto;padding:20px}.view{display:none}.view.active{d
    </div>
    <div class="realtime-config">
     <div class="realtime-config-head">
-     <div><h4>Rastreamento em tempo real</h4><small>Firebase do Gestão Logística já integrado. Na V5.36 o App do Motorista também possui essa configuração embutida, evitando links cortados pelo WhatsApp.</small></div>
+     <div><h4>Rastreamento em tempo real</h4><small>Firebase do Gestão Logística já integrado. Na V5.37 o App do Motorista também possui essa configuração embutida, evitando links cortados pelo WhatsApp.</small></div>
      <span class="badge review" id="firebaseConnectionBadge">NÃO CONFIGURADO</span>
     </div>
     <textarea id="firebaseConfigText" placeholder="Configuração Firebase integrada automaticamente."></textarea>
@@ -1071,11 +1074,11 @@ async function publishDriverAppBundle(driver,routesList){
  bundle.publicationRevision=revision;
  bundle.routeSignature=signature;
  bundle.publishedAt=new Date().toISOString();
- bundle.appBuild="V5.36";
+ bundle.appBuild="V5.37";
 
  const safeBundle=cleanFirebaseObject(bundle);
 
- // V5.36: as viagens ficam em /bundle e os canhotos em /deliveryProofs.
+ // V5.37: as viagens ficam em /bundle e os canhotos em /deliveryProofs.
  // Isso evita carregar fotos grandes toda vez que o motorista abre o App.
  const rootRef=rt.dbMod.ref(rt.db,`driverApps/${publication.appId}`);
  const oldSnap=await rt.dbMod.get(rootRef);
@@ -1137,9 +1140,9 @@ function publishedDriverAppUrl(driver){
  if(!publicBase&&!/^https?:$/.test(location.protocol))return"";
  const url=publicBase?new URL("motorista.html",publicBase):new URL("motorista.html",window.location.href);
 
- // V5.36: Firebase já está embutido no motorista.html.
+ // V5.37: Firebase já está embutido no motorista.html.
  // O WhatsApp recebe somente um link curto; não há mais JSON/configuração no hash.
- url.searchParams.set("v","536");
+ url.searchParams.set("v","537");
  url.hash=`app=${encodeURIComponent(pub.appId)}&rev=${encodeURIComponent(pub.revision||"")}&orders=${encodeURIComponent(pub.orderCount||0)}&stops=${encodeURIComponent(pub.totalStops||0)}&driver=${encodeURIComponent(pub.driver||driver)}`;
  return url.href
 }
@@ -1160,7 +1163,7 @@ function centralProofKeys(route,stop){
  return [centralProofKey(route,stop),centralLegacyProofKey(route,stop)]
 }
 function proofStateForApp(appId){
- if(!driverProofStates.has(appId))driverProofStates.set(appId,{meta:{},retake:{}});
+ if(!driverProofStates.has(appId))driverProofStates.set(appId,{meta:{},retake:{},events:{}});
  return driverProofStates.get(appId)
 }
 function stripProofImageForMeta(record){
@@ -1196,28 +1199,38 @@ async function migrateDriverProofMetadata(rt,pub){
    console.warn("Migração de metadados de canhoto:",pub.driver,e)
  }
 }
-function routeProofMatch(meta,retake,route,stop){
+function routeProofMatch(meta,retake,events,route,stop){
  const keys=centralProofKeys(route,stop);
- let proofId="",proof=null,request=null;
+ let proofId="",proof=null,request=null,eventId="",event=null;
  for(const key of keys){
    if(!proof&&meta?.[key]){proofId=key;proof=meta[key]}
-   if(!request&&retake?.[key])request=retake[key]
+   if(!request&&retake?.[key])request=retake[key];
+   const candidate=events?.[key];
+   if(!event&&candidate&&candidate.active!==false){eventId=key;event=candidate}
  }
- return{keys,proofId,proof,request,delivered:!!proof?.deliveredAt&&!request}
+ const delivered=!!proof?.deliveredAt&&!request;
+ const retained=!request&&event?.status==="CANHOTO_RETIDO";
+ const noTime=!request&&event?.status==="NAO_DEU_TEMPO";
+ return{keys,proofId,proof,request,eventId,event,delivered,retained,noTime,resolved:delivered||retained}
 }
 
 function centralRouteFinalization(route){
  const pub=firebasePublicationForDriver(route?.driver||"");
- if(!pub?.appId||!route?.stops?.length)return{finalized:false,completed:0,total:route?.stops?.length||0,retakeCount:0,finalizedAt:""};
+ if(!pub?.appId||!route?.stops?.length)return{finalized:false,completed:0,total:route?.stops?.length||0,retakeCount:0,retainedCount:0,noTimeCount:0,finalizedAt:""};
  const state=proofStateForApp(pub.appId);
- const stopRows=(route.stops||[]).map(stop=>routeProofMatch(state.meta,state.retake,route,stop));
- const completed=stopRows.filter(x=>x.delivered).length;
+ const stopRows=(route.stops||[]).map(stop=>routeProofMatch(state.meta,state.retake,state.events,route,stop));
+ const completed=stopRows.filter(x=>x.resolved).length;
  const total=stopRows.length;
  const finalized=total>0&&completed===total;
  const retakeCount=stopRows.filter(x=>x.request).length;
- const times=stopRows.filter(x=>x.delivered).map(x=>Date.parse(x.proof?.deliveredAt)||0).filter(Boolean);
+ const retainedCount=stopRows.filter(x=>x.retained).length;
+ const noTimeCount=stopRows.filter(x=>x.noTime).length;
+ const times=stopRows.filter(x=>x.resolved).map(x=>{
+   const value=x.delivered?x.proof?.deliveredAt:x.event?.recordedAt;
+   return Date.parse(value)||0
+ }).filter(Boolean);
  return{
-   finalized,completed,total,retakeCount,
+   finalized,completed,total,retakeCount,retainedCount,noTimeCount,
    finalizedAt:finalized&&times.length?new Date(Math.max(...times)).toISOString():""
  }
 }
@@ -1240,16 +1253,21 @@ function routeFinalizationRows(){
 
    routesList.forEach(route=>{
      const stopRows=(route.stops||[]).map((stop,i)=>{
-       const match=routeProofMatch(state.meta,state.retake,route,stop);
+       const match=routeProofMatch(state.meta,state.retake,state.events,route,stop);
        return{stop,index:i,...match}
      });
-     const completed=stopRows.filter(x=>x.delivered).length;
+     const completed=stopRows.filter(x=>x.resolved).length;
      const total=stopRows.length;
      const finalized=total>0&&completed===total;
      const retakeCount=stopRows.filter(x=>x.request).length;
-     const times=stopRows.filter(x=>x.delivered).map(x=>Date.parse(x.proof.deliveredAt)||0).filter(Boolean);
+     const retainedCount=stopRows.filter(x=>x.retained).length;
+     const noTimeCount=stopRows.filter(x=>x.noTime).length;
+     const times=stopRows.filter(x=>x.resolved).map(x=>{
+       const value=x.delivered?x.proof?.deliveredAt:x.event?.recordedAt;
+       return Date.parse(value)||0
+     }).filter(Boolean);
      const finalizedAt=finalized&&times.length?new Date(Math.max(...times)).toISOString():"";
-     rows.push({pub,route,stopRows,completed,total,finalized,retakeCount,finalizedAt})
+     rows.push({pub,route,stopRows,completed,total,finalized,retakeCount,retainedCount,noTimeCount,finalizedAt})
    })
  });
  return rows.sort((a,b)=>{
@@ -1286,10 +1304,14 @@ function renderRouteFinalizationPanel(){
 
  host.innerHTML=rows.map(r=>{
    const status=r.finalized
-     ? `<span class="route-final-status ok">✅ ROTA FINALIZADA</span>`
+     ? r.retainedCount
+       ? `<span class="route-final-status retained">✅ FINALIZADA • CANHOTO RETIDO</span>`
+       : `<span class="route-final-status ok">✅ ROTA FINALIZADA</span>`
      : r.retakeCount
        ? `<span class="route-final-status bad">📷 NOVO CANHOTO SOLICITADO</span>`
-       : `<span class="route-final-status pending">⏳ PENDENTE</span>`;
+       : r.noTimeCount
+         ? `<span class="route-final-status bad">⏱ NÃO DEU TEMPO</span>`
+         : `<span class="route-final-status pending">⏳ PENDENTE</span>`;
    const cls=r.finalized?"finalized":r.retakeCount?"retake":"";
    const finalText=r.finalizedAt?` • Finalizada ${new Date(r.finalizedAt).toLocaleString("pt-BR")}`:"";
 
@@ -1300,8 +1322,9 @@ function renderRouteFinalizationPanel(){
     </div>
     <div class="route-final-kpis">
      <div><span>Entregas</span><b>${r.total}</b></div>
-     <div><span>Canhotos OK</span><b>${r.completed}</b></div>
-     <div><span>Pendentes</span><b>${Math.max(0,r.total-r.completed)}</b></div>
+     <div><span>Concluídas</span><b>${r.completed}</b></div>
+     <div><span>Canhoto retido</span><b>${r.retainedCount}</b></div>
+     <div><span>Não entregues</span><b>${Math.max(0,r.total-r.completed)}</b></div>
     </div>
     <div class="proof-central-list">
      ${r.stopRows.map(sr=>{
@@ -1316,8 +1339,14 @@ function renderRouteFinalizationPanel(){
          stateText=`<span class="proof-good">✓ Canhoto recebido ${new Date(sr.proof.deliveredAt).toLocaleString("pt-BR")}</span>`;
          actions=`<button class="btn small" onclick="openCentralProof('${r.pub.appId}','${sr.proofId}')">📷 Ver canhoto</button>
           <button class="btn small danger" onclick="deleteCentralProofAndRequest('${r.pub.appId}','${sr.proofId}')">Excluir e pedir outra</button>`
+       }else if(sr.retained){
+         stateText=`<span class="proof-retained">⚠ CANHOTO RETIDO • entrega realizada${sr.event?.observation?` — ${esc(sr.event.observation)}`:""} • ${sr.event?.recordedAt?new Date(sr.event.recordedAt).toLocaleString("pt-BR"):""}</span>`;
+         actions='<span class="proof-retained">Exceção registrada</span>'
+       }else if(sr.noTime){
+         stateText=`<span class="proof-notime">⏱ NÃO DEU TEMPO DE ENTREGAR${sr.event?.observation?` — ${esc(sr.event.observation)}`:""} • ${sr.event?.recordedAt?new Date(sr.event.recordedAt).toLocaleString("pt-BR"):""}</span>`;
+         actions='<span class="proof-notime">Reprogramar rota</span>'
        }else{
-         stateText='<span class="proof-wait">⏳ Aguardando canhoto</span>';
+         stateText='<span class="proof-wait">⏳ Aguardando entrega / canhoto</span>';
          actions='<span class="proof-wait">Pendente</span>'
        }
        return `<div class="proof-central-row">
@@ -1457,7 +1486,18 @@ async function connectLiveTracking(){
        renderDriverRouteSummary();
        if($("routeanalysis")?.classList.contains("active"))renderWeeklyRouteMap()
      },err=>console.error("Solicitação novo canhoto",pub.driver,err));
-     firebaseTrackingUnsubs.push(unsubRetake)
+     firebaseTrackingUnsubs.push(unsubRetake);
+
+     const eventsRef=rt.dbMod.ref(rt.db,`driverApps/${pub.appId}/deliveryEvents`);
+     const unsubEvents=rt.dbMod.onValue(eventsRef,snap=>{
+       const state=proofStateForApp(pub.appId);
+       state.events=snap.exists()?(snap.val()||{}):{};
+       state.driver=pub.driver;
+       renderRouteFinalizationPanel();
+       renderDriverRouteSummary();
+       if($("routeanalysis")?.classList.contains("active"))renderWeeklyRouteMap()
+     },err=>console.error("Exceções de entrega",pub.driver,err));
+     firebaseTrackingUnsubs.push(unsubEvents)
    });
 
    renderRouteFinalizationPanel();
@@ -2927,8 +2967,9 @@ async function buildDriverRoute(dayInfo,driver){
 
  const optimizedPoints=[{lat:DEPOT_COORD.lat,lon:DEPOT_COORD.lon},...optimizedStops];
  const finalRoute=await osrmDeliveryRoute(optimizedPoints);
+ const existingRoute=ensurePlanDriverRoutes(plan)[driver];
  const route={
-   generatedAt:new Date().toISOString(),
+   generatedAt:existingRoute&&!existingRoute.error&&existingRoute.generatedAt?existingRoute.generatedAt:new Date().toISOString(),
    dayKey:dayInfo.key,
    day:dayInfo.day,
    driver,
@@ -2954,6 +2995,47 @@ async function buildDriverRoute(dayInfo,driver){
  store[driver]=route;
  return route
 }
+
+async function refreshDriverCompletionState(driver){
+ const pub=firebasePublicationForDriver(driver);
+ if(!pub?.appId||!firebaseConfigReady())return;
+ const rt=await getFirebaseRuntime();
+ await migrateDriverProofMetadata(rt,pub).catch(()=>{});
+ const [metaSnap,retakeSnap,eventSnap]=await Promise.all([
+   rt.dbMod.get(rt.dbMod.ref(rt.db,`driverApps/${pub.appId}/deliveryProofMeta`)),
+   rt.dbMod.get(rt.dbMod.ref(rt.db,`driverApps/${pub.appId}/retakeRequests`)),
+   rt.dbMod.get(rt.dbMod.ref(rt.db,`driverApps/${pub.appId}/deliveryEvents`))
+ ]);
+ const state=proofStateForApp(pub.appId);
+ state.driver=driver;
+ state.meta=metaSnap.exists()?(metaSnap.val()||{}):{};
+ state.retake=retakeSnap.exists()?(retakeSnap.val()||{}):{};
+ state.events=eventSnap.exists()?(eventSnap.val()||{}):{}
+}
+async function reactivateNoTimeEventsForRoute(driver,route){
+ const pub=firebasePublicationForDriver(driver);
+ if(!pub?.appId||!route?.stops?.length||!firebaseConfigReady())return 0;
+ const state=proofStateForApp(pub.appId);
+ const updates={};
+ let count=0;
+ (route.stops||[]).forEach(stop=>{
+   const match=routeProofMatch(state.meta,state.retake,state.events,route,stop);
+   if(match.noTime&&match.eventId){
+     updates[`${match.eventId}/active`]=false;
+     updates[`${match.eventId}/reactivatedAt`]=new Date().toISOString();
+     updates[`${match.eventId}/reactivatedBy`]="CENTRAL_ROUTE_REGENERATION";
+     if(state.events?.[match.eventId]){
+       state.events[match.eventId]={...state.events[match.eventId],active:false,reactivatedAt:new Date().toISOString(),reactivatedBy:"CENTRAL_ROUTE_REGENERATION"}
+     }
+     count++
+   }
+ });
+ if(count){
+   const rt=await getFirebaseRuntime();
+   await rt.dbMod.update(rt.dbMod.ref(rt.db,`driverApps/${pub.appId}/deliveryEvents`),updates)
+ }
+ return count
+}
 async function generateDriverRoutes(){
  if(driverRouteGenerationBusy)return;
  driverRouteGenerationBusy=true;
@@ -2977,7 +3059,8 @@ async function generateDriverRoutes(){
  try{
    const days=selectedMapDays();
    const driverFilter=initialDriverFilter;
-   let total=0,success=0,errors=0;
+   let total=0,success=0,errors=0,skippedFinalized=0,reactivatedNoTime=0;
+   const refreshedDrivers=new Set();
 
    for(const info of days){
      const plan=plans[info.key];
@@ -2989,6 +3072,22 @@ async function generateDriverRoutes(){
        .filter(d=>driverFilter==="TODOS"||norm(d)===norm(driverFilter));
 
      for(const driver of drivers){
+       const driverKey=norm(driver);
+       if(!refreshedDrivers.has(driverKey)){
+         try{await refreshDriverCompletionState(driver)}catch(e){console.warn("Estado de finalização",driver,e)}
+         refreshedDrivers.add(driverKey)
+       }
+
+       const existingRoute=plan.driverRoutes?.[driver];
+       if(existingRoute&&!existingRoute.error&&centralRouteIsFinalized(existingRoute)){
+         skippedFinalized++;
+         continue
+       }
+
+       if(existingRoute&&!existingRoute.error){
+         try{reactivatedNoTime+=await reactivateNoTimeEventsForRoute(driver,existingRoute)}catch(e){console.warn("Reativação de não entregues",driver,e)}
+       }
+
        total++;
        try{
          const result=await buildDriverRoute(info,driver);
@@ -3033,11 +3132,12 @@ async function generateDriverRoutes(){
      connectLiveTracking().catch(console.error)
    }
 
-   $("mapStatus").innerHTML=`<div style="font-size:20px">✓</div><div><strong>Rotas dos motoristas geradas.</strong> ${success} rota(s) calculada(s) do mais perto para o mais longe${errors?` • ${errors} com pendência`:""}. ${driverFilter==="TODOS"?"Os Apps dos Motoristas foram atualizados; envie cada um pela central abaixo.":"A rota deste motorista foi atualizada e está pronta para envio ao celular."}</div>`;
+   $("mapStatus").innerHTML=`<div style="font-size:20px">✓</div><div><strong>Rotas pendentes geradas.</strong> ${success} rota(s) calculada(s)${skippedFinalized?` • ${skippedFinalized} rota(s) já concluída(s) ignorada(s)`:""}${reactivatedNoTime?` • ${reactivatedNoTime} entrega(s) “não deu tempo” reativada(s) para nova tentativa`:""}${errors?` • ${errors} com pendência`:""}. Rotas concluídas não são recalculadas.</div>`;
 
    if(!total){
      if(preparedWindow)preparedWindow.close();
-     toast("Nenhum motorista com embarque e pedidos foi encontrado para o período selecionado.");
+     if(skippedFinalized)toast(`${skippedFinalized} rota(s) já estão concluídas. Nenhuma rota concluída foi gerada novamente.`);
+     else toast("Nenhum motorista com embarque e pedidos pendentes foi encontrado para o período selecionado.");
      return
    }
 
@@ -3260,7 +3360,7 @@ function driverAppUrlForRoutes(driver,routesList){
  // Compatibilidade sem Firebase.
  const publicBase=normalizedPublicBaseUrl();
  const url=publicBase?new URL("motorista.html",publicBase):new URL("motorista.html",window.location.href);
- url.searchParams.set("v","536");
+ url.searchParams.set("v","537");
  url.hash=encodeDriverAppPayload(compactDriverBundle(driver,valid));
  return url.href
 }
@@ -3293,7 +3393,7 @@ async function prepareVerifiedDriverApp(driver,routesList){
  const url=driverAppUrlForRoutes(driver,valid);
  if(!url)throw new Error(`Não foi possível gerar o link do App de ${driver}.`);
  if(firebaseConfigReady()&&url.includes("&cfg=")){
-   throw new Error("Foi detectado um link antigo com configuração Firebase embutida. Atualize o sistema para a V5.36.")
+   throw new Error("Foi detectado um link antigo com configuração Firebase embutida. Atualize o sistema para a V5.37.")
  }
  return url
 }
