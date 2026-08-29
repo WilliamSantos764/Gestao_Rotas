@@ -1,13 +1,5 @@
-Gestão Logística V5.48 — Auditoria + Estabilidade
-
-Correções principais:
-- lastRouteAnalysisDayKey/Counts declarados e resetados.
-- norm() restaurado no App do Motorista.
-- matriz robusta na Central e no App.
-- linha azul testada com GPS e fallback.
-- desvinculação limpa a operação sem recriar planejamento vazio.
-- localStorage/IndexedDB protegidos contra falhas.
-- código residual de aprovação de reentrega removido.
-- publicação Firebase preserva canhotos/ocorrências.
-
-Validação: 10/10 fluxos principais + 3 testes extras passaram no Chromium automatizado; node --check e varredura de identificadores indefinidos concluídos.
+Gestão Logística V5.49
+Mapa do App saneado contra coordenadas absurdas.
+Central e App validam a região operacional.
+Situação dos embarques visível somente ao clicar no motorista/caminhão ao vivo.
+Linha azul preservada para coordenadas válidas.

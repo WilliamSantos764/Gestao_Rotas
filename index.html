@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Gestão Logística - V5.48 Auditoria + Estabilidade</title>
+<title>Gestão Logística - V5.49 Mapa Saneado + Detalhe ao Vivo</title>
 <style>
 :root{
   --bg:#f3f6fb;--card:#fff;--line:#e2e8f0;--text:#152033;--muted:#667085;
@@ -508,7 +508,7 @@ main{max-width:1580px;margin:auto;padding:20px}.view{display:none}.view.active{d
 </head>
 <body>
 <header class="top"><div class="topin">
- <div class="brand"><div class="logo">R</div><div><h1>Gestão Logística - Embarques e Rotas V5.48</h1><small>Rotas • ESPD • Frota • Embarques automáticos</small></div></div>
+ <div class="brand"><div class="logo">R</div><div><h1>Gestão Logística - Embarques e Rotas V5.49</h1><small>Rotas • ESPD • Frota • Embarques automáticos</small></div></div>
  <nav class="nav">
   <button class="active" data-view="planning">Embarques</button>
   <button data-view="routeanalysis">Central de Rotas</button>
@@ -707,30 +707,17 @@ main{max-width:1580px;margin:auto;padding:20px}.view{display:none}.view.active{d
      <button type="button" class="btn primary" id="routeAllTrucksBtn">🧭 Roteirizar todos e liberar Apps</button>
     </div>
     <div id="routingQueueHost" class="routing-queue"><div class="ra-empty">Nenhum caminhão aguardando roteirização.</div></div>
-    <div class="compact-live-title"><b>🚚 Motoristas / caminhões ao vivo</b><span class="badge open" id="liveTruckCount">0 online</span></div>
+    <div class="compact-live-title"><b>🚚 Motoristas / caminhões ao vivo</b><span style="font-size:8px;color:var(--muted);font-weight:850">Clique no motorista para ver situação completa</span><span class="badge open" id="liveTruckCount">0 online</span></div>
     <div id="liveTrackingHost" class="live-tracking-list compact"><div class="ra-empty">Aguardando Apps dos Motoristas.</div></div>
    </aside>
   </div>
-
-
-  <section class="route-final-panel">
-   <div class="route-final-head">
-    <div><h4>Situação dos embarques em entrega</h4><small>Acompanhe por motorista as entregas, canhotos, ocorrências e conclusão das rotas. Para pedidos e itens, continue usando a aba Embarques.</small></div>
-    <span class="badge review" id="routeFinalizationCount">0 finalizadas</span>
-   </div>
-   <div id="routeFinalizationHost" class="route-final-list"><div class="ra-empty">Aguardando canhotos dos motoristas.</div></div>
-  </section>
-  
-
- 
-  <section class="redelivery-panel informational">
+<section class="redelivery-panel informational">
    <div class="redelivery-head">
     <div><h4>Reentregas e ocorrências</h4><small>Mostra o motivo informado pelo motorista e a próxima data em que existe rota fixa para aquela cidade. Não existe mais etapa de aprovação.</small></div>
     <span id="redeliveryCount" class="badge review">0 pendentes</span>
    </div>
    <div id="redeliveryHost" class="redelivery-list"><div class="ra-empty">Nenhuma reentrega ou ocorrência registrada.</div></div>
   </section>
-  <div id="driverRouteSummary" class="driver-route-summary"></div>
   <div id="whatsappDispatchHost"></div>
   <div class="map-legend">
    <span><i class="map-dot" style="background:#2563eb"></i>Segunda</span>
@@ -1309,11 +1296,11 @@ async function publishDriverAppBundle(driver,routesList){
  bundle.publicationRevision=revision;
  bundle.routeSignature=signature;
  bundle.publishedAt=new Date().toISOString();
- bundle.appBuild="V5.48";
+ bundle.appBuild="V5.49";
 
  const safeBundle=cleanFirebaseObject(bundle);
 
- // V5.48: as viagens ficam em /bundle e os canhotos em /deliveryProofs.
+ // V5.49: as viagens ficam em /bundle e os canhotos em /deliveryProofs.
  // Isso evita carregar fotos grandes toda vez que o motorista abre o App.
  const rootRef=rt.dbMod.ref(rt.db,`driverApps/${publication.appId}`);
  // Atualiza somente /bundle e preserva canhotos, metadados, ocorrências e retakes.
@@ -1371,9 +1358,9 @@ function publishedDriverAppUrl(driver){
  if(!publicBase&&!/^https?:$/.test(location.protocol))return"";
  const url=publicBase?new URL("motorista.html",publicBase):new URL("motorista.html",window.location.href);
 
- // V5.48: Firebase já está embutido no motorista.html.
+ // V5.49: Firebase já está embutido no motorista.html.
  // O WhatsApp recebe somente um link curto; não há mais JSON/configuração no hash.
- url.searchParams.set("v","548");
+ url.searchParams.set("v","549");
  url.hash=`app=${encodeURIComponent(pub.appId)}&rev=${encodeURIComponent(pub.revision||"")}&orders=${encodeURIComponent(pub.orderCount||0)}&stops=${encodeURIComponent(pub.totalStops||0)}&driver=${encodeURIComponent(pub.driver||driver)}`;
  return url.href
 }
@@ -1565,87 +1552,23 @@ function routeFinalizationRows(){
 }
 function renderRouteFinalizationPanel(){
  const host=$("routeFinalizationHost"),badge=$("routeFinalizationCount");
- if(!host||!badge)return;
  if(!firebaseConfigReady()){
-   host.innerHTML='<div class="ra-empty">Firebase não conectado.</div>';
-   badge.textContent="0 finalizadas";
+   if(host)host.innerHTML='<div class="ra-empty">Firebase não conectado.</div>';
+   if(badge)badge.textContent="0 finalizadas";
+   if($("opsRouteStatus"))$("opsRouteStatus").textContent="SEM CONEXÃO";
    return
  }
- const rows=routeFinalizationRows();
- if(!rows.length){
-   host.innerHTML='<div class="ra-empty">Nenhuma rota publicada para acompanhamento de canhotos.</div>';
-   badge.textContent="0 finalizadas";
-   return
- }
-
- const finalized=rows.filter(r=>r.finalized).length;
- badge.textContent=`${finalized}/${rows.length} finalizadas`;
+ const rows=routeFinalizationRows(),finalized=rows.filter(r=>r.finalized).length;
+ if(badge)badge.textContent=`${finalized}/${rows.length} finalizadas`;
  if($("opsRouteStatus"))$("opsRouteStatus").textContent=`${rows.length-finalized} PENDENTE(S)`;
-
  rows.forEach(r=>{
    const key=`${r.pub.appId}|${r.route.dayKey}|${r.route.generatedAt||""}`;
    const previous=routeCompletionState.get(key);
-   if(previous===false&&r.finalized){
-     toast(`✅ ROTA FINALIZADA — ${r.pub.driver} • ${r.route.day||r.route.dayKey}`)
-   }
+   if(previous===false&&r.finalized)toast(`✅ ROTA FINALIZADA — ${r.pub.driver} • ${r.route.day||r.route.dayKey}`);
    routeCompletionState.set(key,r.finalized)
  });
-
- host.innerHTML=rows.map(r=>{
-   const status=r.finalized
-     ? (r.retainedCount||r.noTimeCount)
-       ? `<span class="route-final-status retained">✅ FINALIZADA • COM OCORRÊNCIA</span>`
-       : `<span class="route-final-status ok">✅ ROTA FINALIZADA</span>`
-     : r.retakeCount
-       ? `<span class="route-final-status bad">📷 NOVO CANHOTO SOLICITADO</span>`
-       : `<span class="route-final-status pending">⏳ PENDENTE</span>`;
-   const cls=r.finalized?"finalized":r.retakeCount?"retake":"";
-   const finalText=r.finalizedAt?` • Finalizada ${new Date(r.finalizedAt).toLocaleString("pt-BR")}`:"";
-
-   return `<article class="route-final-card ${cls}">
-    <div class="route-final-card-head">
-     <div><h5>${esc(r.pub.driver)} — ${esc(r.route.day||r.route.dayKey)}</h5><small>${esc((r.route.plates||[]).join(" / ")||"Placa a definir")} • Emb. ${(r.route.shipments||[]).map(esc).join(", ")||"—"}${finalText}</small></div>
-     ${status}
-    </div>
-    <div class="route-final-kpis">
-     <div><span>Entregas</span><b>${r.total}</b></div>
-     <div><span>Concluídas</span><b>${r.completed}</b></div>
-     <div><span>Canhoto retido</span><b>${r.retainedCount}</b></div>
-     <div><span>Não entregues</span><b>${r.noTimeCount}</b></div>
-    </div>
-    <div class="proof-central-list">
-     ${r.stopRows.map(sr=>{
-       const stop=sr.stop;
-       const name=stop.deliveryPoint||stop.name||stop.city||`Parada ${sr.index+1}`;
-       const orders=(stop.orders||[]).map(o=>esc(o.id)).join(", ")||"—";
-       let stateText,actions;
-       if(sr.request){
-         stateText=`<span class="proof-retake">⚠ NOVA FOTO SOLICITADA${sr.request.reason?` — ${esc(sr.request.reason)}`:""}</span>`;
-         actions='<span class="proof-retake">Aguardando motorista</span>'
-       }else if(sr.delivered){
-         stateText=`<span class="proof-good">✓ Canhoto recebido ${new Date(sr.proof.deliveredAt).toLocaleString("pt-BR")}</span>`;
-         actions=`<button class="btn small" onclick="openCentralProof('${r.pub.appId}','${sr.proofId}')">📷 Ver canhoto</button>
-          <button class="btn small danger" onclick="deleteCentralProofAndRequest('${r.pub.appId}','${sr.proofId}')">Excluir e pedir outra</button>`
-       }else if(sr.retained){
-         const next=nextFixedRouteForEvent(sr.event);
-         stateText=`<span class="proof-retained">⚠ CANHOTO RETIDO${sr.event?.observation?` — ${esc(sr.event.observation)}`:""}${next?` • próxima rota ${esc(next.date)}`:""}</span>`;
-         actions='<span class="proof-retained">Registrado</span>'
-       }else if(sr.noTime){
-         const next=nextFixedRouteForEvent(sr.event);
-         stateText=`<span class="proof-notime">⏱ NÃO DEU TEMPO DE ENTREGAR${sr.event?.observation?` — ${esc(sr.event.observation)}`:""}${next?` • próxima rota ${esc(next.date)}`:""}</span>`;
-         actions='<span class="proof-notime">Registrado</span>'
-       }else{
-         stateText='<span class="proof-wait">⏳ Aguardando entrega / canhoto</span>';
-         actions='<span class="proof-wait">Pendente</span>'
-       }
-       return `<div class="proof-central-row">
-        <div><b>${sr.index+1}. ${esc(name)}</b><small>${esc(stop.address||"")}<br>Pedido(s): ${orders}<br>${stateText}</small></div>
-        <div class="proof-central-actions">${actions}</div>
-       </div>`
-     }).join("")}
-    </div>
-   </article>`
- }).join("")
+ if(!host)return;
+ host.innerHTML=""
 }
 async function openCentralProof(appId,proofId){
  const modal=$("centralProofModal"),img=$("centralProofImage"),status=$("centralProofStatus"),info=$("centralProofInfo");
@@ -2811,6 +2734,25 @@ function validDeliveryCoordinates(lat,lon){
  return Number.isFinite(Number(lat))&&Number.isFinite(Number(lon))&&
         Number(lat)>=-90&&Number(lat)<=90&&Number(lon)>=-180&&Number(lon)<=180
 }
+function operationalCoordinateDistance(lat,lon){
+ const a={lat:DEPOT_COORD.lat,lon:DEPOT_COORD.lon},b={lat:Number(lat),lon:Number(lon)};
+ if(!validDeliveryCoordinates(b.lat,b.lon))return Infinity;
+ const R=6371000,toRad=x=>x*Math.PI/180;
+ const dLat=toRad(b.lat-a.lat),dLon=toRad(b.lon-a.lon);
+ const h=Math.sin(dLat/2)**2+Math.cos(toRad(a.lat))*Math.cos(toRad(b.lat))*Math.sin(dLon/2)**2;
+ return 2*R*Math.asin(Math.min(1,Math.sqrt(h)))
+}
+function validOperationalCoordinates(lat,lon){
+ const la=Number(lat),lo=Number(lon);
+ if(!validDeliveryCoordinates(la,lo))return false;
+ if(la<-34.5||la>6.5||lo<-75||lo>-32)return false;
+ return operationalCoordinateDistance(la,lo)<=1600000
+}
+function safeOperationalPoint(primary,fallback=null){
+ if(validOperationalCoordinates(primary?.lat,primary?.lon))return{lat:Number(primary.lat),lon:Number(primary.lon)};
+ if(validOperationalCoordinates(fallback?.lat,fallback?.lon))return{lat:Number(fallback.lat),lon:Number(fallback.lon)};
+ return null
+}
 function aggregateOrders(){
  const map=new Map();
  if(!detected.order){aggregatedOrders=[];return}
@@ -3040,8 +2982,8 @@ function deliveryCoordinateCacheKey(stop){
  return `ADDR:${norm(stop?.address||"")}`
 }
 async function geocodeDeliveryStop(stop){
- // Arquivo de teste V5.48: coordenadas explícitas têm prioridade total.
- if(validDeliveryCoordinates(stop?.lat,stop?.lon)){
+ // Arquivo de teste V5.49: coordenadas explícitas têm prioridade total.
+ if(validOperationalCoordinates(stop?.lat,stop?.lon)){
    return{
      lat:Number(stop.lat),lon:Number(stop.lon),
      display:stop.address||stop.deliveryPoint||stop.city||"Coordenada ESPD",
@@ -3051,7 +2993,7 @@ async function geocodeDeliveryStop(stop){
 
  const key=deliveryCoordinateCacheKey(stop);
  const cached=deliveryGeoCache[key];
- if(cached&&validDeliveryCoordinates(cached.lat,cached.lon))return cached;
+ if(cached&&validOperationalCoordinates(cached.lat,cached.lon))return cached;
 
  const attempts=[
    stop.address,
@@ -3063,12 +3005,13 @@ async function geocodeDeliveryStop(stop){
  for(let i=0;i<attempts.length;i++){
    try{
      const found=await nominatimDeliveryQuery(attempts[i]);
-     if(found){
+     if(found&&validOperationalCoordinates(found.lat,found.lon)){
        const result={...found,source:i===0?"ENDERECO_EXATO":i===1?"PONTO_CIDADE":"CENTRO_CIDADE"};
        deliveryGeoCache[key]=result;persistDeliveryGeo();
        await sleep(1050);
        return result
      }
+     if(found)console.warn("Geocodificação fora da área operacional descartada:",attempts[i],found);
      lastError=new Error(`Não localizado: ${attempts[i]}`)
    }catch(e){lastError=e}
    if(i<attempts.length-1)await sleep(1050)
@@ -3104,23 +3047,21 @@ function geoDistanceMeters(a,b){
  return 2*R*Math.asin(Math.min(1,Math.sqrt(h)))
 }
 async function osrmNearestRoad(point){
- if(!validDeliveryCoordinates(point?.lat,point?.lon))throw new Error("Coordenada inválida para encaixe na rua.");
+ if(!validOperationalCoordinates(point?.lat,point?.lon))throw new Error("Coordenada fora da área operacional.");
  const url=`https://router.project-osrm.org/nearest/v1/driving/${point.lon},${point.lat}?number=1`;
- const r=await fetch(url);
- if(!r.ok)throw new Error(`Falha ao encaixar ponto na rua (${r.status})`);
- const j=await r.json();
+ const j=await fetchJsonRobust(url,{timeoutMs:12000,retries:2});
  const w=j?.waypoints?.[0];
  if(!w?.location?.length)throw new Error("OSRM não encontrou uma via trafegável próxima.");
- return{
-   lat:Number(w.location[1]),lon:Number(w.location[0]),
-   roadName:String(w.name||"").trim(),
-   snapDistance:Number(w.distance||0)
- }
+ const result={lat:Number(w.location[1]),lon:Number(w.location[0]),roadName:String(w.name||"").trim(),snapDistance:Number(w.distance||0)};
+ if(!validOperationalCoordinates(result.lat,result.lon))throw new Error("OSRM retornou ponto fora da área operacional.");
+ if(result.snapDistance>25000)throw new Error(`Via encontrada muito distante (${Math.round(result.snapDistance/1000)} km).`);
+ if(geoDistanceMeters(point,result)>30000)throw new Error("Ponto rodoviário incompatível com o estabelecimento.");
+ return result
 }
 async function resolveRoadsideDeliveryStop(stop){
  const cacheKey=`ROADFRONT|${norm(stop?.address||"")}|${Number(stop?.lat||0).toFixed(6)}|${Number(stop?.lon||0).toFixed(6)}`;
  const cached=deliveryGeoCache[cacheKey];
- if(cached&&validDeliveryCoordinates(cached.lat,cached.lon)&&cached.roadside===true)return cached;
+ if(cached&&validOperationalCoordinates(cached.lat,cached.lon)&&cached.roadside===true)return cached;
 
  let base=null,baseSource="";
 
@@ -3130,10 +3071,12 @@ async function resolveRoadsideDeliveryStop(stop){
  if(!isFixedTestCoordinate&&stop?.coordinateSource==="ESPD"&&String(stop?.address||"").trim()){
    try{
      const exact=await nominatimDeliveryQuery(stop.address);
-     if(exact){
+     if(exact&&validOperationalCoordinates(exact.lat,exact.lon)){
        base={lat:exact.lat,lon:exact.lon,display:exact.display};
        baseSource="ENDERECO_EXATO";
        await sleep(1050)
+     }else if(exact){
+       console.warn("Endereço exato fora da área operacional descartado:",exact)
      }
    }catch(e){
      console.warn("Fachada exata não localizada; usando coordenada vinculada:",stop.address,e)
@@ -3158,8 +3101,10 @@ async function resolveRoadsideDeliveryStop(stop){
    }
  }
 
+ const safeRoad=safeOperationalPoint(road,base);
+ if(!safeRoad)throw new Error(`Coordenada operacional inválida para ${stop.address||stop.city||"parada"}.`);
  const result={
-   lat:road.lat,lon:road.lon,
+   lat:safeRoad.lat,lon:safeRoad.lon,
    establishmentLat:Number(base.lat),establishmentLon:Number(base.lon),
    roadName:road.roadName||streetFromAddress(stop.address),
    snapDistance:Number(road.snapDistance||0),
@@ -3496,9 +3441,10 @@ async function routeOpenedShipment(){
    for(let i=0;i<built.stops.length;i++){
      status.textContent=`Localizando endereço ${i+1}/${built.stops.length}: ${built.stops[i].city}`;
      const geo=await resolveRoadsideDeliveryStop(built.stops[i]);
+   if(!validOperationalCoordinates(geo.lat,geo.lon))throw new Error(`Coordenada fora da área operacional: ${built.stops[i].address||built.stops[i].city}`);
    stops.push({
      ...built.stops[i],
-     lat:geo.lat,lon:geo.lon,
+     lat:Number(geo.lat),lon:Number(geo.lon),
      establishmentLat:geo.establishmentLat,establishmentLon:geo.establishmentLon,
      roadName:geo.roadName||streetFromAddress(built.stops[i].address),
      snapDistance:geo.snapDistance||0,
@@ -3751,9 +3697,10 @@ async function buildDriverRoute(dayInfo,driver){
  for(let i=0;i<built.stops.length;i++){
    $("mapStatus").innerHTML=`<div style="font-size:20px">⌖</div><div><strong>${esc(driver)} • ${esc(dayInfo.day)}</strong> Localizando parada ${i+1}/${built.stops.length}: ${esc(built.stops[i].city)}</div>`;
    const geo=await resolveRoadsideDeliveryStop(built.stops[i]);
+   if(!validOperationalCoordinates(geo.lat,geo.lon))throw new Error(`Coordenada fora da área operacional: ${built.stops[i].address||built.stops[i].city}`);
    stops.push({
      ...built.stops[i],
-     lat:geo.lat,lon:geo.lon,
+     lat:Number(geo.lat),lon:Number(geo.lon),
      establishmentLat:geo.establishmentLat,establishmentLon:geo.establishmentLon,
      roadName:geo.roadName||streetFromAddress(built.stops[i].address),
      snapDistance:geo.snapDistance||0,
@@ -3767,7 +3714,7 @@ async function buildDriverRoute(dayInfo,driver){
  const matrix=await osrmDeliveryMatrix(points);
  if(matrix.fallbackBlocks)$("mapStatus").innerHTML=`<div style="font-size:20px">↻</div><div><strong>${esc(driver)} • ${esc(dayInfo.day)}</strong> Matriz calculada com fallback em ${matrix.fallbackBlocks} bloco(s); continuando a roteirização.</div>`;
 
- // V5.48: distância real pela rua + continuidade de via.
+ // V5.49: distância real pela rua + continuidade de via.
  // Ao entrar em uma rua com várias entregas, descarrega os clientes próximos
  // nessa mesma via antes de sair, quando isso evita deslocamentos desnecessários.
  const seq=streetAwareDeliveryOrder(matrix.distances,stops);
@@ -4058,18 +4005,20 @@ function compactPlannedGeometry(route,maxPoints=700){
  const coords=route?.geometry?.coordinates;
  if(!Array.isArray(coords)||coords.length<2)return[];
  const step=Math.max(1,Math.ceil(coords.length/maxPoints));
- const out=[];
- for(let i=0;i<coords.length;i+=step){
-   const c=coords[i];
-   if(Array.isArray(c)&&Number.isFinite(Number(c[0]))&&Number.isFinite(Number(c[1])))out.push([Number(c[1]),Number(c[0])])
- }
- const last=coords[coords.length-1];
- if(Array.isArray(last)&&Number.isFinite(Number(last[0]))&&Number.isFinite(Number(last[1]))){
-   const p=[Number(last[1]),Number(last[0])];
-   const prev=out[out.length-1];
-   if(!prev||prev[0]!==p[0]||prev[1]!==p[1])out.push(p)
- }
+ const out=[];let previous=null;
+ const addPoint=c=>{
+   if(!Array.isArray(c))return;
+   const p={lat:Number(c[1]),lon:Number(c[0])};
+   if(!validOperationalCoordinates(p.lat,p.lon))return;
+   if(previous&&geoDistanceMeters(previous,p)>180000)return;
+   out.push([p.lat,p.lon]);previous=p
+ };
+ for(let i=0;i<coords.length;i+=step)addPoint(coords[i]);
+ addPoint(coords[coords.length-1]);
  return out
+}
+function compactSafeStopPoint(s){
+ return safeOperationalPoint({lat:s?.lat,lon:s?.lon},{lat:s?.establishmentLat,lon:s?.establishmentLon})||{lat:null,lon:null}
 }
 function compactDriverRoute(route){
  return{
@@ -4093,7 +4042,7 @@ function compactDriverRoute(route){
      name:s.deliveryPoint||s.city||`Parada ${i+1}`,
      city:s.city||"",
      address:s.address||"",
-     lat:s.lat,lon:s.lon,
+     lat:compactSafeStopPoint(s).lat,lon:compactSafeStopPoint(s).lon,
      distanceFromDepot:s.distanceFromDepot||0,
      legDistance:s.legDistance||0,
      orders:(s.orders||[]).map(o=>({
@@ -4139,7 +4088,7 @@ function compactDriverBundle(driver,routesList){
        name:s.deliveryPoint||s.city||`Parada ${i+1}`,
        city:s.city||"",
        address:s.address||"",
-       lat:s.lat,lon:s.lon,
+       lat:compactSafeStopPoint(s).lat,lon:compactSafeStopPoint(s).lon,
        establishmentLat:s.establishmentLat??null,establishmentLon:s.establishmentLon??null,
        roadName:s.roadName||"",
        snapDistance:s.snapDistance||0,
@@ -4207,7 +4156,7 @@ function driverAppUrlForRoutes(driver,routesList){
  // Compatibilidade sem Firebase.
  const publicBase=normalizedPublicBaseUrl();
  const url=publicBase?new URL("motorista.html",publicBase):new URL("motorista.html",window.location.href);
- url.searchParams.set("v","548");
+ url.searchParams.set("v","549");
  url.hash=encodeDriverAppPayload(compactDriverBundle(driver,valid));
  return url.href
 }
@@ -4241,7 +4190,7 @@ async function prepareVerifiedDriverApp(driver,routesList){
  const url=driverAppUrlForRoutes(driver,valid);
  if(!url)throw new Error(`Não foi possível gerar o link do App de ${driver}.`);
  if(firebaseConfigReady()&&url.includes("&cfg=")){
-   throw new Error("Foi detectado um link antigo com configuração Firebase embutida. Atualize o sistema para a V5.48.")
+   throw new Error("Foi detectado um link antigo com configuração Firebase embutida. Atualize o sistema para a V5.49.")
  }
  return url
 }
@@ -4448,7 +4397,7 @@ function openDriverRouteInGoogleMaps(encodedDay,encodedDriver){
  window.open(url,"_blank","noopener")
 }
 function renderDriverRouteSummary(){
- const host=$("driverRouteSummary");if(!host)return;
+ const host=$("driverRouteSummary");if(!host){renderWhatsAppDispatch();return}
  const routesList=savedDriverRoutesForMap();
  if(!routesList.length){host.innerHTML="";renderWhatsAppDispatch();return}
 
@@ -4495,17 +4444,18 @@ function addDriverRoutesToAnalysisMap(bounds){
    const routeDone=centralRouteIsFinalized(r);
    const color=routeDone?"#12b76a":(r.color||driverColor(r.driver));
    if(r.geometry?.coordinates?.length){
-     const latlngs=r.geometry.coordinates.map(c=>[c[1],c[0]]);
-     const line=addMapLayer(L.polyline(latlngs,{color,weight:routeDone?4:6,opacity:routeDone?.48:.82}));
-     line.bindTooltip(`${routeDone?"✅ CONCLUÍDA • ":""}${r.driver} • ${r.day} • ${(r.totalDistance/1000).toFixed(1)} km`,{sticky:true})
+     const latlngs=r.geometry.coordinates.map(c=>[Number(c[1]),Number(c[0])]).filter(p=>validOperationalCoordinates(p[0],p[1]));
+     const line=latlngs.length>1?addMapLayer(L.polyline(latlngs,{color,weight:routeDone?4:6,opacity:routeDone?.48:.82})):null;
+     line?.bindTooltip(`${routeDone?"✅ CONCLUÍDA • ":""}${r.driver} • ${r.day} • ${(r.totalDistance/1000).toFixed(1)} km`,{sticky:true})
    }else{
-     const latlngs=[[DEPOT_COORD.lat,DEPOT_COORD.lon],...r.stops.map(s=>[s.lat,s.lon])];
-     const line=addMapLayer(L.polyline(latlngs,{color,weight:routeDone?4:5,opacity:routeDone?.45:.75,dashArray:routeDone?null:"6 4"}));
-     line.bindTooltip(`${routeDone?"✅ CONCLUÍDA • ":""}${r.driver} • ${r.day}`,{sticky:true})
+     const latlngs=[[DEPOT_COORD.lat,DEPOT_COORD.lon],...r.stops.map(s=>[Number(s.lat),Number(s.lon)]).filter(p=>validOperationalCoordinates(p[0],p[1]))];
+     const line=latlngs.length>1?addMapLayer(L.polyline(latlngs,{color,weight:routeDone?4:5,opacity:routeDone?.45:.75,dashArray:routeDone?null:"6 4"})):null;
+     line?.bindTooltip(`${routeDone?"✅ CONCLUÍDA • ":""}${r.driver} • ${r.day}`,{sticky:true})
    }
 
    r.stops.forEach((s,i)=>{
-     bounds.push([s.lat,s.lon]);
+     if(!validOperationalCoordinates(s.lat,s.lon))return;
+     bounds.push([Number(s.lat),Number(s.lon)]);
      const icon=L.divIcon({
        className:"",
        html:`<div class="driver-map-marker" style="background:${color}">${i+1}</div>`,

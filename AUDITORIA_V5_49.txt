@@ -1,0 +1,19 @@
+AUDITORIA V5.49
+
+RESULTADOS
+✓ index.html: sintaxe JavaScript OK
+✓ motorista.html: sintaxe JavaScript OK
+✓ canhoto.html: sintaxe JavaScript OK
+✓ sw.js: sintaxe JavaScript OK
+✓ firebase-rules.json: JSON válido
+✓ nenhum ID HTML duplicado
+✓ Situação dos embarques removida da tela principal
+✓ detalhe completo permanece no clique de Motoristas / caminhões ao vivo
+✓ coordenadas da África usadas no teste são rejeitadas
+✓ Itajubá e Pouso Alegre são aceitas
+✓ 77/77 paradas do ESPD de teste continuam dentro da área operacional
+✓ plannedGeometry/liveGeometry possuem saneamento
+✓ marcadores e fitBounds ignoram coordenadas inválidas
+✓ fallback para establishmentLat/establishmentLon
+✓ fallback de navegação para endereço
+✓ linha azul continua habilitada para rota válida
