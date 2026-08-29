@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Gestão Logística - V5.34 Canhoto Realtime + Sem Storage</title>
+<title>Gestão Logística - V5.35 Finalização + Canhotos na Central</title>
 <style>
 :root{
   --bg:#f3f6fb;--card:#fff;--line:#e2e8f0;--text:#152033;--muted:#667085;
@@ -235,6 +235,34 @@ main{max-width:1580px;margin:auto;padding:20px}.view{display:none}.view.active{d
 .firebase-needed{border:1px solid #fedf89;background:#fffaeb;color:#93370d;border-radius:10px;padding:9px;font-size:10px;line-height:1.45}
 .firebase-auto{border:1px solid #abefc6;background:#ecfdf3;color:#05603a;border-radius:10px;padding:9px;font-size:10px;line-height:1.45;margin-top:7px}
 
+.route-final-panel{margin-top:11px;border:1px solid var(--line);border-radius:13px;background:#fff;overflow:hidden}
+.route-final-head{display:flex;justify-content:space-between;gap:9px;align-items:flex-start;flex-wrap:wrap;padding:11px 12px;background:#f8fafc;border-bottom:1px solid var(--line)}
+.route-final-head h4{margin:0;font-size:14px}.route-final-head small{display:block;color:var(--muted);font-size:10px;margin-top:3px;line-height:1.4}
+.route-final-list{padding:10px;display:grid;grid-template-columns:repeat(2,minmax(300px,1fr));gap:10px}
+.route-final-card{border:1px solid var(--line);border-radius:13px;background:#fff;padding:11px}
+.route-final-card.finalized{border-color:#abefc6;background:#f6fef9}
+.route-final-card.retake{border-color:#fecdca;background:#fff7f6}
+.route-final-card-head{display:flex;justify-content:space-between;gap:9px;align-items:flex-start}
+.route-final-card h5{margin:0;font-size:14px}.route-final-card small{display:block;color:var(--muted);font-size:10px;margin-top:3px;line-height:1.4}
+.route-final-status{display:inline-flex;align-items:center;padding:5px 8px;border-radius:999px;font-size:9px;font-weight:950;white-space:nowrap}
+.route-final-status.ok{background:#dcfae6;color:#05603a}.route-final-status.pending{background:#fffaeb;color:#93370d}.route-final-status.bad{background:#fee4e2;color:#b42318}
+.route-final-kpis{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin-top:9px}
+.route-final-kpis div{background:#fff;border:1px solid var(--line);border-radius:9px;padding:7px}.route-final-kpis span{display:block;font-size:8px;color:var(--muted);text-transform:uppercase;font-weight:900}.route-final-kpis b{display:block;font-size:12px;margin-top:2px}
+.proof-central-list{margin-top:9px;border-top:1px solid var(--line)}
+.proof-central-row{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:8px;align-items:center;padding:9px 0;border-bottom:1px solid #edf0f5}
+.proof-central-row:last-child{border-bottom:0}.proof-central-row b{font-size:11px}.proof-central-row small{display:block;font-size:9px;color:var(--muted);margin-top:2px;line-height:1.4}
+.proof-central-actions{display:flex;gap:5px;flex-wrap:wrap;justify-content:flex-end}.proof-central-actions .btn{font-size:9px;padding:6px 8px}
+.proof-good{color:#027a48;font-weight:850}.proof-wait{color:#93370d;font-weight:850}.proof-retake{color:#b42318;font-weight:900}
+.proof-modal{position:fixed;inset:0;background:rgba(16,24,40,.88);z-index:100000;display:none;align-items:center;justify-content:center;padding:14px}
+.proof-modal.open{display:flex}.proof-modal-card{width:min(820px,100%);max-height:94vh;overflow:auto;background:#fff;border-radius:18px;padding:15px;box-shadow:0 24px 80px rgba(0,0,0,.45)}
+.proof-modal-head{display:flex;justify-content:space-between;gap:10px;align-items:flex-start;margin-bottom:10px}.proof-modal-head h3{margin:0;font-size:19px}.proof-modal-close{border:0;background:#f2f4f7;border-radius:9px;padding:8px 11px;font-weight:900;cursor:pointer}
+.proof-modal-image{width:100%;max-height:62vh;object-fit:contain;background:#101828;border-radius:12px;border:1px solid var(--line)}
+.proof-modal-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:7px;margin-top:10px}.proof-modal-grid div{border:1px solid var(--line);border-radius:9px;padding:8px;background:#f8fafc}.proof-modal-grid span{display:block;font-size:8px;color:var(--muted);font-weight:900;text-transform:uppercase}.proof-modal-grid b{display:block;font-size:11px;margin-top:3px;word-break:break-word}
+.proof-modal-actions{display:flex;gap:7px;flex-wrap:wrap;margin-top:10px}.proof-modal-actions .danger{background:#b42318;color:#fff;border-color:#b42318}
+@media(max-width:900px){.route-final-list{grid-template-columns:1fr}.proof-modal-grid{grid-template-columns:1fr 1fr}}
+@media(max-width:560px){.proof-central-row{grid-template-columns:1fr}.proof-central-actions{justify-content:flex-start}.proof-modal-grid{grid-template-columns:1fr}}
+
+
 @media(max-width:620px){.live-truck{grid-template-columns:40px minmax(0,1fr)}.live-kpis{grid-column:2;text-align:left}.realtime-config .actions button{width:100%}}
 
 .local-share-note{margin-top:7px;padding:8px 10px;border-radius:10px;background:#fffaeb;border:1px solid #fedf89;color:#93370d;font-size:10px;line-height:1.45}
@@ -361,11 +389,24 @@ main{max-width:1580px;margin:auto;padding:20px}.view{display:none}.view.active{d
 </style>
 
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+<div id="centralProofModal" class="proof-modal" role="dialog" aria-modal="true">
+ <div class="proof-modal-card">
+  <div class="proof-modal-head">
+   <div><h3>📷 Canhoto de entrega</h3><div id="centralProofStatus" class="realtime-status">Carregando...</div></div>
+   <button type="button" class="proof-modal-close" id="centralProofClose">✕ Fechar</button>
+  </div>
+  <img id="centralProofImage" class="proof-modal-image" alt="Canhoto de entrega">
+  <div id="centralProofInfo" class="proof-modal-grid"></div>
+  <div class="proof-modal-actions">
+   <button type="button" class="btn danger" id="centralProofDelete">🗑 Excluir foto e pedir outra</button>
+  </div>
+ </div>
+</div>
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 </head>
 <body>
 <header class="top"><div class="topin">
- <div class="brand"><div class="logo">R</div><div><h1>Gestão Logística - Rotas e Embarques V5.34</h1><small>Rotas • ESPD • Frota • Embarques automáticos</small></div></div>
+ <div class="brand"><div class="logo">R</div><div><h1>Gestão Logística - Rotas e Embarques V5.35</h1><small>Rotas • ESPD • Frota • Embarques automáticos</small></div></div>
  <nav class="nav">
   <button class="active" data-view="planning">Dashboard semanal</button>
   <button data-view="routeanalysis">Análise de rotas</button>
@@ -493,7 +534,7 @@ main{max-width:1580px;margin:auto;padding:20px}.view{display:none}.view.active{d
    </div>
    <div class="realtime-config">
     <div class="realtime-config-head">
-     <div><h4>Rastreamento em tempo real</h4><small>Firebase do Gestão Logística já integrado. Na V5.34 o App do Motorista também possui essa configuração embutida, evitando links cortados pelo WhatsApp.</small></div>
+     <div><h4>Rastreamento em tempo real</h4><small>Firebase do Gestão Logística já integrado. Na V5.35 o App do Motorista também possui essa configuração embutida, evitando links cortados pelo WhatsApp.</small></div>
      <span class="badge review" id="firebaseConnectionBadge">NÃO CONFIGURADO</span>
     </div>
     <textarea id="firebaseConfigText" placeholder="Configuração Firebase integrada automaticamente."></textarea>
@@ -516,6 +557,13 @@ main{max-width:1580px;margin:auto;padding:20px}.view{display:none}.view.active{d
     <span class="badge open" id="liveTruckCount">0 online</span>
    </div>
    <div id="liveTrackingHost" class="live-tracking-list"><div class="ra-empty">Abra o App do Motorista no celular e autorize o GPS. A central receberá a posição automaticamente quando o App estiver publicado em HTTPS.</div></div>
+  </section>
+  <section class="route-final-panel">
+   <div class="route-final-head">
+    <div><h4>Finalização das rotas e canhotos</h4><small>A rota fica FINALIZADA somente quando todas as entregas possuem canhoto válido. Clique em um canhoto para conferir a foto. Se estiver ruim, exclua e solicite outra.</small></div>
+    <span class="badge review" id="routeFinalizationCount">0 finalizadas</span>
+   </div>
+   <div id="routeFinalizationHost" class="route-final-list"><div class="ra-empty">Aguardando canhotos dos motoristas.</div></div>
   </section>
   <div id="driverRouteSummary" class="driver-route-summary"></div>
   <div id="whatsappDispatchHost"></div>
@@ -749,6 +797,9 @@ let firebaseRuntimePromise=null;
 let firebaseTrackingUnsubs=[];
 let liveTruckPositions=new Map();
 let liveTruckLayers=[];
+let driverProofStates=new Map();
+let routeCompletionState=new Map();
+let currentCentralProof=null;
 const FIREBASE_SDK_VERSION="10.14.1";
 
 
@@ -1014,11 +1065,11 @@ async function publishDriverAppBundle(driver,routesList){
  bundle.publicationRevision=revision;
  bundle.routeSignature=signature;
  bundle.publishedAt=new Date().toISOString();
- bundle.appBuild="V5.34";
+ bundle.appBuild="V5.35";
 
  const safeBundle=cleanFirebaseObject(bundle);
 
- // V5.34: as viagens ficam em /bundle e os canhotos em /deliveryProofs.
+ // V5.35: as viagens ficam em /bundle e os canhotos em /deliveryProofs.
  // Isso evita carregar fotos grandes toda vez que o motorista abre o App.
  const rootRef=rt.dbMod.ref(rt.db,`driverApps/${publication.appId}`);
  const oldSnap=await rt.dbMod.get(rootRef);
@@ -1080,18 +1131,255 @@ function publishedDriverAppUrl(driver){
  if(!publicBase&&!/^https?:$/.test(location.protocol))return"";
  const url=publicBase?new URL("motorista.html",publicBase):new URL("motorista.html",window.location.href);
 
- // V5.34: Firebase já está embutido no motorista.html.
+ // V5.35: Firebase já está embutido no motorista.html.
  // O WhatsApp recebe somente um link curto; não há mais JSON/configuração no hash.
- url.searchParams.set("v","534");
+ url.searchParams.set("v","535");
  url.hash=`app=${encodeURIComponent(pub.appId)}&rev=${encodeURIComponent(pub.revision||"")}&orders=${encodeURIComponent(pub.orderCount||0)}&stops=${encodeURIComponent(pub.totalStops||0)}&driver=${encodeURIComponent(pub.driver||driver)}`;
  return url.href
+}
+
+function centralLegacyProofKey(route,stop){
+ const orders=(stop?.orders||[]).map(o=>String(o.id||"")).filter(Boolean).sort().join(",");
+ const name=stop?.deliveryPoint||stop?.name||stop?.city||"";
+ const raw=[route?.dayKey||"",stop?.address||"",name,orders].join("|");
+ return `proof_${fastStableHash(raw)}`
+}
+function centralProofKey(route,stop){
+ const orders=(stop?.orders||[]).map(o=>String(o.id||"")).filter(Boolean).sort().join(",");
+ const name=stop?.deliveryPoint||stop?.name||stop?.city||"";
+ const raw=[route?.dayKey||"",route?.generatedAt||"",stop?.address||"",name,orders].join("|");
+ return `proof_${fastStableHash(raw)}`
+}
+function centralProofKeys(route,stop){
+ return [centralProofKey(route,stop),centralLegacyProofKey(route,stop)]
+}
+function proofStateForApp(appId){
+ if(!driverProofStates.has(appId))driverProofStates.set(appId,{meta:{},retake:{}});
+ return driverProofStates.get(appId)
+}
+function stripProofImageForMeta(record){
+ if(!record||typeof record!=="object")return record;
+ const copy={...record};
+ if(copy.image){
+   copy.imageInfo={
+     contentType:copy.image.contentType||"image/jpeg",
+     bytes:Number(copy.image.bytes||0),
+     width:Number(copy.image.width||0),
+     height:Number(copy.image.height||0),
+     quality:Number(copy.image.quality||0)
+   };
+   delete copy.image
+ }
+ return copy
+}
+async function migrateDriverProofMetadata(rt,pub){
+ try{
+   const metaRef=rt.dbMod.ref(rt.db,`driverApps/${pub.appId}/deliveryProofMeta`);
+   const metaSnap=await rt.dbMod.get(metaRef);
+   const existing=metaSnap.exists()?(metaSnap.val()||{}):{};
+
+   const proofSnap=await rt.dbMod.get(rt.dbMod.ref(rt.db,`driverApps/${pub.appId}/deliveryProofs`));
+   if(!proofSnap.exists())return;
+   const proofs=proofSnap.val()||{};
+   const missing={};
+   Object.entries(proofs).forEach(([id,record])=>{
+     if(!existing[id])missing[id]=stripProofImageForMeta(record)
+   });
+   if(Object.keys(missing).length)await rt.dbMod.update(metaRef,missing)
+ }catch(e){
+   console.warn("Migração de metadados de canhoto:",pub.driver,e)
+ }
+}
+function routeProofMatch(meta,retake,route,stop){
+ const keys=centralProofKeys(route,stop);
+ let proofId="",proof=null,request=null;
+ for(const key of keys){
+   if(!proof&&meta?.[key]){proofId=key;proof=meta[key]}
+   if(!request&&retake?.[key])request=retake[key]
+ }
+ return{keys,proofId,proof,request,delivered:!!proof?.deliveredAt&&!request}
+}
+function routeFinalizationRows(){
+ const filter=$("mapDriverFilter")?.value||"TODOS";
+ const publications=Object.values(settings.driverAppPublications||{})
+   .filter(p=>p?.appId&&p?.driver)
+   .filter(p=>filter==="TODOS"||norm(p.driver)===norm(filter));
+
+ const rows=[];
+ publications.forEach(pub=>{
+   const routesList=routesForDriverApp(pub.driver);
+   const state=proofStateForApp(pub.appId);
+
+   routesList.forEach(route=>{
+     const stopRows=(route.stops||[]).map((stop,i)=>{
+       const match=routeProofMatch(state.meta,state.retake,route,stop);
+       return{stop,index:i,...match}
+     });
+     const completed=stopRows.filter(x=>x.delivered).length;
+     const total=stopRows.length;
+     const finalized=total>0&&completed===total;
+     const retakeCount=stopRows.filter(x=>x.request).length;
+     const times=stopRows.filter(x=>x.delivered).map(x=>Date.parse(x.proof.deliveredAt)||0).filter(Boolean);
+     const finalizedAt=finalized&&times.length?new Date(Math.max(...times)).toISOString():"";
+     rows.push({pub,route,stopRows,completed,total,finalized,retakeCount,finalizedAt})
+   })
+ });
+ return rows.sort((a,b)=>{
+   if(a.finalized!==b.finalized)return a.finalized?-1:1;
+   return String(a.route.dayKey).localeCompare(String(b.route.dayKey))
+ })
+}
+function renderRouteFinalizationPanel(){
+ const host=$("routeFinalizationHost"),badge=$("routeFinalizationCount");
+ if(!host||!badge)return;
+ if(!firebaseConfigReady()){
+   host.innerHTML='<div class="ra-empty">Firebase não conectado.</div>';
+   badge.textContent="0 finalizadas";
+   return
+ }
+ const rows=routeFinalizationRows();
+ if(!rows.length){
+   host.innerHTML='<div class="ra-empty">Nenhuma rota publicada para acompanhamento de canhotos.</div>';
+   badge.textContent="0 finalizadas";
+   return
+ }
+
+ const finalized=rows.filter(r=>r.finalized).length;
+ badge.textContent=`${finalized}/${rows.length} finalizadas`;
+
+ rows.forEach(r=>{
+   const key=`${r.pub.appId}|${r.route.dayKey}|${r.route.generatedAt||""}`;
+   const previous=routeCompletionState.get(key);
+   if(previous===false&&r.finalized){
+     toast(`✅ ROTA FINALIZADA — ${r.pub.driver} • ${r.route.day||r.route.dayKey}`)
+   }
+   routeCompletionState.set(key,r.finalized)
+ });
+
+ host.innerHTML=rows.map(r=>{
+   const status=r.finalized
+     ? `<span class="route-final-status ok">✅ ROTA FINALIZADA</span>`
+     : r.retakeCount
+       ? `<span class="route-final-status bad">📷 NOVO CANHOTO SOLICITADO</span>`
+       : `<span class="route-final-status pending">⏳ PENDENTE</span>`;
+   const cls=r.finalized?"finalized":r.retakeCount?"retake":"";
+   const finalText=r.finalizedAt?` • Finalizada ${new Date(r.finalizedAt).toLocaleString("pt-BR")}`:"";
+
+   return `<article class="route-final-card ${cls}">
+    <div class="route-final-card-head">
+     <div><h5>${esc(r.pub.driver)} — ${esc(r.route.day||r.route.dayKey)}</h5><small>${esc((r.route.plates||[]).join(" / ")||"Placa a definir")} • Emb. ${(r.route.shipments||[]).map(esc).join(", ")||"—"}${finalText}</small></div>
+     ${status}
+    </div>
+    <div class="route-final-kpis">
+     <div><span>Entregas</span><b>${r.total}</b></div>
+     <div><span>Canhotos OK</span><b>${r.completed}</b></div>
+     <div><span>Pendentes</span><b>${Math.max(0,r.total-r.completed)}</b></div>
+    </div>
+    <div class="proof-central-list">
+     ${r.stopRows.map(sr=>{
+       const stop=sr.stop;
+       const name=stop.deliveryPoint||stop.name||stop.city||`Parada ${sr.index+1}`;
+       const orders=(stop.orders||[]).map(o=>esc(o.id)).join(", ")||"—";
+       let stateText,actions;
+       if(sr.request){
+         stateText=`<span class="proof-retake">⚠ NOVA FOTO SOLICITADA${sr.request.reason?` — ${esc(sr.request.reason)}`:""}</span>`;
+         actions='<span class="proof-retake">Aguardando motorista</span>'
+       }else if(sr.delivered){
+         stateText=`<span class="proof-good">✓ Canhoto recebido ${new Date(sr.proof.deliveredAt).toLocaleString("pt-BR")}</span>`;
+         actions=`<button class="btn small" onclick="openCentralProof('${r.pub.appId}','${sr.proofId}')">📷 Ver canhoto</button>
+          <button class="btn small danger" onclick="deleteCentralProofAndRequest('${r.pub.appId}','${sr.proofId}')">Excluir e pedir outra</button>`
+       }else{
+         stateText='<span class="proof-wait">⏳ Aguardando canhoto</span>';
+         actions='<span class="proof-wait">Pendente</span>'
+       }
+       return `<div class="proof-central-row">
+        <div><b>${sr.index+1}. ${esc(name)}</b><small>${esc(stop.address||"")}<br>Pedido(s): ${orders}<br>${stateText}</small></div>
+        <div class="proof-central-actions">${actions}</div>
+       </div>`
+     }).join("")}
+    </div>
+   </article>`
+ }).join("")
+}
+async function openCentralProof(appId,proofId){
+ const modal=$("centralProofModal"),img=$("centralProofImage"),status=$("centralProofStatus"),info=$("centralProofInfo");
+ if(!modal||!img||!status||!info)return;
+ currentCentralProof={appId,proofId};
+ modal.classList.add("open");
+ img.removeAttribute("src");
+ status.textContent="Carregando canhoto...";
+ info.innerHTML="";
+ $("centralProofDelete").disabled=false;
+
+ try{
+   const rt=await getFirebaseRuntime();
+   const snap=await rt.dbMod.get(rt.dbMod.ref(rt.db,`driverApps/${appId}/deliveryProofs/${proofId}`));
+   if(!snap.exists())throw new Error("A foto deste canhoto não foi encontrada.");
+   const p=snap.val();
+   if(!p?.image?.base64)throw new Error("O registro existe, mas a imagem não está visível.");
+
+   img.src=`data:${p.image.contentType||"image/jpeg"};base64,${p.image.base64}`;
+   status.textContent=`✓ Canhoto recebido em ${p.deliveredAt?new Date(p.deliveredAt).toLocaleString("pt-BR"):"—"}`;
+   const gps=p.gps?`${Number(p.gps.lat).toFixed(6)}, ${Number(p.gps.lon).toFixed(6)}`:"—";
+   info.innerHTML=[
+     ["Motorista",p.driver||"—"],["Cliente / Parada",p.client||"—"],["Dia / Rota",p.day||p.dayKey||"—"],
+     ["Pedidos",(p.orders||[]).join(", ")||"—"],["Embarques",(p.shipments||[]).join(", ")||"—"],["GPS",gps]
+   ].map(([k,v])=>`<div><span>${esc(k)}</span><b>${esc(v)}</b></div>`).join("")
+ }catch(e){
+   console.error(e);
+   status.textContent=`⚠ ${e.message||e} Você pode excluir o registro e solicitar uma nova foto ao motorista.`;
+   img.removeAttribute("src")
+ }
+}
+function closeCentralProof(){
+ $("centralProofModal")?.classList.remove("open");
+ currentCentralProof=null
+}
+async function deleteCentralProofAndRequest(appId,proofId){
+ const state=proofStateForApp(appId);
+ const meta=state.meta?.[proofId]||{};
+ const client=meta.client||"esta entrega";
+ if(!confirm(`Excluir o canhoto de ${client} e solicitar uma nova foto ao motorista?`))return;
+
+ const reason=prompt("Motivo para o motorista tirar outra foto:", "Canhoto ilegível / foto precisa ser refeita");
+ if(reason===null)return;
+
+ try{
+   const rt=await getFirebaseRuntime();
+   const request={
+     proofId,
+     requestedAt:new Date().toISOString(),
+     requestedBy:"CENTRAL",
+     reason:String(reason||"Refazer foto do canhoto").trim(),
+     driver:meta.driver||"",
+     client:meta.client||"",
+     day:meta.day||"",
+     dayKey:meta.dayKey||"",
+     orders:meta.orders||[],
+     shipments:meta.shipments||[]
+   };
+
+   await Promise.all([
+     rt.dbMod.remove(rt.dbMod.ref(rt.db,`driverApps/${appId}/deliveryProofs/${proofId}`)),
+     rt.dbMod.remove(rt.dbMod.ref(rt.db,`driverApps/${appId}/deliveryProofMeta/${proofId}`)),
+     rt.dbMod.set(rt.dbMod.ref(rt.db,`driverApps/${appId}/retakeRequests/${proofId}`),request)
+   ]);
+
+   if(currentCentralProof?.appId===appId&&currentCentralProof?.proofId===proofId)closeCentralProof();
+   toast("Foto excluída. O motorista recebeu a solicitação para tirar outro canhoto.")
+ }catch(e){
+   console.error(e);
+   alert(`Não foi possível excluir e solicitar outra foto: ${e.message||e}`)
+ }
 }
 function stopLiveTrackingSubscriptions(){
  firebaseTrackingUnsubs.forEach(fn=>{try{fn()}catch{}});
  firebaseTrackingUnsubs=[];
  liveTruckPositions.clear();
+ driverProofStates.clear();
  clearLiveTruckLayers();
- renderLiveTrackingPanel()
+ renderLiveTrackingPanel();
+ renderRouteFinalizationPanel()
 }
 async function connectLiveTracking(){
  if(!firebaseConfigReady()){
@@ -1117,9 +1405,30 @@ async function connectLiveTracking(){
        renderLiveTrackingPanel();
        renderLiveTruckMarkers()
      },err=>console.error("Tracking",pub.driver,err));
-     firebaseTrackingUnsubs.push(unsub)
+     firebaseTrackingUnsubs.push(unsub);
+
+     migrateDriverProofMetadata(rt,pub).catch(console.error);
+
+     const metaRef=rt.dbMod.ref(rt.db,`driverApps/${pub.appId}/deliveryProofMeta`);
+     const unsubMeta=rt.dbMod.onValue(metaRef,snap=>{
+       const state=proofStateForApp(pub.appId);
+       state.meta=snap.exists()?(snap.val()||{}):{};
+       state.driver=pub.driver;
+       renderRouteFinalizationPanel()
+     },err=>console.error("Canhotos meta",pub.driver,err));
+     firebaseTrackingUnsubs.push(unsubMeta);
+
+     const retakeRef=rt.dbMod.ref(rt.db,`driverApps/${pub.appId}/retakeRequests`);
+     const unsubRetake=rt.dbMod.onValue(retakeRef,snap=>{
+       const state=proofStateForApp(pub.appId);
+       state.retake=snap.exists()?(snap.val()||{}):{};
+       state.driver=pub.driver;
+       renderRouteFinalizationPanel()
+     },err=>console.error("Solicitação novo canhoto",pub.driver,err));
+     firebaseTrackingUnsubs.push(unsubRetake)
    });
 
+   renderRouteFinalizationPanel();
    updateFirebaseUi(`Rastreamento conectado para ${publications.length} App(s) de motorista.`,true);
    toast("Rastreamento em tempo real conectado.")
  }catch(e){
@@ -2914,7 +3223,7 @@ function driverAppUrlForRoutes(driver,routesList){
  // Compatibilidade sem Firebase.
  const publicBase=normalizedPublicBaseUrl();
  const url=publicBase?new URL("motorista.html",publicBase):new URL("motorista.html",window.location.href);
- url.searchParams.set("v","534");
+ url.searchParams.set("v","535");
  url.hash=encodeDriverAppPayload(compactDriverBundle(driver,valid));
  return url.href
 }
@@ -2947,7 +3256,7 @@ async function prepareVerifiedDriverApp(driver,routesList){
  const url=driverAppUrlForRoutes(driver,valid);
  if(!url)throw new Error(`Não foi possível gerar o link do App de ${driver}.`);
  if(firebaseConfigReady()&&url.includes("&cfg=")){
-   throw new Error("Foi detectado um link antigo com configuração Firebase embutida. Atualize o sistema para a V5.34.")
+   throw new Error("Foi detectado um link antigo com configuração Firebase embutida. Atualize o sistema para a V5.35.")
  }
  return url
 }
@@ -4474,6 +4783,11 @@ $("remapColumns").onclick=()=>{
 $("unlinkFile").onclick=unlinkESPD;
 $("sheetSelect").onchange=()=>loadSelectedSheet().catch(e=>alert(e.message||e));
 $("routeModal").addEventListener("click",e=>{if(e.target===$("routeModal"))closeRouteModal()});
+$("centralProofClose").addEventListener("click",closeCentralProof);
+$("centralProofModal").addEventListener("click",e=>{if(e.target===$("centralProofModal"))closeCentralProof()});
+$("centralProofDelete").addEventListener("click",()=>{
+ if(currentCentralProof)deleteCentralProofAndRequest(currentCentralProof.appId,currentCentralProof.proofId)
+});
 $("shipmentModal").addEventListener("click",e=>{if(e.target===$("shipmentModal"))closeShipmentDetail()});
 $("orderModal").addEventListener("click",e=>{if(e.target===$("orderModal"))closeOrderDetail()});
 $("runRouteAnalysis").addEventListener("click",analyzeRoutes);
@@ -4514,11 +4828,11 @@ $("deliveryProofWhatsApp").addEventListener("change",async()=>{
  }
 });
 $("mapDayFilter").addEventListener("change",()=>{refreshDriverFilter();renderWeeklyRouteMap()});
-$("mapDriverFilter").addEventListener("change",()=>{renderWeeklyRouteMap();renderLiveTrackingPanel()});
+$("mapDriverFilter").addEventListener("change",()=>{renderWeeklyRouteMap();renderLiveTrackingPanel();renderRouteFinalizationPanel()});
 $("raDay").addEventListener("change",()=>{renderRouteAnalysis([]);if(routeMap)renderWeeklyRouteMap()});
 
 /* INIT */
-renderRoutes();renderFleet();renderDriverApps();renderClientMap();renderPlanning();initRouteAnalysisDays();refreshDriverFilter();renderLiveTrackingPanel();detectFields();loadMunicipalityIndex();restoreHandle();
+renderRoutes();renderFleet();renderDriverApps();renderClientMap();renderPlanning();initRouteAnalysisDays();refreshDriverFilter();renderLiveTrackingPanel();renderRouteFinalizationPanel();detectFields();loadMunicipalityIndex();restoreHandle();
 setTimeout(()=>autoConnectFirebaseTracking(),450);
 </script>
 </body>

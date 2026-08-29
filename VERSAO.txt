@@ -1,4 +1,5 @@
-Gestão Logística V5.34
-Canhoto no Realtime Database, sem Firebase Storage.
-Timeouts impedem tela travada.
-Inclui PWA completa e canhoto.html.
+Gestão Logística V5.35
+Central mostra rotas finalizadas e todos os canhotos.
+Canhoto pode ser visualizado dentro do Gestão Logística.
+Central pode excluir foto ruim e solicitar nova ao motorista.
+Motorista recebe pedido de nova foto em tempo real.

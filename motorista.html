@@ -10,7 +10,7 @@
 <meta name="apple-mobile-web-app-title" content="Motorista">
 <link rel="manifest" href="./manifest.webmanifest">
 <link rel="apple-touch-icon" href="./icons/icon-192.png">
-<title>App do Motorista - V5.34 Canhoto Realtime + Sem Storage</title>
+<title>App do Motorista - V5.35 Canhotos Sincronizados com a Central</title>
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
 <style>
 :root{--bg:#f2f4f7;--card:#fff;--text:#101828;--muted:#667085;--line:#d0d5dd;--accent:#155eef;--ok:#027a48;--warn:#b54708}
@@ -55,6 +55,9 @@ body.gps-locked{overflow:hidden}
 
 .proof-note{margin-top:8px;padding:8px 10px;border-radius:9px;background:#fffaeb;border:1px solid #fedf89;color:#93370d;font-size:10px;font-weight:800;line-height:1.4}
 .proof-ok{margin-top:8px;padding:8px 10px;border-radius:9px;background:#ecfdf3;border:1px solid #abefc6;color:#027a48;font-size:10px;font-weight:800;line-height:1.4}
+.proof-retake-alert{margin-top:8px;padding:10px;border-radius:10px;background:#fef3f2;border:1px solid #fecdca;color:#b42318;font-size:10px;font-weight:900;line-height:1.45}
+.route-done-banner{margin:8px 0 0;padding:10px;border-radius:10px;background:#ecfdf3;border:1px solid #abefc6;color:#05603a;font-size:11px;font-weight:950;text-align:center}
+
 .proofbtn{background:#7c3aed!important;color:#fff!important}
 .proofview{background:#fff!important;color:#175cd3!important;border:1px solid #b2ddff!important;text-decoration:none}
 .proofmodal{position:fixed;inset:0;background:rgba(16,24,40,.9);z-index:100000;display:none;align-items:center;justify-content:center;padding:14px}
@@ -152,7 +155,7 @@ footer{padding:14px;text-align:center;color:var(--muted);font-size:10px}
   <main id="stops"></main>
   <div id="error" class="empty" style="display:none"></div>
 </div>
-<footer>App de rota gerado pelo sistema de Gestão Logística. • V5.34 — canhoto Realtime • sem Storage</footer>
+<footer>App de rota gerado pelo sistema de Gestão Logística. • V5.35 — canhoto Realtime • sem Storage</footer>
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script>
 const $=id=>document.getElementById(id);
@@ -336,7 +339,7 @@ async function loadPayload(){
  if(!params.has("orders"))expected.orders=NaN;
  if(!params.has("stops"))expected.stops=NaN;
 
- // V5.34: NÃO depende mais do cfg enviado pelo WhatsApp.
+ // V5.35: NÃO depende mais do cfg enviado pelo WhatsApp.
  // O Firebase oficial do Gestão Logística já está dentro deste arquivo.
  let cfg=EMBEDDED_FIREBASE_CONFIG;
 
@@ -350,7 +353,7 @@ async function loadPayload(){
        cfg=legacyCfg
      }
    }catch(e){
-     console.warn("Configuração antiga do link estava cortada; usando Firebase embutido da V5.34.",e)
+     console.warn("Configuração antiga do link estava cortada; usando Firebase embutido da V5.35.",e)
    }
  }
 
@@ -444,7 +447,7 @@ function hashProofKey(value){
  for(let i=0;i<s.length;i++){h^=s.charCodeAt(i);h=Math.imul(h,16777619)>>>0}
  return h.toString(36)
 }
-function proofKeyForFlat(flat){
+function legacyProofKeyForFlat(flat){
  if(!flat)return"";
  const route=app.routes?.[flat._routeIndex]||{};
  const stop=route.stops?.[flat._stopIndex]||flat;
@@ -452,14 +455,91 @@ function proofKeyForFlat(flat){
  const raw=[route.dayKey||flat._dayKey||"",stop.address||"",stop.name||"",orders].join("|");
  return `proof_${hashProofKey(raw)}`
 }
-function proofRecordForFlat(flat){return proofRecords[proofKeyForFlat(flat)]||null}
-function isStopDelivered(flat){return !!proofRecordForFlat(flat)?.deliveredAt}
+function proofKeyForFlat(flat){
+ if(!flat)return"";
+ const route=app.routes?.[flat._routeIndex]||{};
+ const stop=route.stops?.[flat._stopIndex]||flat;
+ const orders=(stop.orders||[]).map(o=>String(o.id||"")).filter(Boolean).sort().join(",");
+ const raw=[route.dayKey||flat._dayKey||"",route.generatedAt||"",stop.address||"",stop.name||"",orders].join("|");
+ return `proof_${hashProofKey(raw)}`
+}
+function proofKeysForFlat(flat){return [proofKeyForFlat(flat),legacyProofKeyForFlat(flat)]}
+function proofRecordForFlat(flat){
+ for(const key of proofKeysForFlat(flat)){if(proofRecords[key])return proofRecords[key]}
+ return null
+}
+function retakeRequestForFlat(flat){
+ for(const key of proofKeysForFlat(flat)){if(retakeRequests[key])return retakeRequests[key]}
+ return null
+}
+function isStopDelivered(flat){return !!proofRecordForFlat(flat)?.deliveredAt&&!retakeRequestForFlat(flat)}
+function proofMetaFromFull(record){
+ if(!record||typeof record!=="object")return record;
+ const copy={...record};
+ if(copy.image){
+   copy.imageInfo={
+     contentType:copy.image.contentType||"image/jpeg",
+     bytes:Number(copy.image.bytes||0),
+     width:Number(copy.image.width||0),
+     height:Number(copy.image.height||0),
+     quality:Number(copy.image.quality||0)
+   };
+   delete copy.image
+ }
+ return copy
+}
 async function hydrateDeliveryProofs(){
  if(!tracking?.dbMod||!tracking?.db||!tracking?.appId)return;
  try{
-   const snap=await tracking.dbMod.get(tracking.dbMod.ref(tracking.db,`driverApps/${tracking.appId}/deliveryProofs`));
-   proofRecords=snap.exists()?(snap.val()||{}):{};
+   const metaRef=tracking.dbMod.ref(tracking.db,`driverApps/${tracking.appId}/deliveryProofMeta`);
+   const metaSnap=await tracking.dbMod.get(metaRef);
+   proofRecords=metaSnap.exists()?(metaSnap.val()||{}):{};
+
+   // Migra canhotos da V5.34 na primeira abertura.
+   const fullSnap=await tracking.dbMod.get(tracking.dbMod.ref(tracking.db,`driverApps/${tracking.appId}/deliveryProofs`));
+   if(fullSnap.exists()){
+     const missing={};
+     Object.entries(fullSnap.val()||{}).forEach(([id,record])=>{
+       if(!proofRecords[id]){
+         const meta=proofMetaFromFull(record);
+         proofRecords[id]=meta;
+         missing[id]=meta
+       }
+     });
+     if(Object.keys(missing).length)await tracking.dbMod.update(metaRef,missing)
+   }
+
+   const retakeSnap=await tracking.dbMod.get(tracking.dbMod.ref(tracking.db,`driverApps/${tracking.appId}/retakeRequests`));
+   retakeRequests=retakeSnap.exists()?(retakeSnap.val()||{}):{}
  }catch(e){console.warn("Não foi possível carregar canhotos anteriores:",e)}
+}
+let onlineProofUnsub=null,onlineRetakeUnsub=null;
+function startOnlineProofSync(){
+ if(!tracking?.dbMod||!tracking?.db||!tracking?.appId)return;
+ if(onlineProofUnsub){try{onlineProofUnsub()}catch{} onlineProofUnsub=null}
+ if(onlineRetakeUnsub){try{onlineRetakeUnsub()}catch{} onlineRetakeUnsub=null}
+
+ onlineProofUnsub=tracking.dbMod.onValue(
+   tracking.dbMod.ref(tracking.db,`driverApps/${tracking.appId}/deliveryProofMeta`),
+   snap=>{
+     proofRecords=snap.exists()?(snap.val()||{}):{};
+     renderStops();updateProgress();rebuildMap({fit:false})
+   },
+   e=>console.error("Sincronização de canhotos:",e)
+ );
+
+ onlineRetakeUnsub=tracking.dbMod.onValue(
+   tracking.dbMod.ref(tracking.db,`driverApps/${tracking.appId}/retakeRequests`),
+   snap=>{
+     const before=JSON.stringify(retakeRequests||{});
+     retakeRequests=snap.exists()?(snap.val()||{}):{};
+     renderStops();updateProgress();rebuildMap({fit:false});
+     if(before!==JSON.stringify(retakeRequests)&&Object.keys(retakeRequests).length){
+       $("gpsStatus").textContent="⚠ A central solicitou que um ou mais canhotos sejam fotografados novamente."
+     }
+   },
+   e=>console.error("Solicitação de novo canhoto:",e)
+ )
 }
 function stopFlatByGlobal(n){return flatStops(app).find(s=>s._global===Number(n))||null}
 function stopProofSummary(flat){
@@ -467,7 +547,7 @@ function stopProofSummary(flat){
  const stop=route.stops?.[flat._stopIndex]||flat;
  const orders=(stop.orders||[]).map(o=>String(o.id||"")).filter(Boolean);
  const shipments=[...new Set((stop.orders||[]).map(o=>String(o.shipment||"")).filter(Boolean))];
- return{route,stop,orders,shipments,name:stop.name||stop.city||`Parada ${flat._global}`,day:route.day||flat._day||"",dayKey:route.dayKey||flat._dayKey||""}
+ return{route,stop,orders,shipments,name:stop.name||stop.city||`Parada ${flat._global}`,day:route.day||flat._day||"",dayKey:route.dayKey||flat._dayKey||"",routeGeneratedAt:route.generatedAt||"",routeId:route.id||""}
 }
 async function canvasToJpegBlob(canvas,quality){
  return await new Promise((resolve,reject)=>
@@ -597,6 +677,8 @@ async function confirmDeliveryProof(){
    const record={
      proofId,appId:tracking.appId,driver:app.driver||"",
      day:summary.day,dayKey:summary.dayKey,
+     routeGeneratedAt:summary.routeGeneratedAt||"",
+     routeId:summary.routeId||"",
      client:summary.name,address:summary.stop.address||"",city:summary.stop.city||"",
      orders:summary.orders,shipments:summary.shipments,
      deliveredAt:new Date().toISOString(),
@@ -623,7 +705,18 @@ async function confirmDeliveryProof(){
      throw new Error("O Firebase não confirmou a foto. A entrega não foi concluída.")
    }
 
-   proofRecords[proofId]=verify.val();
+   const fullRecord=verify.val();
+   const metaRecord=proofMetaFromFull(fullRecord);
+   const metaRef=tracking.dbMod.ref(tracking.db,`driverApps/${tracking.appId}/deliveryProofMeta/${proofId}`);
+   await withTimeout(tracking.dbMod.set(metaRef,metaRecord),10000,"A atualização do status do canhoto");
+
+   // Se a central havia solicitado nova foto, limpa tanto a chave nova quanto a chave antiga.
+   await Promise.all(proofKeysForFlat(flat).map(key=>
+     tracking.dbMod.remove(tracking.dbMod.ref(tracking.db,`driverApps/${tracking.appId}/retakeRequests/${key}`)).catch(()=>{})
+   ));
+
+   proofRecords[proofId]=metaRecord;
+   proofKeysForFlat(flat).forEach(key=>delete retakeRequests[key]);
    done[flat._global]=true;
    saveDone(app,done);
 
@@ -641,13 +734,13 @@ async function confirmDeliveryProof(){
    if(waWindow&&!waWindow.closed)waWindow.location.href=waUrl;
    else window.location.href=waUrl
  }catch(e){
-   console.error("Canhoto V5.34:",e);
+   console.error("Canhoto V5.35:",e);
    if(waWindow&&!waWindow.closed)try{waWindow.close()}catch{}
    const msg=String(e?.message||e);
 
    let hint="";
    if(/permission|denied/i.test(msg)){
-     hint="\n\nO Realtime Database bloqueou o canhoto. Publique o firebase-rules.json da V5.34."
+     hint="\n\nO Realtime Database bloqueou o canhoto. Publique o firebase-rules.json da V5.35."
    }else if(/demorou|network|internet/i.test(msg)){
      hint="\n\nConfira a internet do celular e toque novamente em “Enviar canhoto e concluir”."
    }
@@ -737,9 +830,11 @@ function renderStops(){
  host.innerHTML=(app.routes||[]).map((r,ri)=>{
    const routeStops=r.stops||[],orders=new Set();
    routeStops.forEach(s=>(s.orders||[]).forEach(o=>o.id&&orders.add(String(o.id))));
-   const dayHead=`<div class="dayhead"><div><h2>${esc(r.day||"Rota")}</h2><small>Emb. ${(r.shipments||[]).map(esc).join(", ")||"—"} • ${orders.size} pedido(s)</small></div><span class="daytag">${routeStops.length} parada(s)</span></div>`;
+   const routeFlat=flatStops(app).filter(x=>x._routeIndex===ri);
+   const routeCompleted=routeFlat.length>0&&routeFlat.every(x=>isStopDelivered(x));
+   const dayHead=`<div class="dayhead"><div><h2>${esc(r.day||"Rota")}</h2><small>Emb. ${(r.shipments||[]).map(esc).join(", ")||"—"} • ${orders.size} pedido(s)</small></div><span class="daytag">${routeStops.length} parada(s)</span></div>${routeCompleted?`<div class="route-done-banner">✅ ROTA FINALIZADA — todos os canhotos foram confirmados</div>`:""}`;
    const cards=routeStops.map((s,si)=>{
-     const f=flatStops(app).find(x=>x._routeIndex===ri&&x._stopIndex===si),global=f?f._global:si+1,isDone=f?isStopDelivered(f):false,proof=f?proofRecordForFlat(f):null;
+     const f=flatStops(app).find(x=>x._routeIndex===ri&&x._stopIndex===si),global=f?f._global:si+1,isDone=f?isStopDelivered(f):false,proof=f?proofRecordForFlat(f):null,retake=f?retakeRequestForFlat(f):null;
      const dist=s.distanceFromCurrent??s.distanceFromDepot;
      return`<section class="stop ${isDone?"done":""}">
       <div class="stophead"><span class="num">${isDone?"✓":global}</span><div>
@@ -748,9 +843,9 @@ function renderStops(){
        <div class="distance">${s.distanceFromCurrent!=null?`${km(dist)} da localização atual`:`${km(dist)} da Cooperrita`}</div>
       </div></div>
       <div class="orders">${(s.orders||[]).map(o=>`<div class="order"><b>Pedido ${esc(o.id)}</b>${o.clientName?` — ${esc(o.clientName)}`:""}${o.shipment?`<br><small>Embarque ${esc(o.shipment)}</small>`:""}</div>`).join("")}</div>
-      ${isDone?`<div class="proof-ok">✓ Entrega concluída com canhoto em ${proof?.deliveredAt?new Date(proof.deliveredAt).toLocaleString("pt-BR"):"—"}.</div>`:`<div class="proof-note">📷 Para concluir esta entrega é obrigatório fotografar o canhoto.</div>`}
+      ${retake?`<div class="proof-retake-alert">⚠ CENTRAL SOLICITOU NOVO CANHOTO${retake.reason?`<br>${esc(retake.reason)}`:""}. Tire outra foto para concluir novamente esta entrega.</div>`:isDone?`<div class="proof-ok">✓ Entrega concluída com canhoto em ${proof?.deliveredAt?new Date(proof.deliveredAt).toLocaleString("pt-BR"):"—"}.</div>`:`<div class="proof-note">📷 Para concluir esta entrega é obrigatório fotografar o canhoto.</div>`}
       <div class="actions"><a class="btn nav" href="${navUrl(s)}" target="_blank" rel="noopener">🧭 Navegar até esta entrega</a>
-      ${isDone&&proof?.viewerUrl?`<a class="btn proofview" href="${esc(proof.viewerUrl)}" target="_blank" rel="noopener">📄 Ver canhoto</a>`:`<button class="donebtn proofbtn" type="button" data-stop="${global}">📷 Tirar foto do canhoto</button>`}</div>
+      ${isDone&&proof?.viewerUrl&&!retake?`<a class="btn proofview" href="${esc(proof.viewerUrl)}" target="_blank" rel="noopener">📄 Ver canhoto</a>`:`<button class="donebtn proofbtn" type="button" data-stop="${global}">${retake?"📷 Tirar NOVA foto do canhoto":"📷 Tirar foto do canhoto"}</button>`}</div>
      </section>`
    }).join("");
    return`<section class="dayblock">${dayHead}${cards}</section>`
@@ -1024,7 +1119,7 @@ async function startGps(){
    try{await optimizeFromCurrentLocation(false)}catch(e){$("gpsStatus").textContent=e.message||String(e)}
  },gpsError,{enableHighAccuracy:true,maximumAge:0,timeout:15000})
 }
-let app=null,done={},proofRecords={},map=null,mapStopLayer=null,mapBaseLayer=null,currentLocation=null,currentMarker=null,currentPolyline=null,tracking=null,watchId=null,lastPublish=0,routeCalcBusy=false,lastRouteRefreshAt=0,lastRoutedLocation=null,routeRefreshTimer=null,liveRouteFitted=false,pendingProofGlobal=null,pendingProofFile=null,proofPreviewUrl="",proofUploadBusy=false;
+let app=null,done={},proofRecords={},retakeRequests={},map=null,mapStopLayer=null,mapBaseLayer=null,currentLocation=null,currentMarker=null,currentPolyline=null,tracking=null,watchId=null,lastPublish=0,routeCalcBusy=false,lastRouteRefreshAt=0,lastRoutedLocation=null,routeRefreshTimer=null,liveRouteFitted=false,pendingProofGlobal=null,pendingProofFile=null,proofPreviewUrl="",proofUploadBusy=false;
 async function boot(){
  try{
    const loaded=await loadPayload();
@@ -1036,6 +1131,7 @@ async function boot(){
    syncHeaderFromApp();
    renderStops();updateProgress();rebuildMap({fit:true});
    startOnlineBundleSync();
+   startOnlineProofSync();
    showInstallState();
    enforceGpsRequirement();
 
@@ -1046,7 +1142,7 @@ async function boot(){
    }
  }catch(e){
    $("gpsGate").classList.remove("show");document.body.classList.remove("gps-locked");$("map").style.display="none";$("stops").style.display="none";$("error").style.display="block";
-   $("error").textContent=(e.message||String(e))+"\n\nSe este link veio do WhatsApp, peça à central para abrir a V5.34, gerar/atualizar a rota do motorista e enviar o link novamente.";$("subtitle").textContent="Não foi possível abrir as entregas.";
+   $("error").textContent=(e.message||String(e))+"\n\nSe este link veio do WhatsApp, peça à central para abrir a V5.35, gerar/atualizar a rota do motorista e enviar o link novamente.";$("subtitle").textContent="Não foi possível abrir as entregas.";
    $("gpsStatus").textContent=e.message||String(e)
  }
 }
