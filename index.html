@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Gestão Logística - V5.38 ESPD Mestre + Reentregas</title>
+<title>Gestão Logística - V5.39 Coordenadas de Teste + Roteirização Robusta</title>
 <style>
 :root{
   --bg:#f3f6fb;--card:#fff;--line:#e2e8f0;--text:#152033;--muted:#667085;
@@ -453,7 +453,7 @@ main{max-width:1580px;margin:auto;padding:20px}.view{display:none}.view.active{d
 </head>
 <body>
 <header class="top"><div class="topin">
- <div class="brand"><div class="logo">R</div><div><h1>Gestão Logística - Rotas e Embarques V5.38</h1><small>Rotas • ESPD • Frota • Embarques automáticos</small></div></div>
+ <div class="brand"><div class="logo">R</div><div><h1>Gestão Logística - Rotas e Embarques V5.39</h1><small>Rotas • ESPD • Frota • Embarques automáticos</small></div></div>
  <nav class="nav">
   <button class="active" data-view="planning">Dashboard</button>
   <button data-view="routeanalysis">Central de Rotas</button>
@@ -592,7 +592,7 @@ main{max-width:1580px;margin:auto;padding:20px}.view{display:none}.view.active{d
    </div>
    <div class="realtime-config">
     <div class="realtime-config-head">
-     <div><h4>Rastreamento em tempo real</h4><small>Firebase do Gestão Logística já integrado. Na V5.38 o App do Motorista também possui essa configuração embutida, evitando links cortados pelo WhatsApp.</small></div>
+     <div><h4>Rastreamento em tempo real</h4><small>Firebase do Gestão Logística já integrado. Na V5.39 o App do Motorista também possui essa configuração embutida, evitando links cortados pelo WhatsApp.</small></div>
      <span class="badge review" id="firebaseConnectionBadge">NÃO CONFIGURADO</span>
     </div>
     <textarea id="firebaseConfigText" placeholder="Configuração Firebase integrada automaticamente."></textarea>
@@ -1134,11 +1134,11 @@ async function publishDriverAppBundle(driver,routesList){
  bundle.publicationRevision=revision;
  bundle.routeSignature=signature;
  bundle.publishedAt=new Date().toISOString();
- bundle.appBuild="V5.38";
+ bundle.appBuild="V5.39";
 
  const safeBundle=cleanFirebaseObject(bundle);
 
- // V5.38: as viagens ficam em /bundle e os canhotos em /deliveryProofs.
+ // V5.39: as viagens ficam em /bundle e os canhotos em /deliveryProofs.
  // Isso evita carregar fotos grandes toda vez que o motorista abre o App.
  const rootRef=rt.dbMod.ref(rt.db,`driverApps/${publication.appId}`);
  const oldSnap=await rt.dbMod.get(rootRef);
@@ -1200,9 +1200,9 @@ function publishedDriverAppUrl(driver){
  if(!publicBase&&!/^https?:$/.test(location.protocol))return"";
  const url=publicBase?new URL("motorista.html",publicBase):new URL("motorista.html",window.location.href);
 
- // V5.38: Firebase já está embutido no motorista.html.
+ // V5.39: Firebase já está embutido no motorista.html.
  // O WhatsApp recebe somente um link curto; não há mais JSON/configuração no hash.
- url.searchParams.set("v","538");
+ url.searchParams.set("v","539");
  url.hash=`app=${encodeURIComponent(pub.appId)}&rev=${encodeURIComponent(pub.revision||"")}&orders=${encodeURIComponent(pub.orderCount||0)}&stops=${encodeURIComponent(pub.totalStops||0)}&driver=${encodeURIComponent(pub.driver||driver)}`;
  return url.href
 }
@@ -2301,7 +2301,9 @@ const FIELD_DEFS={
  postal:{label:"CEP entrega",aliases:["CEP ENTREGA","CEP","CODIGO POSTAL"]},
  fullAddress:{label:"Endereço completo",aliases:["ENDERECO COMPLETO","ENDERECO COMPLETO ENTREGA","LOCALIZACAO ENTREGA"]},
  stopId:{label:"ID parada",aliases:["ID PARADA TESTE","ID PARADA","CODIGO PARADA"]},
- mapSource:{label:"Fonte mapa",aliases:["FONTE MAPA","MAPA","LINK MAPA","URL MAPA"]}
+ mapSource:{label:"Fonte mapa",aliases:["FONTE MAPA","MAPA","LINK MAPA","URL MAPA"]},
+ latitude:{label:"Latitude entrega",aliases:["LATITUDE TESTE","LATITUDE ENTREGA","LATITUDE","LAT","GPS LATITUDE","COORDENADA LATITUDE"]},
+ longitude:{label:"Longitude entrega",aliases:["LONGITUDE TESTE","LONGITUDE ENTREGA","LONGITUDE","LON","LONG","GPS LONGITUDE","COORDENADA LONGITUDE"]}
 };
 function headerNorm(v){return norm(String(v??""))}
 function tokenSet(s){return new Set(headerNorm(s).split(" ").filter(Boolean))}
@@ -2484,12 +2486,20 @@ async function loadSelectedSheet(){
    detectFields();aggregateOrders();detectLastShipment(false);
    const espdRefresh=refreshOperationalDataFromESPD();
    updateFileInfo();renderData();syncPlanning(true);renderRedeliveryPanels();
-   setState(`ESPD sincronizado: ${aggregatedOrders.length} pedido(s) • ${espdRefresh.updated} atualizado(s) • ${espdRefresh.removed} removido(s) de embarques abertos • ${espdRefresh.renumbered} embarque(s) reconciliado(s).`,"ok")
+   const geoTest=testCoordinateSummary();
+   setState(`ESPD sincronizado: ${aggregatedOrders.length} pedido(s) • ${espdRefresh.updated} atualizado(s) • ${espdRefresh.removed} removido(s) • ${geoTest.stops?`${geoTest.stops} parada(s) com coordenada direta de teste • `:""}${espdRefresh.renumbered} embarque(s) reconciliado(s).`,"ok")
  }catch(e){
    console.error(e);setState("Falha ao ler a planilha: "+(e.message||e),"bad");throw e
  }
 }
 function setState(t,cls=""){$("stState").textContent=t;$("stState").className="value "+cls}
+
+function testCoordinateSummary(){
+ const rows=aggregatedOrders||[];
+ const withCoords=rows.filter(o=>validDeliveryCoordinates(o.latitude,o.longitude)).length;
+ const stops=new Set(rows.filter(o=>validDeliveryCoordinates(o.latitude,o.longitude)).map(o=>o.stopId||`${o.latitude},${o.longitude}`));
+ return{orders:withCoords,stops:stops.size,total:rows.length}
+}
 function updateFileInfo(){$("stFile").textContent=(currentFile?.name||"—")+(currentFileKind?` (${currentFileKind})`:"");$("stSheet").textContent=(currentFileKind==="CSV"?"ESPD CSV":(workbookCache?.meta.sheets[currentSheetIndex]?.name||"—"))+` • cabeçalho linha ${(currentTable.headerRowIndex??0)+1}`;$("stRows").textContent=currentTable.rows.length;$("stRead").textContent=new Date().toLocaleString("pt-BR");$("stModified").textContent=currentFile?new Date(currentFile.lastModified).toLocaleString("pt-BR"):"—";$("dFile").textContent=currentFile?.name||"—";$("dRows").textContent=currentTable.rows.length;$("dCols").textContent=currentTable.columns.length;$("dOrders").textContent=aggregatedOrders.length}
 
 /* FIELD DETECTION / ORDERS */
@@ -2506,7 +2516,7 @@ function detectFields(){
   const m=mapFieldToColumn(key,used);detected[key]=m.column;mappingDetails[key]=m;
   if(m.column&&m.score>=60)used.add(m.column)
  });
- const order=["order","client","name","city","deliveryPoint","fullAddress","address","neighborhood","postal","desc","item","credit","status","qtyOrdered","qtyServed","weight","unitWeight","shipment","openValue","issueDate","repOrder","repres"];
+ const order=["order","client","name","city","deliveryPoint","fullAddress","address","neighborhood","postal","latitude","longitude","desc","item","credit","status","qtyOrdered","qtyServed","weight","unitWeight","shipment","openValue","issueDate","repOrder","repres"];
  const conf=s=>s>=85?["ALTA","high"]:s>=65?["MÉDIA","medium"]:s>=45?["BAIXA","low"]:["AUSENTE","none"];
  const required=Object.keys(FIELD_DEFS).filter(k=>FIELD_DEFS[k].required);
  const importantFound=order.filter(k=>detected[k]).length,requiredFound=required.filter(k=>detected[k]).length;
@@ -2634,6 +2644,17 @@ function calculatedWeightLabel(order){
  return"PESO NÃO DISPONÍVEL"
 }
 
+
+function parseGeoCoordinate(value,min,max){
+ const raw=String(value??"").trim().replace(",",".");
+ if(!raw)return null;
+ const n=Number(raw);
+ return Number.isFinite(n)&&n>=min&&n<=max?n:null
+}
+function validDeliveryCoordinates(lat,lon){
+ return Number.isFinite(Number(lat))&&Number.isFinite(Number(lon))&&
+        Number(lat)>=-90&&Number(lat)<=90&&Number(lon)>=-180&&Number(lon)<=180
+}
 function aggregateOrders(){
  const map=new Map();
  if(!detected.order){aggregatedOrders=[];return}
@@ -2656,6 +2677,8 @@ function aggregateOrders(){
   const directFullAddress=detected.fullAddress?String(r[detected.fullAddress]??"").trim():"";
   const stopId=detected.stopId?String(r[detected.stopId]??"").trim():"";
   const mapSource=detected.mapSource?String(r[detected.mapSource]??"").trim():"";
+  const latitude=detected.latitude?parseGeoCoordinate(r[detected.latitude],-90,90):null;
+  const longitude=detected.longitude?parseGeoCoordinate(r[detected.longitude],-180,180):null;
   const fullAddress=directFullAddress||[address,neighborhood,city?city+" - MG":"",postal,"Brasil"].filter(Boolean).join(" - ");
   const desc=detected.desc?String(r[detected.desc]??"").trim():"";
   const credit=detected.credit?String(r[detected.credit]??"").trim():"";
@@ -2673,11 +2696,13 @@ function aggregateOrders(){
     id,clientCode:code,clientName:name,city,items:[],weight:0,
     weightKnown:false,weightRows:0,weightMissingRows:0,itemRowCount:0,
     weightSource:wi.source,credit,status,repOrder,issueDate,implantTime,
-    deliveryPoint,address,neighborhood,postal,fullAddress,stopId,mapSource,
+    deliveryPoint,address,neighborhood,postal,fullAddress,stopId,mapSource,latitude,longitude,
     qtyOrdered:0,qtyServed:0,openValue:0,sourceShipment:0,sourceShipmentRaw:""
   });
 
   const o=map.get(id);
+  if(o.latitude==null&&latitude!=null)o.latitude=latitude;
+  if(o.longitude==null&&longitude!=null)o.longitude=longitude;
   o.itemRowCount++;
 
   if(desc)o.items.push(desc);
@@ -2730,7 +2755,7 @@ function aggregateOrders(){
 
 
 function latestOrderSnapshotFromESPD(src,existing={}){
- return{...existing,id:src.id,clientCode:src.clientCode,clientName:src.clientName,city:src.city,weight:src.weight,weightKnown:src.weightKnown,weightRows:src.weightRows,weightMissingRows:src.weightMissingRows,weightStatus:src.weightStatus,weightSource:src.weightSource,category:src.category,credit:src.credit,status:src.status,issueDate:src.issueDate,openValue:src.openValue,deliveryPoint:src.deliveryPoint,address:src.address,neighborhood:src.neighborhood,postal:src.postal,fullAddress:src.fullAddress,stopId:src.stopId,mapSource:src.mapSource,sourceShipment:src.sourceShipment||0,sourceShipmentRaw:src.sourceShipmentRaw||"",itemDetails:captureOrderItems(src.id),espdUpdatedAt:new Date().toISOString()}
+ return{...existing,id:src.id,clientCode:src.clientCode,clientName:src.clientName,city:src.city,weight:src.weight,weightKnown:src.weightKnown,weightRows:src.weightRows,weightMissingRows:src.weightMissingRows,weightStatus:src.weightStatus,weightSource:src.weightSource,category:src.category,credit:src.credit,status:src.status,issueDate:src.issueDate,openValue:src.openValue,deliveryPoint:src.deliveryPoint,address:src.address,neighborhood:src.neighborhood,postal:src.postal,fullAddress:src.fullAddress,stopId:src.stopId,mapSource:src.mapSource,latitude:src.latitude??null,longitude:src.longitude??null,sourceShipment:src.sourceShipment||0,sourceShipmentRaw:src.sourceShipmentRaw||"",itemDetails:captureOrderItems(src.id),espdUpdatedAt:new Date().toISOString()}
 }
 function shipmentNumberUsedElsewhere(number,exceptShipment){
  if(!number)return false;for(const plan of Object.values(plans))for(const sh of (plan.shipments||[])){if(sh!==exceptShipment&&Number(sh.shipment)===Number(number))return true}return false
@@ -2809,7 +2834,9 @@ function hydrateDelivery(order){
   postal:order?.postal||src.postal||"",
   fullAddress:order?.fullAddress||src.fullAddress||"",
   stopId:order?.stopId||src.stopId||"",
-  mapSource:order?.mapSource||src.mapSource||""
+  mapSource:order?.mapSource||src.mapSource||"",
+  latitude:order?.latitude??src.latitude??null,
+  longitude:order?.longitude??src.longitude??null
  }
 }
 function deliveryAddressLabel(order){
@@ -2820,31 +2847,75 @@ function buildShipmentStops(shipment){
  const groups=new Map(),missing=[];
  (shipment?.orders||[]).forEach(raw=>{
    const o=hydrateDelivery(raw),full=deliveryAddressLabel(o).trim();
-   if(!full){missing.push(o);return}
-   const key=norm(full);
+   const hasCoords=validDeliveryCoordinates(o.latitude,o.longitude);
+   if(!full&&!hasCoords){missing.push(o);return}
+   const key=o.stopId?`STOP:${norm(o.stopId)}`:full?`ADDR:${norm(full)}`:`COORD:${Number(o.latitude).toFixed(6)},${Number(o.longitude).toFixed(6)}`;
    if(!groups.has(key))groups.set(key,{
-     key,address:full,city:o.city||"",deliveryPoint:o.deliveryPoint||o.clientName||"Entrega",
-     orders:[],stopId:o.stopId||"",lat:null,lon:null
+     key,address:full||`${o.deliveryPoint||o.clientName||"Entrega"} — ${o.city||""}`,
+     city:o.city||"",deliveryPoint:o.deliveryPoint||o.clientName||"Entrega",
+     orders:[],stopId:o.stopId||"",
+     lat:hasCoords?Number(o.latitude):null,
+     lon:hasCoords?Number(o.longitude):null,
+     coordinateSource:hasCoords?"ESPD":""
    });
-   groups.get(key).orders.push(o)
+   const g=groups.get(key);
+   if(!validDeliveryCoordinates(g.lat,g.lon)&&hasCoords){
+     g.lat=Number(o.latitude);g.lon=Number(o.longitude);g.coordinateSource="ESPD"
+   }
+   g.orders.push(o)
  });
  return{stops:[...groups.values()],missing}
 }
-async function geocodeDeliveryStop(stop){
- const key=norm(stop.address);
- const cached=deliveryGeoCache[key];
- if(cached&&Number.isFinite(cached.lat)&&Number.isFinite(cached.lon))return cached;
- const q=encodeURIComponent(stop.address);
- const url=`https://nominatim.openstreetmap.org/search?format=jsonv2&limit=1&countrycodes=br&q=${q}`;
+async function nominatimDeliveryQuery(query){
+ const q=String(query||"").trim();
+ if(!q)return null;
+ const url=`https://nominatim.openstreetmap.org/search?format=jsonv2&limit=1&countrycodes=br&q=${encodeURIComponent(q)}`;
  const r=await fetch(url,{headers:{"Accept-Language":"pt-BR,pt;q=0.9"}});
  if(!r.ok)throw new Error(`Falha ao localizar endereço (${r.status})`);
  const arr=await r.json();
- if(!arr?.length)throw new Error(`Endereço não localizado: ${stop.address}`);
- const found={lat:Number(arr[0].lat),lon:Number(arr[0].lon),display:arr[0].display_name||stop.address};
- if(!Number.isFinite(found.lat)||!Number.isFinite(found.lon))throw new Error(`Coordenadas inválidas: ${stop.address}`);
- deliveryGeoCache[key]=found;persistDeliveryGeo();
- await sleep(1050);
- return found
+ if(!arr?.length)return null;
+ const found={lat:Number(arr[0].lat),lon:Number(arr[0].lon),display:arr[0].display_name||q};
+ return validDeliveryCoordinates(found.lat,found.lon)?found:null
+}
+function deliveryCoordinateCacheKey(stop){
+ if(validDeliveryCoordinates(stop?.lat,stop?.lon))return `COORD:${Number(stop.lat).toFixed(6)},${Number(stop.lon).toFixed(6)}`;
+ return `ADDR:${norm(stop?.address||"")}`
+}
+async function geocodeDeliveryStop(stop){
+ // Arquivo de teste V5.39: coordenadas explícitas têm prioridade total.
+ if(validDeliveryCoordinates(stop?.lat,stop?.lon)){
+   return{
+     lat:Number(stop.lat),lon:Number(stop.lon),
+     display:stop.address||stop.deliveryPoint||stop.city||"Coordenada ESPD",
+     source:stop.coordinateSource||"ESPD_COORDINATES"
+   }
+ }
+
+ const key=deliveryCoordinateCacheKey(stop);
+ const cached=deliveryGeoCache[key];
+ if(cached&&validDeliveryCoordinates(cached.lat,cached.lon))return cached;
+
+ const attempts=[
+   stop.address,
+   [stop.deliveryPoint,stop.city,"Minas Gerais","Brasil"].filter(Boolean).join(", "),
+   [stop.city,"Minas Gerais","Brasil"].filter(Boolean).join(", ")
+ ].filter((v,i,a)=>v&&a.indexOf(v)===i);
+
+ let lastError=null;
+ for(let i=0;i<attempts.length;i++){
+   try{
+     const found=await nominatimDeliveryQuery(attempts[i]);
+     if(found){
+       const result={...found,source:i===0?"ENDERECO_EXATO":i===1?"PONTO_CIDADE":"CENTRO_CIDADE"};
+       deliveryGeoCache[key]=result;persistDeliveryGeo();
+       await sleep(1050);
+       return result
+     }
+     lastError=new Error(`Não localizado: ${attempts[i]}`)
+   }catch(e){lastError=e}
+   if(i<attempts.length-1)await sleep(1050)
+ }
+ throw new Error(`Endereço não localizado após tentativas: ${stop.address||stop.city}${lastError?.message?` • ${lastError.message}`:""}`)
 }
 async function osrmDeliveryMatrix(points){
  const coords=points.map(p=>`${p.lon},${p.lat}`).join(";");
@@ -3597,7 +3668,7 @@ function driverAppUrlForRoutes(driver,routesList){
  // Compatibilidade sem Firebase.
  const publicBase=normalizedPublicBaseUrl();
  const url=publicBase?new URL("motorista.html",publicBase):new URL("motorista.html",window.location.href);
- url.searchParams.set("v","538");
+ url.searchParams.set("v","539");
  url.hash=encodeDriverAppPayload(compactDriverBundle(driver,valid));
  return url.href
 }
@@ -3630,7 +3701,7 @@ async function prepareVerifiedDriverApp(driver,routesList){
  const url=driverAppUrlForRoutes(driver,valid);
  if(!url)throw new Error(`Não foi possível gerar o link do App de ${driver}.`);
  if(firebaseConfigReady()&&url.includes("&cfg=")){
-   throw new Error("Foi detectado um link antigo com configuração Firebase embutida. Atualize o sistema para a V5.38.")
+   throw new Error("Foi detectado um link antigo com configuração Firebase embutida. Atualize o sistema para a V5.39.")
  }
  return url
 }

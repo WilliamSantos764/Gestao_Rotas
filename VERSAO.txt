@@ -1,4 +1,5 @@
-Gestão Logística V5.38
-ESPD fonte mestre.
-Reentregas aprovadas/programadas na central.
-Aba Cliente -> Cidade removida da navegação.
+Gestão Logística V5.39
+Latitude/Longitude opcionais no ESPD.
+Arquivo de teste usa coordenadas fixas por parada.
+Fallback endereço -> ponto/cidade -> centro da cidade.
+Agrupamento de parada prioriza ID Parada.

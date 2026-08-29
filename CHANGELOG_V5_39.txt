@@ -1,0 +1,9 @@
+V5.39 - Coordenadas de Teste + Roteirização Robusta
+
+- Reconhece Latitude Teste / Longitude Teste.
+- Coordenadas do ESPD têm prioridade sobre geocodificação por texto.
+- 77/77 paradas do arquivo de teste possuem coordenadas.
+- Endereços foram padronizados: Rua/Avenida + bairro + cidade oficial + Minas Gerais + CEP + Brasil.
+- Agrupamento de paradas prioriza ID Parada Teste.
+- Fallback sem coordenada: endereço completo -> ponto de entrega + cidade -> centro da cidade.
+- Todas as 25 cidades do arquivo de teste existem nas rotas fixas do sistema.
