@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Gestão Logística - V5.39 Coordenadas de Teste + Roteirização Robusta</title>
+<title>Gestão Logística - V5.40 Descarga na Rua + Otimização por Via</title>
 <style>
 :root{
   --bg:#f3f6fb;--card:#fff;--line:#e2e8f0;--text:#152033;--muted:#667085;
@@ -261,6 +261,9 @@ main{max-width:1580px;margin:auto;padding:20px}.view{display:none}.view.active{d
 .proof-retained{color:#b54708;font-weight:950}.proof-notime{color:#b42318;font-weight:950}
 
 .espd-master-banner{margin:10px 0 0;padding:10px 12px;border:1px solid #b2ddff;background:#eff8ff;border-radius:11px;color:#175cd3;font-size:10px;font-weight:850;line-height:1.5}
+.roadside-note{margin-top:5px;color:#175cd3;font-size:9px;font-weight:850;line-height:1.4}
+.road-badge{display:inline-flex;align-items:center;padding:3px 6px;border-radius:999px;background:#eff8ff;color:#175cd3;font-size:8px;font-weight:950;margin-top:4px}
+
 .redelivery-panel{margin-top:12px;border:1px solid var(--line);border-radius:13px;background:#fff;overflow:hidden}
 .redelivery-head{display:flex;justify-content:space-between;gap:10px;align-items:flex-start;flex-wrap:wrap;padding:11px 12px;background:#fff7ed;border-bottom:1px solid #fed7aa}
 .redelivery-head h4{margin:0;font-size:14px}.redelivery-head small{display:block;color:#7c2d12;font-size:10px;margin-top:3px;line-height:1.45}
@@ -453,7 +456,7 @@ main{max-width:1580px;margin:auto;padding:20px}.view{display:none}.view.active{d
 </head>
 <body>
 <header class="top"><div class="topin">
- <div class="brand"><div class="logo">R</div><div><h1>Gestão Logística - Rotas e Embarques V5.39</h1><small>Rotas • ESPD • Frota • Embarques automáticos</small></div></div>
+ <div class="brand"><div class="logo">R</div><div><h1>Gestão Logística - Rotas e Embarques V5.40</h1><small>Rotas • ESPD • Frota • Embarques automáticos</small></div></div>
  <nav class="nav">
   <button class="active" data-view="planning">Dashboard</button>
   <button data-view="routeanalysis">Central de Rotas</button>
@@ -592,7 +595,7 @@ main{max-width:1580px;margin:auto;padding:20px}.view{display:none}.view.active{d
    </div>
    <div class="realtime-config">
     <div class="realtime-config-head">
-     <div><h4>Rastreamento em tempo real</h4><small>Firebase do Gestão Logística já integrado. Na V5.39 o App do Motorista também possui essa configuração embutida, evitando links cortados pelo WhatsApp.</small></div>
+     <div><h4>Rastreamento em tempo real</h4><small>Firebase do Gestão Logística já integrado. Na V5.40 o App do Motorista também possui essa configuração embutida, evitando links cortados pelo WhatsApp.</small></div>
      <span class="badge review" id="firebaseConnectionBadge">NÃO CONFIGURADO</span>
     </div>
     <textarea id="firebaseConfigText" placeholder="Configuração Firebase integrada automaticamente."></textarea>
@@ -1134,11 +1137,11 @@ async function publishDriverAppBundle(driver,routesList){
  bundle.publicationRevision=revision;
  bundle.routeSignature=signature;
  bundle.publishedAt=new Date().toISOString();
- bundle.appBuild="V5.39";
+ bundle.appBuild="V5.40";
 
  const safeBundle=cleanFirebaseObject(bundle);
 
- // V5.39: as viagens ficam em /bundle e os canhotos em /deliveryProofs.
+ // V5.40: as viagens ficam em /bundle e os canhotos em /deliveryProofs.
  // Isso evita carregar fotos grandes toda vez que o motorista abre o App.
  const rootRef=rt.dbMod.ref(rt.db,`driverApps/${publication.appId}`);
  const oldSnap=await rt.dbMod.get(rootRef);
@@ -1200,9 +1203,9 @@ function publishedDriverAppUrl(driver){
  if(!publicBase&&!/^https?:$/.test(location.protocol))return"";
  const url=publicBase?new URL("motorista.html",publicBase):new URL("motorista.html",window.location.href);
 
- // V5.39: Firebase já está embutido no motorista.html.
+ // V5.40: Firebase já está embutido no motorista.html.
  // O WhatsApp recebe somente um link curto; não há mais JSON/configuração no hash.
- url.searchParams.set("v","539");
+ url.searchParams.set("v","540");
  url.hash=`app=${encodeURIComponent(pub.appId)}&rev=${encodeURIComponent(pub.revision||"")}&orders=${encodeURIComponent(pub.orderCount||0)}&stops=${encodeURIComponent(pub.totalStops||0)}&driver=${encodeURIComponent(pub.driver||driver)}`;
  return url.href
 }
@@ -2882,7 +2885,7 @@ function deliveryCoordinateCacheKey(stop){
  return `ADDR:${norm(stop?.address||"")}`
 }
 async function geocodeDeliveryStop(stop){
- // Arquivo de teste V5.39: coordenadas explícitas têm prioridade total.
+ // Arquivo de teste V5.40: coordenadas explícitas têm prioridade total.
  if(validDeliveryCoordinates(stop?.lat,stop?.lon)){
    return{
      lat:Number(stop.lat),lon:Number(stop.lon),
@@ -2916,6 +2919,146 @@ async function geocodeDeliveryStop(stop){
    if(i<attempts.length-1)await sleep(1050)
  }
  throw new Error(`Endereço não localizado após tentativas: ${stop.address||stop.city}${lastError?.message?` • ${lastError.message}`:""}`)
+}
+
+function streetFromAddress(address){
+ const first=String(address||"").split(",")[0].trim();
+ return first||""
+}
+function normalizeStreetKey(value){
+ return norm(String(value||"")
+   .replace(/\bRUA\b/g,"")
+   .replace(/\bAVENIDA\b/g,"")
+   .replace(/\bAV\b/g,"")
+   .replace(/\bRODOVIA\b/g,"")
+   .replace(/\bROD\b/g,"")
+   .replace(/\bPRACA\b/g,"")
+   .replace(/\bPCA\b/g,"")
+ ).replace(/\s+/g," ").trim()
+}
+function stopStreetKey(stop){
+ const road=normalizeStreetKey(stop?.roadName||streetFromAddress(stop?.address));
+ return road?`${norm(stop?.city||"")}|${road}`:`STOP|${stop?.key||stop?.stopId||stop?.address||"SEM_RUA"}`
+}
+function geoDistanceMeters(a,b){
+ if(!validDeliveryCoordinates(a?.lat,a?.lon)||!validDeliveryCoordinates(b?.lat,b?.lon))return Infinity;
+ const R=6371000,toRad=x=>x*Math.PI/180;
+ const dLat=toRad(Number(b.lat)-Number(a.lat)),dLon=toRad(Number(b.lon)-Number(a.lon));
+ const lat1=toRad(Number(a.lat)),lat2=toRad(Number(b.lat));
+ const h=Math.sin(dLat/2)**2+Math.cos(lat1)*Math.cos(lat2)*Math.sin(dLon/2)**2;
+ return 2*R*Math.asin(Math.min(1,Math.sqrt(h)))
+}
+async function osrmNearestRoad(point){
+ if(!validDeliveryCoordinates(point?.lat,point?.lon))throw new Error("Coordenada inválida para encaixe na rua.");
+ const url=`https://router.project-osrm.org/nearest/v1/driving/${point.lon},${point.lat}?number=1`;
+ const r=await fetch(url);
+ if(!r.ok)throw new Error(`Falha ao encaixar ponto na rua (${r.status})`);
+ const j=await r.json();
+ const w=j?.waypoints?.[0];
+ if(!w?.location?.length)throw new Error("OSRM não encontrou uma via trafegável próxima.");
+ return{
+   lat:Number(w.location[1]),lon:Number(w.location[0]),
+   roadName:String(w.name||"").trim(),
+   snapDistance:Number(w.distance||0)
+ }
+}
+async function resolveRoadsideDeliveryStop(stop){
+ const cacheKey=`ROADFRONT|${norm(stop?.address||"")}|${Number(stop?.lat||0).toFixed(6)}|${Number(stop?.lon||0).toFixed(6)}`;
+ const cached=deliveryGeoCache[cacheKey];
+ if(cached&&validDeliveryCoordinates(cached.lat,cached.lon)&&cached.roadside===true)return cached;
+
+ let base=null,baseSource="";
+
+ // Coordenadas de teste garantem fallback. Antes delas, tenta a fachada/endereço exato
+ // para aproximar o ponto de descarga da rua real do estabelecimento.
+ if(stop?.coordinateSource==="ESPD"&&String(stop?.address||"").trim()){
+   try{
+     const exact=await nominatimDeliveryQuery(stop.address);
+     if(exact){
+       base={lat:exact.lat,lon:exact.lon,display:exact.display};
+       baseSource="ENDERECO_EXATO";
+       await sleep(1050)
+     }
+   }catch(e){
+     console.warn("Fachada exata não localizada; usando coordenada vinculada:",stop.address,e)
+   }
+ }
+
+ if(!base){
+   const geo=await geocodeDeliveryStop(stop);
+   base={lat:geo.lat,lon:geo.lon,display:geo.display||stop.address};
+   baseSource=geo.source||"GEOCODE"
+ }
+
+ let road;
+ try{
+   road=await osrmNearestRoad(base)
+ }catch(e){
+   console.warn("Não foi possível encaixar na via; mantendo ponto base:",e);
+   road={
+     lat:Number(base.lat),lon:Number(base.lon),
+     roadName:streetFromAddress(stop.address),
+     snapDistance:0
+   }
+ }
+
+ const result={
+   lat:road.lat,lon:road.lon,
+   establishmentLat:Number(base.lat),establishmentLon:Number(base.lon),
+   roadName:road.roadName||streetFromAddress(stop.address),
+   snapDistance:Number(road.snapDistance||0),
+   roadside:true,
+   source:`${baseSource}+ROAD_SNAP`,
+   display:base.display||stop.address
+ };
+ deliveryGeoCache[cacheKey]=result;
+ persistDeliveryGeo();
+ return result
+}
+function streetAwareDeliveryOrder(matrix,stops){
+ const left=new Set(Array.from({length:stops.length},(_,i)=>i+1));
+ const seq=[0];
+ let cur=0,currentStreet="",currentCity="",curOriginDist=0;
+
+ while(left.size){
+   const all=[...left];
+   const sameStreet=currentStreet
+     ?all.filter(idx=>stopStreetKey(stops[idx-1])===currentStreet)
+     :[];
+   const pool=sameStreet.length?sameStreet:all;
+
+   let best=null,bestScore=Infinity;
+   for(const idx of pool){
+     const stop=stops[idx-1];
+     const leg=matrixVal(matrix,cur,idx);
+     const originDist=matrixVal(matrix,0,idx);
+     let score=leg;
+
+     if(sameStreet.length)score*=0.45;
+     if(currentCity&&norm(stop.city)===currentCity)score*=0.92;
+
+     // Evita voltar muito em direção à Cooperrita depois que o caminhão avançou.
+     if(cur!==0&&originDist+1800<curOriginDist){
+       score+=(curOriginDist-originDist)*1.35
+     }
+
+     // Se existem mais clientes da mesma rua, compensa terminar as descargas da via.
+     const key=stopStreetKey(stop);
+     const sameRoadCount=all.filter(x=>stopStreetKey(stops[x-1])===key).length;
+     if(sameRoadCount>1)score*=0.86;
+
+     if(score<bestScore){bestScore=score;best=idx}
+   }
+
+   if(best===null)best=all[0];
+   seq.push(best);
+   left.delete(best);
+   cur=best;
+   currentStreet=stopStreetKey(stops[best-1]);
+   currentCity=norm(stops[best-1]?.city||"");
+   curOriginDist=matrixVal(matrix,0,best)
+ }
+ return seq
 }
 async function osrmDeliveryMatrix(points){
  const coords=points.map(p=>`${p.lon},${p.lat}`).join(";");
@@ -2983,8 +3126,17 @@ function improveOpenRoute2Opt(seq,matrix){
 }
 async function osrmDeliveryRoute(points){
  const coords=points.map(p=>`${p.lon},${p.lat}`).join(";");
- const url=`https://router.project-osrm.org/route/v1/driving/${coords}?overview=full&geometries=geojson&steps=false`;
- const r=await fetch(url);
+ const approaches=points.map((_,i)=>i===0?"unrestricted":"curb").join(";");
+ const base=`https://router.project-osrm.org/route/v1/driving/${coords}?overview=full&geometries=geojson&steps=true`;
+
+ let r=await fetch(`${base}&approaches=${approaches}`);
+ if(r.ok){
+   const j=await r.json();
+   if(j?.routes?.[0])return j.routes[0]
+ }
+
+ // Fallback automático caso o servidor público não aceite a abordagem curb.
+ r=await fetch(base);
  if(!r.ok)throw new Error(`Falha ao calcular rota final (${r.status})`);
  const j=await r.json();
  const route=j?.routes?.[0];
@@ -3016,7 +3168,7 @@ function renderShipmentRouteMap(itinerary){
  itinerary.stops.forEach((s,i)=>{
    const marker=L.circleMarker([s.lat,s.lon],{radius:9,color:"#155eef",weight:3,fillColor:"#fff",fillOpacity:1}).addTo(shipmentRouteMapInstance);
    marker.bindTooltip(String(i+1),{permanent:true,direction:"center",className:""});
-   marker.bindPopup(`<b>${i+1}ª parada — ${esc(s.deliveryPoint)}</b><br>${esc(s.address)}<br>Pedido(s): ${s.orders.map(o=>esc(o.id)).join(", ")}`);
+   marker.bindPopup(`<b>${i+1}ª parada — ${esc(s.deliveryPoint)}</b><br>${esc(s.address)}${s.roadName?`<br><b>🚚 Descarga na via: ${esc(s.roadName)}</b>`:""}<br>Pedido(s): ${s.orders.map(o=>esc(o.id)).join(", ")}`);
    bounds.push([s.lat,s.lon])
  });
  if(itinerary.geometry?.coordinates?.length){
@@ -3045,7 +3197,7 @@ function renderShipmentItinerary(itinerary){
    </div>
    <div class="itinerary-list">${itinerary.stops.map((s,i)=>`<div class="itinerary-stop">
      <span class="itinerary-num">${i+1}</span>
-     <div><b>${esc(s.deliveryPoint||s.city||"Entrega")}</b><small>${esc(s.address)}<br>${esc(s.city)} • Pedido(s): ${s.orders.map(o=>esc(o.id)).join(", ")}</small></div>
+     <div><b>${esc(s.deliveryPoint||s.city||"Entrega")}</b><small>${esc(s.address)}<br>${esc(s.city)} • Pedido(s): ${s.orders.map(o=>esc(o.id)).join(", ")}${s.roadName?`<br><span class="roadside-note">🚚 Descarga na via: ${esc(s.roadName)}</span>`:""}</small></div>
      <span class="itinerary-leg">${(num(s.distanceFromDepot)/1000).toLocaleString("pt-BR",{maximumFractionDigits:1})} km da origem<br><small>${i===0?"Saída → ": "Trecho → "}${(s.legDistance/1000).toLocaleString("pt-BR",{maximumFractionDigits:1})} km</small></span>
    </div>`).join("")}</div>
   </section>`;
@@ -3071,14 +3223,22 @@ async function routeOpenedShipment(){
    const stops=[];
    for(let i=0;i<built.stops.length;i++){
      status.textContent=`Localizando endereço ${i+1}/${built.stops.length}: ${built.stops[i].city}`;
-     const geo=await geocodeDeliveryStop(built.stops[i]);
-     stops.push({...built.stops[i],lat:geo.lat,lon:geo.lon})
+     const geo=await resolveRoadsideDeliveryStop(built.stops[i]);
+   stops.push({
+     ...built.stops[i],
+     lat:geo.lat,lon:geo.lon,
+     establishmentLat:geo.establishmentLat,establishmentLon:geo.establishmentLon,
+     roadName:geo.roadName||streetFromAddress(built.stops[i].address),
+     snapDistance:geo.snapDistance||0,
+     locationSource:geo.source||"",
+     roadside:true
+   })
    }
 
    status.textContent="Calculando matriz rodoviária entre todas as paradas...";
    const points=[{lat:DEPOT_COORD.lat,lon:DEPOT_COORD.lon},...stops];
    const matrix=await osrmDeliveryMatrix(points);
-   const seq=nearestToFarthestOrder(matrix.distances,stops.length);
+   const seq=streetAwareDeliveryOrder(matrix.distances,stops);
 
    const optimizedStops=seq.slice(1).map(idx=>stops[idx-1]);
    let prev=0;
@@ -3091,7 +3251,7 @@ async function routeOpenedShipment(){
      prev=idx
    });
 
-   status.textContent="Montando trajeto final porta a porta...";
+   status.textContent="Montando trajeto final pelas ruas e posicionando a descarga na via...";
    const optimizedPoints=[{lat:DEPOT_COORD.lat,lon:DEPOT_COORD.lon},...optimizedStops];
    const route=await osrmDeliveryRoute(optimizedPoints);
 
@@ -3234,17 +3394,26 @@ async function buildDriverRoute(dayInfo,driver){
  const stops=[];
  for(let i=0;i<built.stops.length;i++){
    $("mapStatus").innerHTML=`<div style="font-size:20px">⌖</div><div><strong>${esc(driver)} • ${esc(dayInfo.day)}</strong> Localizando parada ${i+1}/${built.stops.length}: ${esc(built.stops[i].city)}</div>`;
-   const geo=await geocodeDeliveryStop(built.stops[i]);
-   stops.push({...built.stops[i],lat:geo.lat,lon:geo.lon})
+   const geo=await resolveRoadsideDeliveryStop(built.stops[i]);
+   stops.push({
+     ...built.stops[i],
+     lat:geo.lat,lon:geo.lon,
+     establishmentLat:geo.establishmentLat,establishmentLon:geo.establishmentLon,
+     roadName:geo.roadName||streetFromAddress(built.stops[i].address),
+     snapDistance:geo.snapDistance||0,
+     locationSource:geo.source||"",
+     roadside:true
+   })
  }
 
  $("mapStatus").innerHTML=`<div style="font-size:20px">◎</div><div><strong>${esc(driver)} • ${esc(dayInfo.day)}</strong> Calculando matriz rodoviária...</div>`;
  const points=[{lat:DEPOT_COORD.lat,lon:DEPOT_COORD.lon},...stops];
  const matrix=await osrmDeliveryMatrix(points);
 
- // Regra operacional V5.22:
- // todas as entregas são ordenadas pela distância rodoviária até a Cooperrita.
- const seq=nearestToFarthestOrder(matrix.distances,stops.length);
+ // V5.40: distância real pela rua + continuidade de via.
+ // Ao entrar em uma rua com várias entregas, descarrega os clientes próximos
+ // nessa mesma via antes de sair, quando isso evita deslocamentos desnecessários.
+ const seq=streetAwareDeliveryOrder(matrix.distances,stops);
 
  const optimizedStops=seq.slice(1).map(idx=>stops[idx-1]);
  let prev=0;
@@ -3280,10 +3449,15 @@ async function buildDriverRoute(dayInfo,driver){
    totalDuration:finalRoute.duration||itineraryCost(seq,matrix.durations),
    orderCount:expectedOrderIds.size,
    routedOrderCount:routedOrderIds.size,
-   sortMode:"NEAREST_TO_FARTHEST_FROM_DEPOT",
+   sortMode:"ROAD_FRONT_STREET_AWARE",
    stops:optimizedStops.map(s=>({
      address:s.address,city:s.city,deliveryPoint:s.deliveryPoint,
      lat:s.lat,lon:s.lon,
+     establishmentLat:s.establishmentLat??null,establishmentLon:s.establishmentLon??null,
+     roadName:s.roadName||streetFromAddress(s.address),
+     snapDistance:s.snapDistance||0,
+     locationSource:s.locationSource||"",
+     roadside:true,
      distanceFromDepot:s.distanceFromDepot,durationFromDepot:s.durationFromDepot,
      legDistance:s.legDistance,legDuration:s.legDuration,
      orders:s.orders.map(o=>({
@@ -3438,7 +3612,7 @@ async function generateDriverRoutes(){
      connectLiveTracking().catch(console.error)
    }
 
-   $("mapStatus").innerHTML=`<div style="font-size:20px">✓</div><div><strong>Rotas pendentes geradas.</strong> ${success} rota(s) calculada(s)${skippedFinalized?` • ${skippedFinalized} rota(s) já concluída(s) ignorada(s)`:""}${reactivatedNoTime?` • ${reactivatedNoTime} entrega(s) “não deu tempo” reativada(s) para nova tentativa`:""}${errors?` • ${errors} com pendência`:""}. Rotas concluídas não são recalculadas.</div>`;
+   $("mapStatus").innerHTML=`<div style="font-size:20px">✓</div><div><strong>Rotas pendentes geradas com descarga na rua.</strong> ${success} rota(s) calculada(s)${skippedFinalized?` • ${skippedFinalized} rota(s) já concluída(s) ignorada(s)`:""}${reactivatedNoTime?` • ${reactivatedNoTime} entrega(s) “não deu tempo” reativada(s) para nova tentativa`:""}${errors?` • ${errors} com pendência`:""}. Rotas concluídas não são recalculadas.</div>`;
 
    if(!total){
      if(preparedWindow)preparedWindow.close();
@@ -3553,7 +3727,7 @@ function compactDriverRoute(route){
    totalDuration:route.totalDuration||0,
    orderCount:route.orderCount||0,
    routedOrderCount:route.routedOrderCount||0,
-   sortMode:"NEAREST_TO_FARTHEST_FROM_DEPOT",
+   sortMode:"ROAD_FRONT_STREET_AWARE",
    origin:{name:DEPOT_COORD.name,lat:DEPOT_COORD.lat,lon:DEPOT_COORD.lon},
    stops:(route.stops||[]).map((s,i)=>({
      n:i+1,
@@ -3599,13 +3773,17 @@ function compactDriverBundle(driver,routesList){
      shipments:route.shipments||[],
      totalDistance:route.totalDistance||0,
      totalDuration:route.totalDuration||0,
-     sortMode:"NEAREST_TO_FARTHEST_FROM_DEPOT",
+     sortMode:"ROAD_FRONT_STREET_AWARE",
      stops:(route.stops||[]).map((s,i)=>({
        n:i+1,
        name:s.deliveryPoint||s.city||`Parada ${i+1}`,
        city:s.city||"",
        address:s.address||"",
        lat:s.lat,lon:s.lon,
+       establishmentLat:s.establishmentLat??null,establishmentLon:s.establishmentLon??null,
+       roadName:s.roadName||"",
+       snapDistance:s.snapDistance||0,
+       roadside:s.roadside===true,
        distanceFromDepot:s.distanceFromDepot||0,
        legDistance:s.legDistance||0,
        orders:(s.orders||[]).map(o=>{
@@ -3638,7 +3816,7 @@ function compactDriverBundle(driver,routesList){
    totalStops,
    orderCount:orderIds.size,
    routedOrderCount:orderIds.size,
-   sortMode:"NEAREST_TO_FARTHEST_FROM_DEPOT",
+   sortMode:"ROAD_FRONT_STREET_AWARE",
    proofRequired:true,
    proofWhatsApp:deliveryProofWhatsAppNumber(),
    routes
@@ -3668,7 +3846,7 @@ function driverAppUrlForRoutes(driver,routesList){
  // Compatibilidade sem Firebase.
  const publicBase=normalizedPublicBaseUrl();
  const url=publicBase?new URL("motorista.html",publicBase):new URL("motorista.html",window.location.href);
- url.searchParams.set("v","539");
+ url.searchParams.set("v","540");
  url.hash=encodeDriverAppPayload(compactDriverBundle(driver,valid));
  return url.href
 }
@@ -3701,7 +3879,7 @@ async function prepareVerifiedDriverApp(driver,routesList){
  const url=driverAppUrlForRoutes(driver,valid);
  if(!url)throw new Error(`Não foi possível gerar o link do App de ${driver}.`);
  if(firebaseConfigReady()&&url.includes("&cfg=")){
-   throw new Error("Foi detectado um link antigo com configuração Firebase embutida. Atualize o sistema para a V5.39.")
+   throw new Error("Foi detectado um link antigo com configuração Firebase embutida. Atualize o sistema para a V5.40.")
  }
  return url
 }

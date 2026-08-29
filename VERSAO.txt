@@ -1,5 +1,5 @@
-Gestão Logística V5.39
-Latitude/Longitude opcionais no ESPD.
-Arquivo de teste usa coordenadas fixas por parada.
-Fallback endereço -> ponto/cidade -> centro da cidade.
-Agrupamento de parada prioriza ID Parada.
+Gestão Logística V5.40
+Ponto de descarga encaixado na via (OSRM nearest).
+Abordagem curb quando suportada.
+Otimização por rua e distância rodoviária.
+GPS do motorista usa a mesma lógica.
