@@ -1,4 +1,4 @@
-const CACHE_NAME="gestao-logistica-motorista-v547";
+const CACHE_NAME="gestao-logistica-motorista-v548";
 const SHELL=[
  "./motorista.html",
  "./canhoto.html",

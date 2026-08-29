@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Gestão Logística - V5.47 Matriz Robusta + Liberação Segura</title>
+<title>Gestão Logística - V5.48 Auditoria + Estabilidade</title>
 <style>
 :root{
   --bg:#f3f6fb;--card:#fff;--line:#e2e8f0;--text:#152033;--muted:#667085;
@@ -495,24 +495,6 @@ main{max-width:1580px;margin:auto;padding:20px}.view{display:none}.view.active{d
   </div>
  </div>
 </div>
-<div id="redeliveryModal" class="redelivery-modal" role="dialog" aria-modal="true">
- <div class="redelivery-modal-card">
-  <div class="redelivery-modal-head">
-   <div><h3 id="redeliveryModalTitle">Programar reentrega</h3><p id="redeliveryModalSub">—</p></div>
-   <button type="button" class="proof-modal-close" id="redeliveryModalClose">✕ Fechar</button>
-  </div>
-  <div class="redelivery-fields">
-   <div><label>DATA DA REENTREGA</label><input id="redeliveryDate" type="date"></div>
-   <div><label>OBSERVAÇÃO DA CENTRAL</label><textarea id="redeliveryNote" placeholder="Ex.: enviar junto na próxima rota / falar com cliente antes"></textarea></div>
-  </div>
-  <div id="redeliveryProductInstruction" class="notice" style="margin-top:10px"></div>
-  <div id="redeliveryItems" class="redelivery-items"></div>
-  <div class="redelivery-modal-actions">
-   <button type="button" class="btn" id="redeliveryCancel">Cancelar</button>
-   <button type="button" class="btn primary" id="redeliveryApprove">✓ Aprovar e programar</button>
-  </div>
- </div>
-</div>
 <div id="driverDetailModal" class="driver-detail-modal" role="dialog" aria-modal="true">
  <div class="driver-detail-card">
   <div class="driver-detail-head">
@@ -526,7 +508,7 @@ main{max-width:1580px;margin:auto;padding:20px}.view{display:none}.view.active{d
 </head>
 <body>
 <header class="top"><div class="topin">
- <div class="brand"><div class="logo">R</div><div><h1>Gestão Logística - Embarques e Rotas V5.47</h1><small>Rotas • ESPD • Frota • Embarques automáticos</small></div></div>
+ <div class="brand"><div class="logo">R</div><div><h1>Gestão Logística - Embarques e Rotas V5.48</h1><small>Rotas • ESPD • Frota • Embarques automáticos</small></div></div>
  <nav class="nav">
   <button class="active" data-view="planning">Embarques</button>
   <button data-view="routeanalysis">Central de Rotas</button>
@@ -963,6 +945,8 @@ const DEPOT_COORD={lat:-22.261541,lon:-45.764269,name:"COOPERRITA - ORIGEM"};
 let routeGeoCache=loadJSON(ROUTE_GEO_KEY,{});
 let routeAnalysisBusy=false;
 let lastRouteAnalysis=[];
+let lastRouteAnalysisDayKey="";
+let lastRouteAnalysisCounts=null;
 let openedShipmentContext=null;
 const DELIVERY_GEO_KEY="logistica_delivery_geo_v520";
 let deliveryGeoCache=loadJSON(DELIVERY_GEO_KEY,{});
@@ -984,7 +968,6 @@ let liveTruckLayers=[];
 let driverProofStates=new Map();
 let routeCompletionState=new Map();
 let currentCentralProof=null;
-let currentRedeliveryCase=null;
 let redeliveryReminderToastKey="";
 let lastEspdRefreshSummary={updated:0,removed:0,renumbered:0,invalidatedRoutes:0};
 const FIREBASE_SDK_VERSION="10.14.1";
@@ -1007,9 +990,19 @@ if(typeof settings.bulkRoutingAt!=="string")settings.bulkRoutingAt="";
 delete settings.milkOnlyMaxWeight;
 delete settings.allocationWeightCutoff;
 delete settings.selectedAllocationRules;
-function persist(){localStorage.setItem(ROUTE_KEY,JSON.stringify(routes));localStorage.setItem(FLEET_KEY,JSON.stringify(fleet));localStorage.setItem(CLIENT_KEY,JSON.stringify(clientCities));localStorage.setItem(PLAN_KEY,JSON.stringify(plans));localStorage.setItem(SETTINGS_KEY,JSON.stringify(settings))}
-function persistRouteGeo(){localStorage.setItem(ROUTE_GEO_KEY,JSON.stringify(routeGeoCache))}
-function persistDeliveryGeo(){localStorage.setItem(DELIVERY_GEO_KEY,JSON.stringify(deliveryGeoCache))}
+function safeStorageSet(key,value){
+ try{localStorage.setItem(key,value);return true}
+ catch(e){console.warn("Persistência local indisponível:",key,e);return false}
+}
+function persist(){
+ safeStorageSet(ROUTE_KEY,JSON.stringify(routes));
+ safeStorageSet(FLEET_KEY,JSON.stringify(fleet));
+ safeStorageSet(CLIENT_KEY,JSON.stringify(clientCities));
+ safeStorageSet(PLAN_KEY,JSON.stringify(plans));
+ safeStorageSet(SETTINGS_KEY,JSON.stringify(settings))
+}
+function persistRouteGeo(){safeStorageSet(ROUTE_GEO_KEY,JSON.stringify(routeGeoCache))}
+function persistDeliveryGeo(){safeStorageSet(DELIVERY_GEO_KEY,JSON.stringify(deliveryGeoCache))}
 
 /* NAV */
 function closeSettingsMenu(){$("settingsMenu")?.classList.remove("open")}
@@ -1300,7 +1293,11 @@ async function publishDriverAppBundle(driver,routesList){
  const rt=await getFirebaseRuntime();
  const key=norm(driver);
  let publication=settings.driverAppPublications[key];
- if(!publication?.appId)publication={appId:secureRandomId("driver"),driver};
+ if(!publication?.appId){
+   publication={appId:secureRandomId("driver"),driver,waitingForRouting:true,createdAt:new Date().toISOString()};
+   settings.driverAppPublications[key]=publication;
+   persist()
+ }
 
  const signature=driverRoutesSignature(valid);
  const revision=secureRandomId("rev");
@@ -1312,11 +1309,11 @@ async function publishDriverAppBundle(driver,routesList){
  bundle.publicationRevision=revision;
  bundle.routeSignature=signature;
  bundle.publishedAt=new Date().toISOString();
- bundle.appBuild="V5.47";
+ bundle.appBuild="V5.48";
 
  const safeBundle=cleanFirebaseObject(bundle);
 
- // V5.47: as viagens ficam em /bundle e os canhotos em /deliveryProofs.
+ // V5.48: as viagens ficam em /bundle e os canhotos em /deliveryProofs.
  // Isso evita carregar fotos grandes toda vez que o motorista abre o App.
  const rootRef=rt.dbMod.ref(rt.db,`driverApps/${publication.appId}`);
  // Atualiza somente /bundle e preserva canhotos, metadados, ocorrências e retakes.
@@ -1374,9 +1371,9 @@ function publishedDriverAppUrl(driver){
  if(!publicBase&&!/^https?:$/.test(location.protocol))return"";
  const url=publicBase?new URL("motorista.html",publicBase):new URL("motorista.html",window.location.href);
 
- // V5.47: Firebase já está embutido no motorista.html.
+ // V5.48: Firebase já está embutido no motorista.html.
  // O WhatsApp recebe somente um link curto; não há mais JSON/configuração no hash.
- url.searchParams.set("v","547");
+ url.searchParams.set("v","548");
  url.hash=`app=${encodeURIComponent(pub.appId)}&rev=${encodeURIComponent(pub.revision||"")}&orders=${encodeURIComponent(pub.orderCount||0)}&stops=${encodeURIComponent(pub.totalStops||0)}&driver=${encodeURIComponent(pub.driver||driver)}`;
  return url.href
 }
@@ -1397,7 +1394,7 @@ function centralProofKeys(route,stop){
  return [centralProofKey(route,stop),centralLegacyProofKey(route,stop)]
 }
 function proofStateForApp(appId){
- if(!driverProofStates.has(appId))driverProofStates.set(appId,{meta:{},retake:{},events:{},redelivery:{}});
+ if(!driverProofStates.has(appId))driverProofStates.set(appId,{meta:{},retake:{},events:{}});
  return driverProofStates.get(appId)
 }
 function stripProofImageForMeta(record){
@@ -1433,7 +1430,7 @@ async function migrateDriverProofMetadata(rt,pub){
    console.warn("Migração de metadados de canhoto:",pub.driver,e)
  }
 }
-function routeProofMatch(meta,retake,events,redelivery,route,stop){
+function routeProofMatch(meta,retake,events,route,stop){
  const keys=centralProofKeys(route,stop);
  let proofId="",proof=null,request=null,eventId="",event=null;
  for(const key of keys){
@@ -1452,7 +1449,7 @@ function centralRouteFinalization(route){
  const pub=firebasePublicationForDriver(route?.driver||"");
  if(!pub?.appId||!route?.stops?.length)return{finalized:false,completed:0,total:route?.stops?.length||0,retakeCount:0,retainedCount:0,noTimeCount:0,finalizedAt:""};
  const state=proofStateForApp(pub.appId);
- const stopRows=(route.stops||[]).map(stop=>routeProofMatch(state.meta,state.retake,state.events,state.redelivery,route,stop));
+ const stopRows=(route.stops||[]).map(stop=>routeProofMatch(state.meta,state.retake,state.events,route,stop));
  const completed=stopRows.filter(x=>x.resolved).length;
  const total=stopRows.length;
  const finalized=total>0&&completed===total;
@@ -1480,11 +1477,6 @@ function dateFromKeySafe(key){
  const d=new Date(Number(m[1]),Number(m[2])-1,Number(m[3]),12);return Number.isNaN(d.getTime())?null:d
 }
 function dayNameForDateKey(key){const d=dateFromKeySafe(key);return d?DAY_MAP[d.getDay()]:""}
-function ensurePlanForDateKey(key){
- const day=dayNameForDateKey(key);if(!day||!DAY_ORDER.includes(day))return null;
- if(!plans[key])plans[key]={deliveryDate:key,day,shipments:[],pending:[],seen:{},manualPending:{}};
- const p=plans[key];p.deliveryDate=key;p.day=day;p.shipments=p.shipments||[];p.pending=p.pending||[];p.seen=p.seen||{};p.manualPending=p.manualPending||{};return p
-}
 function routeForCityOnDateKey(city,key){
  const day=dayNameForDateKey(key),n=norm(city);if(!day)return null;
  return (routes[day]||[]).find(r=>(r.cities||[]).some(c=>norm(c)===n))||null
@@ -1492,50 +1484,6 @@ function routeForCityOnDateKey(city,key){
 function nextBusinessDateFrom(base=new Date()){
  const d=new Date(base);d.setHours(12,0,0,0);do{d.setDate(d.getDate()+1)}while(d.getDay()===0||d.getDay()===6);return d
 }
-function suggestedRedeliveryDate(city){
- let d=nextBusinessDateFrom(new Date());
- for(let i=0;i<12;i++){const key=localDateKey(d);if(routeForCityOnDateKey(city,key))return key;d=nextBusinessDateFrom(d)}
- return localDateKey(nextBusinessDateFrom(new Date()))
-}
-function sourcePlanOrder(orderId){
- for(const plan of Object.values(plans))for(const shipment of (plan.shipments||[])){const o=(shipment.orders||[]).find(x=>String(x.id)===String(orderId));if(o)return o}
- return null
-}
-function itemsForRedeliveryEvent(event){
- const out=[],seen=new Set();
- (event?.orders||[]).forEach(orderId=>{
-   const live=aggregatedOrders.find(o=>String(o.id)===String(orderId));
-   let items=live?captureOrderItems(orderId):[];
-   if(!items.length){const old=sourcePlanOrder(orderId);items=Array.isArray(old?.itemDetails)?old.itemDetails:[]}
-   if(!items.length){out.push({key:`${orderId}|SEM_ITEM`,orderId:String(orderId),item:"",description:"Pedido completo / itens não disponíveis no ESPD atual",qty:1,lineWeight:0,lineWeightKnown:false});return}
-   items.forEach((item,idx)=>{
-     const key=`${orderId}|${item.item||idx}|${item.description||""}`;if(seen.has(key))return;seen.add(key);
-     out.push({key,orderId:String(orderId),item:String(item.item||""),description:String(item.description||"Item"),qty:Math.max(.001,num(item.qtyOrdered)||1),lineWeight:num(item.lineWeight)||0,lineWeightKnown:item.lineWeightKnown===true})
-   })
- });
- return out
-}
-function redeliveryCaseRows(){
- const rows=[];
- Object.values(settings.driverAppPublications||{}).forEach(pub=>{
-   if(!pub?.appId)return;const state=proofStateForApp(pub.appId);
-   Object.entries(state.events||{}).forEach(([eventId,event])=>{
-     if(!event||event.active===false||!["CANHOTO_RETIDO","NAO_DEU_TEMPO"].includes(event.status))return;
-     rows.push({appId:pub.appId,driver:pub.driver,eventId,event,approval:state.redelivery?.[eventId]||null})
-   })
- });
- return rows.sort((a,b)=>(a.approval?.status==="COMPLETED")-(b.approval?.status==="COMPLETED")||String(a.approval?.scheduledDate||"").localeCompare(String(b.approval?.scheduledDate||"")))
-}
-function redeliveryDueClass(row){
- if(row.approval?.status==="COMPLETED")return"done";if(!row.approval?.scheduledDate)return"";
- const today=localDateKey(new Date());return row.approval.scheduledDate<today?"overdue":row.approval.scheduledDate===today?"due":""
-}
-function redeliveryBadge(row){
- const a=row.approval;if(a?.status==="COMPLETED")return'<span class="redelivery-badge done">✓ REENTREGUE</span>';
- if(!a)return'<span class="redelivery-badge wait">✋ AGUARDANDO APROVAÇÃO</span>';
- const today=localDateKey(new Date());if(a.scheduledDate<today)return'<span class="redelivery-badge wait">⚠ VENCIDA</span>';if(a.scheduledDate===today)return'<span class="redelivery-badge today">● PARA HOJE</span>';return'<span class="redelivery-badge scheduled">↻ PROGRAMADA</span>'
-}
-function formatRedeliveryProducts(products){return products?.length?products.map(p=>`${p.item?`[${esc(p.item)}] `:""}${esc(p.description||"Item")} • qtd. ${num(p.qty).toLocaleString("pt-BR")}`).join("<br>"):"Entrega completa / itens não detalhados"}
 function nextFixedRouteForEvent(event){
  let d=nextBusinessDateFrom(new Date());
  for(let i=0;i<35;i++){
@@ -1580,51 +1528,6 @@ function renderRedeliveryPanels(){
    </article>`
  }).join("")
 }
-function closeRedeliveryModal(){$("redeliveryModal")?.classList.remove("open");currentRedeliveryCase=null}
-function openRedeliveryApproval(appId,eventId){
- alert("Na V5.47 não existe aprovação manual. A próxima rota é calculada automaticamente.");return;
-
- const state=proofStateForApp(appId),event=state.events?.[eventId];if(!event)return alert("Ocorrência não encontrada.");
- const approval=state.redelivery?.[eventId]||null;currentRedeliveryCase={appId,eventId,event,approval};
- $("redeliveryModalTitle").textContent=event.status==="CANHOTO_RETIDO"?"Aprovar canhoto retido e programar reentrega":"Aprovar entrega não realizada e programar nova tentativa";
- $("redeliveryModalSub").textContent=`${event.client||"Cliente"} • ${event.city||"Sem cidade"} • Pedido(s): ${(event.orders||[]).join(", ")||"—"}`;
- $("redeliveryDate").value=approval?.scheduledDate||suggestedRedeliveryDate(event.city);$("redeliveryNote").value=approval?.centralNote||"";
- const items=itemsForRedeliveryEvent(event),approved=new Map((approval?.products||[]).map(p=>[p.key,p])),retained=event.status==="CANHOTO_RETIDO";
- $("redeliveryProductInstruction").innerHTML=retained?"<b>Obrigatório:</b> marque exatamente quais produtos precisam seguir novamente.":"<b>Entrega não realizada:</b> os itens vêm pré-selecionados para a nova tentativa.";
- $("redeliveryItems").innerHTML=items.length?items.map((item,i)=>{const prev=approved.get(item.key),checked=prev?true:!retained,qty=prev?.qty??item.qty;return `<div class="redelivery-item"><input type="checkbox" class="rr-item-check" data-i="${i}" ${checked?"checked":""}><div><b>${esc(item.item?`[${item.item}] ${item.description}`:item.description)}</b><small>Pedido ${esc(item.orderId)}${item.lineWeightKnown?` • ${num(item.lineWeight).toLocaleString("pt-BR",{maximumFractionDigits:3})} kg`:""}</small></div><input type="number" min="0.001" step="0.001" class="rr-item-qty" data-i="${i}" value="${esc(qty)}"></div>`}).join(""):'<div class="empty">Itens não disponíveis. Atualize o ESPD antes de aprovar canhoto retido.</div>';
- $("redeliveryModal").classList.add("open")
-}
-function selectedRedeliveryProducts(){
- if(!currentRedeliveryCase)return[];const items=itemsForRedeliveryEvent(currentRedeliveryCase.event);
- return [...document.querySelectorAll(".rr-item-check")].filter(x=>x.checked).map(x=>{const i=Number(x.dataset.i),src=items[i],q=document.querySelector(`.rr-item-qty[data-i="${i}"]`);return{...src,qty:Math.max(.001,num(q?.value)||src.qty||1)}})
-}
-function removeRedeliveryOrderFromPlans(eventId){
- const id=`REENTREGA-${eventId}`;Object.values(plans).forEach(plan=>{(plan.shipments||[]).forEach(sh=>{const before=(sh.orders||[]).length;sh.orders=(sh.orders||[]).filter(o=>String(o.id)!==id);if(before!==sh.orders.length)recomputeShipmentTotals(sh)});if(plan.seen)delete plan.seen[id]})
-}
-function redeliveryWeight(products){
- let known=products.length>0,total=0;products.forEach(p=>{if(p.lineWeightKnown&&num(p.lineWeight)>0)total+=num(p.lineWeight);else known=false});return{known:known&&total>0,weight:total}
-}
-function materializeRedeliveryIntoPlan(eventId,event,approval){
- removeRedeliveryOrderFromPlans(eventId);const plan=ensurePlanForDateKey(approval.scheduledDate);if(!plan)return{planningIssue:"Data inválida ou final de semana.",shipment:0,routeLabel:""};
- const route=routeForCityOnDateKey(event.city,approval.scheduledDate);if(!route)return{planningIssue:`Sem rota cadastrada para ${event.city||"a cidade"} em ${dayNameForDateKey(approval.scheduledDate)||approval.scheduledDate}.`,shipment:0,routeLabel:""};
- const id=`REENTREGA-${eventId}`,w=redeliveryWeight(approval.products||[]);let target=(plan.shipments||[]).find(s=>s.status==="ABERTO"&&s.routeLabel===route.label);if(!target)target=createShipmentForRoute(plan,route,w.known?w.weight:0);
- if(target.truckPlate==="A DEFINIR"&&w.known){const t=chooseTruckForDemand(plan,w.weight,w.weight);if(t){target.truckPlate=t.plate;target.driver=t.driver;target.capacity=t.capacity;target.group=t.group}}
- target.orders=target.orders||[];target.orders.push({id,originalOrders:event.orders||[],clientCode:"",clientName:event.client||"REENTREGA",city:event.city||"",weight:w.weight,weightKnown:w.known,weightRows:w.known?1:0,weightMissingRows:w.known?0:1,weightStatus:w.known?"CALCULADO":"AUSENTE",weightSource:"REENTREGA",category:"REENTREGA",credit:"APROVADO",status:"REENTREGA PROGRAMADA",openValue:0,deliveryPoint:event.client||"REENTREGA",address:event.address||"",fullAddress:event.address||"",itemDetails:(approval.products||[]).map(p=>({item:p.item||"",description:p.description||"",qtyOrdered:p.qty||1,qtyServed:0,lineWeight:p.lineWeight||0,lineWeightKnown:p.lineWeightKnown===true,status:"REENTREGA",credit:"APROVADO"})),allocationSource:"REDELIVERY",redeliveryEventId:eventId,redeliveryType:event.status,scheduledDate:approval.scheduledDate});
- recomputeShipmentTotals(target);plan.seen[id]=new Date().toISOString();if(plan.driverRoutes&&target.driver&&plan.driverRoutes[target.driver])delete plan.driverRoutes[target.driver];persist();return{planningIssue:"",shipment:target.shipment,routeLabel:route.label,driver:target.driver}
-}
-async function approveRedelivery(){
- if(!currentRedeliveryCase)return;const {appId,eventId,event}=currentRedeliveryCase,scheduledDate=$("redeliveryDate").value;if(!scheduledDate)return alert("Informe a data da reentrega.");
- const d=dateFromKeySafe(scheduledDate);if(!d||d.getDay()===0||d.getDay()===6)return alert("Escolha um dia útil.");
- const products=selectedRedeliveryProducts();if(event.status==="CANHOTO_RETIDO"&&!products.length)return alert("Canhoto retido: é obrigatório selecionar pelo menos um produto.");if(event.status==="NAO_DEU_TEMPO"&&!products.length)return alert("Selecione os itens da nova tentativa.");
- const state=proofStateForApp(appId),previous=state.redelivery?.[eventId]||{},approval={...previous,eventId,appId,status:"APPROVED",type:event.status,scheduledDate,products,centralNote:String($("redeliveryNote").value||"").trim(),approvedAt:previous.approvedAt||new Date().toISOString(),updatedAt:new Date().toISOString(),approvedBy:"CENTRAL"};
- Object.assign(approval,materializeRedeliveryIntoPlan(eventId,event,approval));
- try{const rt=await getFirebaseRuntime();await rt.dbMod.set(rt.dbMod.ref(rt.db,`driverApps/${appId}/redeliveryApprovals/${eventId}`),approval);state.redelivery=state.redelivery||{};state.redelivery[eventId]=approval;closeRedeliveryModal();renderRedeliveryPanels();renderRouteFinalizationPanel();renderPlanning();toast(approval.planningIssue?"Aprovada, mas há pendência de rota.":"Reentrega aprovada e inserida no planejamento.")}catch(e){alert(`Falha ao salvar aprovação: ${e.message||e}`)}
-}
-async function markRedeliveryCompleted(appId,eventId){
- const state=proofStateForApp(appId),approval=state.redelivery?.[eventId];if(!approval||!confirm("Confirmar que esta reentrega foi realizada?"))return;
- const updated={...approval,status:"COMPLETED",completedAt:new Date().toISOString(),completedBy:"CENTRAL"};
- try{const rt=await getFirebaseRuntime();await rt.dbMod.set(rt.dbMod.ref(rt.db,`driverApps/${appId}/redeliveryApprovals/${eventId}`),updated);state.redelivery[eventId]=updated;removeRedeliveryOrderFromPlans(eventId);persist();renderRedeliveryPanels();renderPlanning();toast("Reentrega concluída.")}catch(e){alert(`Falha: ${e.message||e}`)}
-}
 function routeFinalizationRows(){
  const filter=$("mapDriverFilter")?.value||"TODOS";
  const publications=Object.values(settings.driverAppPublications||{})
@@ -1638,7 +1541,7 @@ function routeFinalizationRows(){
 
    routesList.forEach(route=>{
      const stopRows=(route.stops||[]).map((stop,i)=>{
-       const match=routeProofMatch(state.meta,state.retake,state.events,state.redelivery,route,stop);
+       const match=routeProofMatch(state.meta,state.retake,state.events,route,stop);
        return{stop,index:i,...match}
      });
      const completed=stopRows.filter(x=>x.resolved).length;
@@ -1708,7 +1611,7 @@ function renderRouteFinalizationPanel(){
      <div><span>Entregas</span><b>${r.total}</b></div>
      <div><span>Concluídas</span><b>${r.completed}</b></div>
      <div><span>Canhoto retido</span><b>${r.retainedCount}</b></div>
-     <div><span>Não entregues</span><b>${Math.max(0,r.total-r.completed)}</b></div>
+     <div><span>Não entregues</span><b>${r.noTimeCount}</b></div>
     </div>
     <div class="proof-central-list">
      ${r.stopRows.map(sr=>{
@@ -1881,13 +1784,6 @@ async function connectLiveTracking(){
        renderRouteFinalizationPanel();renderRedeliveryPanels();renderDriverRouteSummary();if($("routeanalysis")?.classList.contains("active"))renderWeeklyRouteMap()
      },err=>console.error("Exceções de entrega",pub.driver,err));
      firebaseTrackingUnsubs.push(unsubEvents);
-
-     const redeliveryRef=rt.dbMod.ref(rt.db,`driverApps/${pub.appId}/redeliveryApprovals`);
-     const unsubRedelivery=rt.dbMod.onValue(redeliveryRef,snap=>{
-       const state=proofStateForApp(pub.appId);state.redelivery=snap.exists()?(snap.val()||{}):{};state.driver=pub.driver;
-       renderRouteFinalizationPanel();renderRedeliveryPanels();renderDriverRouteSummary();if($("routeanalysis")?.classList.contains("active"))renderWeeklyRouteMap()
-     },err=>console.error("Reentregas",pub.driver,err));
-     firebaseTrackingUnsubs.push(unsubRedelivery)
    });
 
    renderRouteFinalizationPanel();
@@ -2146,7 +2042,7 @@ function renderDriverApps(){
    });
    const routeInfo=routeOk
      ? `${appRoutes.length} rota(s) • Emb. ${[...allShipments].map(esc).join(", ")} • ${allStops} parada(s) • ${allOrders.size} pedido(s)`
-     : "Nenhuma rota gerada ainda.";
+     : (driverAppsUnlocked()?"Nenhuma rota liberada para este motorista.":"Aguardando “Roteirizar todos e liberar Apps”.");
 
    const routeDate=route?.generatedAt
      ? new Date(route.generatedAt).toLocaleString("pt-BR")
@@ -2172,7 +2068,7 @@ function renderDriverApps(){
     <div class="app-status">
      <span>Última rota vinculada</span>
      <b>${routeInfo}</b>
-     ${routeDate?`<div class="app-route-meta">Atualizado em ${esc(routeDate)} • o app reúne TODAS as entregas disponíveis • ordem de cada dia: mais perto → mais longe</div>`:""}
+     ${routeDate?`<div class="app-route-meta">Atualizado em ${esc(routeDate)} • o app reúne TODAS as entregas disponíveis • ordem de cada dia: otimizada por rua e deslocamento rodoviário</div>`:""}
     </div>
     ${firebasePublicationForDriver(v.driver)
       ? `<div class="public-share-note">📡 App online publicado • link curto • GPS preparado para rastreamento.</div>`
@@ -2645,7 +2541,9 @@ async function pickESPD(){
     "application/vnd.ms-excel.sheet.macroEnabled.12":[".xlsm"]
    }}
   ]});
-  fileHandle=h;await dbSet(HANDLE_KEY,h);
+  fileHandle=h;
+  try{await dbSet(HANDLE_KEY,h)}
+  catch(e){console.warn("Não foi possível memorizar o vínculo do ESPD; ele continua válido nesta sessão.",e)}
   if(!(await ensurePermission(h,true)))throw new Error("Permissão negada.");
   await readLinkedFile(true);startMonitor();toast("ESPD vinculado e monitorado.")
  }catch(e){if(e.name!=="AbortError")alert(e.message||e)}
@@ -2658,12 +2556,23 @@ async function unlinkESPD(){
  fileHandle=null;currentFile=null;workbookCache=null;csvTable=null;currentFileKind="";
  currentTable={columns:[],rows:[]};aggregatedOrders=[];detected={};mappingDetails={};lastModified=lastSize=0;
  plans={};clientCities={};routeGeoCache={};deliveryGeoCache={};
+ lastRouteAnalysis=[];lastRouteAnalysisDayKey="";lastRouteAnalysisCounts=null;selectedDayKey="";
+ openedShipmentContext=null;openedOrderContext=null;currentItinerary=null;
  driverProofStates=new Map();routeCompletionState=new Map();liveTruckPositions=new Map();
  settings.espdOperationalRevision="";settings.bulkRoutingRevision="";settings.bulkRoutingAt="";
  Object.keys(settings.driverAppPublications||{}).forEach(k=>settings.driverAppPublications[k]={...settings.driverAppPublications[k],signature:"",orderCount:0,totalStops:0,routeCount:0,waitingForRouting:true});
- persist();persistRouteGeo();persistDeliveryGeo();stopLiveTrackingSubscriptions();await dbDel(HANDLE_KEY);
- $("sheetSelect").innerHTML="";setState("Nenhum ESPD vinculado. Operação limpa; motoristas/frota e rotas fixas preservados.","");
+ persist();persistRouteGeo();persistDeliveryGeo();stopLiveTrackingSubscriptions();
+ try{await dbDel(HANDLE_KEY)}catch(e){console.warn("Não foi possível apagar o vínculo persistido do ESPD; a operação local foi limpa normalmente.",e)}
+ $("sheetSelect").innerHTML="";
+ if($("mappingGrid"))$("mappingGrid").innerHTML="";
+ if($("mappingScore"))$("mappingScore").textContent="0% reconhecido";
+ if($("fieldDetection"))$("fieldDetection").innerHTML='<div class="empty">Vincule o ESPD para mapear os campos.</div>';
+ if($("headerDetectionInfo"))$("headerDetectionInfo").textContent="Nenhum ESPD vinculado.";
+ if($("pmNew"))$("pmNew").textContent="0";
+ updateFileInfo();
+ setState("Nenhum ESPD vinculado. Operação limpa; motoristas/frota e rotas fixas preservados.","");
  renderData();renderPlanning();renderDriverApps();renderRoutingQueue();renderCentralShipmentRouting();renderLiveTrackingPanel();renderRouteFinalizationPanel();renderRedeliveryPanels();renderWhatsAppDispatch();updateDriverAppReleaseUi();
+ if(routeMap)renderWeeklyRouteMap().catch(console.error);
  toast("ESPD desvinculado e operação limpa.")
 }
 function startMonitor(){stopMonitor();monitorTimer=setInterval(checkChanges,2000)}function stopMonitor(){if(monitorTimer){clearInterval(monitorTimer);monitorTimer=null}}
@@ -3103,12 +3012,14 @@ function buildShipmentStops(shipment){
      orders:[],stopId:o.stopId||"",
      lat:hasCoords?Number(o.latitude):null,
      lon:hasCoords?Number(o.longitude):null,
-     coordinateSource:hasCoords?"ESPD":""
+     coordinateSource:hasCoords?"ESPD":"",
+     mapSource:o.mapSource||""
    });
    const g=groups.get(key);
    if(!validDeliveryCoordinates(g.lat,g.lon)&&hasCoords){
      g.lat=Number(o.latitude);g.lon=Number(o.longitude);g.coordinateSource="ESPD"
    }
+   if(!g.mapSource&&o.mapSource)g.mapSource=o.mapSource;
    g.orders.push(o)
  });
  return{stops:[...groups.values()],missing}
@@ -3129,7 +3040,7 @@ function deliveryCoordinateCacheKey(stop){
  return `ADDR:${norm(stop?.address||"")}`
 }
 async function geocodeDeliveryStop(stop){
- // Arquivo de teste V5.47: coordenadas explícitas têm prioridade total.
+ // Arquivo de teste V5.48: coordenadas explícitas têm prioridade total.
  if(validDeliveryCoordinates(stop?.lat,stop?.lon)){
    return{
      lat:Number(stop.lat),lon:Number(stop.lon),
@@ -3215,7 +3126,8 @@ async function resolveRoadsideDeliveryStop(stop){
 
  // Coordenadas de teste garantem fallback. Antes delas, tenta a fachada/endereço exato
  // para aproximar o ponto de descarga da rua real do estabelecimento.
- if(stop?.coordinateSource==="ESPD"&&String(stop?.address||"").trim()){
+ const isFixedTestCoordinate=/TESTE|COORDENADA FIXA/i.test(String(stop?.mapSource||""));
+ if(!isFixedTestCoordinate&&stop?.coordinateSource==="ESPD"&&String(stop?.address||"").trim()){
    try{
      const exact=await nominatimDeliveryQuery(stop.address);
      if(exact){
@@ -3356,7 +3268,7 @@ async function osrmDeliveryMatrix(points){
  for(let i=0;i<n;i++){distances[i][i]=0;durations[i][i]=0}
 
  // Até 18 pontos: uma única chamada é mais rápida.
- if(n<=18){
+ if(n<=32){
    try{
      const coords=points.map(p=>`${p.lon},${p.lat}`).join(";");
      const url=`https://router.project-osrm.org/table/v1/driving/${coords}?annotations=distance,duration`;
@@ -3368,7 +3280,7 @@ async function osrmDeliveryMatrix(points){
  }
 
  // Embarques grandes são divididos para não exceder limite do serviço público.
- const BLOCK=14;
+ const BLOCK=24;
  let fallbackBlocks=0,totalBlocks=0;
  const indexGroups=[];
  for(let i=0;i<n;i+=BLOCK)indexGroups.push(Array.from({length:Math.min(BLOCK,n-i)},(_,k)=>i+k));
@@ -3637,7 +3549,7 @@ async function routeOpenedShipment(){
    };
    persist();
    renderShipmentItinerary(itinerary);
-   status.textContent=`Rota organizada do mais perto para o mais longe: ${optimizedStops.length} parada(s), ${(itinerary.totalDistance/1000).toFixed(1)} km.`
+   status.textContent=`Rota organizada por rua e deslocamento rodoviário: ${optimizedStops.length} parada(s), ${(itinerary.totalDistance/1000).toFixed(1)} km.`
  }catch(e){
    console.error(e);
    status.textContent=e.message||String(e);
@@ -3791,6 +3703,17 @@ function ensurePlanDriverRoutes(plan){
  if(!plan.driverRoutes||typeof plan.driverRoutes!=="object")plan.driverRoutes={};
  return plan.driverRoutes
 }
+function driverRouteInputSignature(plan,driver){
+ const shipments=shipmentsForDriverOnPlan(plan,driver);
+ const raw=shipments.map(s=>[
+   s.shipment||"",s.routeLabel||"",s.truckPlate||"",s.driver||"",
+   (s.orders||[]).map(o=>[
+     o.id||"",o.clientCode||"",o.clientName||"",o.city||"",o.fullAddress||o.address||"",
+     o.latitude??"",o.longitude??"",o.weightKnown?num(o.weight):"SEM_PESO"
+   ].join("~")).sort().join("^")
+ ].join("::")).sort().join("||");
+ return`in_${fastStableHash(raw)}_${raw.length}`
+}
 function driverOrdersForDay(plan,driver){
  const unique=new Map();
  shipmentsForDriverOnPlan(plan,driver).forEach(s=>(s.orders||[]).forEach(o=>{
@@ -3844,7 +3767,7 @@ async function buildDriverRoute(dayInfo,driver){
  const matrix=await osrmDeliveryMatrix(points);
  if(matrix.fallbackBlocks)$("mapStatus").innerHTML=`<div style="font-size:20px">↻</div><div><strong>${esc(driver)} • ${esc(dayInfo.day)}</strong> Matriz calculada com fallback em ${matrix.fallbackBlocks} bloco(s); continuando a roteirização.</div>`;
 
- // V5.47: distância real pela rua + continuidade de via.
+ // V5.48: distância real pela rua + continuidade de via.
  // Ao entrar em uma rua com várias entregas, descarrega os clientes próximos
  // nessa mesma via antes de sair, quando isso evita deslocamentos desnecessários.
  const seq=streetAwareDeliveryOrder(matrix.distances,stops);
@@ -3875,6 +3798,7 @@ async function buildDriverRoute(dayInfo,driver){
  const route={
    generatedAt:sameEspdExisting&&existingRoute.generatedAt?existingRoute.generatedAt:new Date().toISOString(),
    espdRevision:settings.espdOperationalRevision||"",
+   inputSignature:driverRouteInputSignature(plan,driver),
    dayKey:dayInfo.key,
    day:dayInfo.day,
    driver,
@@ -3915,18 +3839,16 @@ async function refreshDriverCompletionState(driver){
  if(!pub?.appId||!firebaseConfigReady())return;
  const rt=await getFirebaseRuntime();
  await migrateDriverProofMetadata(rt,pub).catch(()=>{});
- const [metaSnap,retakeSnap,eventSnap,redeliverySnap]=await Promise.all([
+ const [metaSnap,retakeSnap,eventSnap]=await Promise.all([
    rt.dbMod.get(rt.dbMod.ref(rt.db,`driverApps/${pub.appId}/deliveryProofMeta`)),
    rt.dbMod.get(rt.dbMod.ref(rt.db,`driverApps/${pub.appId}/retakeRequests`)),
-   rt.dbMod.get(rt.dbMod.ref(rt.db,`driverApps/${pub.appId}/deliveryEvents`)),
-   rt.dbMod.get(rt.dbMod.ref(rt.db,`driverApps/${pub.appId}/redeliveryApprovals`))
+   rt.dbMod.get(rt.dbMod.ref(rt.db,`driverApps/${pub.appId}/deliveryEvents`))
  ]);
  const state=proofStateForApp(pub.appId);
  state.driver=driver;
  state.meta=metaSnap.exists()?(metaSnap.val()||{}):{};
  state.retake=retakeSnap.exists()?(retakeSnap.val()||{}):{};
- state.events=eventSnap.exists()?(eventSnap.val()||{}):{};
- state.redelivery=redeliverySnap.exists()?(redeliverySnap.val()||{}):{}
+ state.events=eventSnap.exists()?(eventSnap.val()||{}):{}
 }
 async function reactivateNoTimeEventsForRoute(driver,route){
  const pub=firebasePublicationForDriver(driver);
@@ -3935,7 +3857,7 @@ async function reactivateNoTimeEventsForRoute(driver,route){
  const updates={};
  let count=0;
  (route.stops||[]).forEach(stop=>{
-   const match=routeProofMatch(state.meta,state.retake,state.events,state.redelivery,route,stop);
+   const match=routeProofMatch(state.meta,state.retake,state.events,route,stop);
    if(match.noTime&&match.eventId){
      updates[`${match.eventId}/active`]=false;
      updates[`${match.eventId}/reactivatedAt`]=new Date().toISOString();
@@ -3965,6 +3887,18 @@ async function generateDriverRoutes(){
    let total=0,success=0,errors=0,skippedFinalized=0,reactivatedNoTime=0;
    const refreshedDrivers=new Set();
    const errorList=[];
+   if(bulkRoutePublishMode){
+     days.forEach(info=>{
+       const plan=plans[info.key];
+       (plan?.shipments||[]).forEach(s=>{
+         if(!(s.orders||[]).length)return;
+         if(!s.driver||norm(s.driver)==="A DEFINIR"||!s.truckPlate||norm(s.truckPlate)==="A DEFINIR"){
+           errors++;
+           errorList.push(`Embarque ${s.shipment||"—"} / ${info.day}: motorista ou caminhão não definido`)
+         }
+       })
+     })
+   }
 
    for(const info of days){
      const plan=plans[info.key];if(!plan)continue;
@@ -3983,6 +3917,11 @@ async function generateDriverRoutes(){
        const existingRoute=plan.driverRoutes?.[driver];
        const existingCurrent=existingRoute&&!existingRoute.error&&routeBelongsToCurrentEspd(existingRoute);
        if(existingCurrent&&centralRouteIsFinalized(existingRoute)){skippedFinalized++;continue}
+       const currentInputSignature=driverRouteInputSignature(plan,driver);
+       if(existingCurrent&&existingRoute.inputSignature===currentInputSignature){
+         total++;success++;
+         continue
+       }
        if(existingCurrent){
          try{reactivatedNoTime+=await reactivateNoTimeEventsForRoute(driver,existingRoute)}catch(e){console.warn("Reativação de não entregues",driver,e)}
        }
@@ -4010,7 +3949,7 @@ async function generateDriverRoutes(){
 
    refreshDriverFilter();renderRoutingQueue();renderWeeklyRouteMap();renderDriverApps();renderDriverRouteSummary();
 
-   if(!total){
+   if(!total&&!bulkRoutePublishMode){
      $("mapStatus").innerHTML=`<div style="font-size:20px">◎</div><div><strong>Nenhuma rota pendente.</strong> ${skippedFinalized?`${skippedFinalized} rota(s) já concluída(s).`:"Nenhum motorista com embarque e pedidos foi encontrado."}</div>`;
      return
    }
@@ -4042,6 +3981,12 @@ async function generateDriverRoutes(){
      const plan=plans[info.key];
      return (plan?.shipments||[]).filter(s=>(s.orders||[]).length&&s.driver&&norm(s.driver)!=="A DEFINIR").map(s=>s.driver)
    }))];
+
+   if(!driversToPublish.length){
+     settings.bulkRoutingRevision="";settings.bulkRoutingAt="";persist();updateDriverAppReleaseUi();
+     $("mapStatus").innerHTML='<div style="font-size:20px">◎</div><div><strong>Nenhum App liberado.</strong> Não existem embarques com motorista definido para esta semana.</div>';
+     return
+   }
 
    let publishErrors=[];
    for(const driver of driversToPublish){
@@ -4262,7 +4207,7 @@ function driverAppUrlForRoutes(driver,routesList){
  // Compatibilidade sem Firebase.
  const publicBase=normalizedPublicBaseUrl();
  const url=publicBase?new URL("motorista.html",publicBase):new URL("motorista.html",window.location.href);
- url.searchParams.set("v","547");
+ url.searchParams.set("v","548");
  url.hash=encodeDriverAppPayload(compactDriverBundle(driver,valid));
  return url.href
 }
@@ -4296,7 +4241,7 @@ async function prepareVerifiedDriverApp(driver,routesList){
  const url=driverAppUrlForRoutes(driver,valid);
  if(!url)throw new Error(`Não foi possível gerar o link do App de ${driver}.`);
  if(firebaseConfigReady()&&url.includes("&cfg=")){
-   throw new Error("Foi detectado um link antigo com configuração Firebase embutida. Atualize o sistema para a V5.47.")
+   throw new Error("Foi detectado um link antigo com configuração Firebase embutida. Atualize o sistema para a V5.48.")
  }
  return url
 }
@@ -4523,7 +4468,7 @@ function renderDriverRouteSummary(){
         ${completion.finalized?`<span class="badge ready">✅ FINALIZADA</span>`:`<span class="badge open">ROTA GERADA</span>`}
        </div>
        ${completion.finalized?`<div class="completed-route-note">Esta rota está arquivada como concluída${completion.finalizedAt?` • ${new Date(completion.finalizedAt).toLocaleString("pt-BR")}`:""}.</div>`:""}
-       <span class="near-far-badge">✓ ORDEM: MAIS PERTO → MAIS LONGE</span>
+       <span class="near-far-badge">✓ ORDEM: RUA + DESLOCAMENTO RODOVIÁRIO</span>
        <div class="driver-route-kpis">
         <div><span>Paradas</span><b>${r.stops?.length||0}</b></div>
         <div><span>Distância</span><b>${(num(r.totalDistance)/1000).toLocaleString("pt-BR",{maximumFractionDigits:1})} km</b></div>
@@ -4990,9 +4935,9 @@ function setRouteAnalysisStatus(title,detail,kind=""){
 async function analyzeRoutes(){
  if(routeAnalysisBusy)return;
  routeAnalysisBusy=true;
- $("runRouteAnalysis").disabled=true;
+ const analysisBtn=$("runRouteAnalysis");if(analysisBtn)analysisBtn.disabled=true;
  try{
-   const dayKey=$("raDay").value,plan=plans[dayKey];
+   const dayKey=$("raDay")?.value||currentPlanKey(),plan=plans[dayKey];
    const d=parseDateKey(dayKey),dayName=d?DAY_MAP[d.getDay()]:"";
    const targetPct=Math.max(50,Math.min(100,Number($("raTarget").value)||80));
    const corridorKm=Math.max(1,Math.min(30,Number($("raCorridor").value)||10));
@@ -5095,7 +5040,7 @@ async function analyzeRoutes(){
  }catch(e){
    console.error(e);setRouteAnalysisStatus("Falha na análise.",e.message||String(e),"bad")
  }finally{
-   routeAnalysisBusy=false;$("runRouteAnalysis").disabled=false
+   routeAnalysisBusy=false;if(analysisBtn)analysisBtn.disabled=false
  }
 }
 function renderRouteAnalysis(list){
@@ -5112,7 +5057,8 @@ function renderRouteAnalysis(list){
    const selectedIds=new Set(s.selected.map(x=>String(x.order.id)));
    const rows=(s.selected.length?s.selected:s.compatible.slice(0,12));
    const badge=s.noWeight?'<span class="ra-badge wait">PESO PENDENTE</span>':s.selected.length?'<span class="ra-badge">RECOMENDAÇÃO</span>':'<span class="ra-badge block">SEM COMBINAÇÃO</span>';
-   const meterVal=projected??routeAllocationPct(plans[$("raDay").value],t.routeLabel);
+   const analysisDayKey=$("raDay")?.value||lastRouteAnalysisDayKey||currentPlanKey();
+   const meterVal=projected??routeAllocationPct(plans[analysisDayKey],t.routeLabel);
    return `<article class="ra-card">
      <div class="ra-card-head">
       <div><h4>Embarque ${esc(t.shipment)}</h4><small>${esc(t.routeLabel)}</small></div>
@@ -5875,7 +5821,11 @@ async function analyzeConsolidationFromEmbarques(){
 function renderPlanning(){
  renderRedeliveryPanels();
  refreshEmbarqueConsolidationMetrics();
- const d=new Date(),tm=tomorrow(),day=tomorrowDay(),p=getPlan();$("pToday").textContent=fmtDate(d);$("pTomorrow").textContent=fmtDate(tm);$("pDay").textContent=day;$("pLast").textContent=settings.lastShipment;$("pNext").textContent=(Number(settings.lastShipment)||0)+1;$("lastShipmentInput").value=settings.lastShipment;$("heavyThreshold").value=settings.heavyThreshold;$("fleetPriority").value=settings.fleetPriority;
+ const d=new Date(),tm=tomorrow(),day=tomorrowDay();
+ const hasOperation=!!currentFile||aggregatedOrders.length>0||Object.keys(plans).length>0||!!settings.espdOperationalRevision;
+ const p=hasOperation?getPlan():{deliveryDate:currentPlanKey(),day,shipments:[],pending:[],seen:{},manualPending:{}};
+ $("pToday").textContent=fmtDate(d);$("pTomorrow").textContent=fmtDate(tm);$("pDay").textContent=day;$("pLast").textContent=settings.lastShipment;$("pNext").textContent=(Number(settings.lastShipment)||0)+1;$("lastShipmentInput").value=settings.lastShipment;$("heavyThreshold").value=settings.heavyThreshold;$("fleetPriority").value=settings.fleetPriority;
+ if(!hasOperation&&$("pmNew"))$("pmNew").textContent="0";
  const eligible=aggregatedOrders.filter(o=>!o.sourceShipment&&!!routeForCity(o.city)&&normalizeOrderCategory(o)!=="LEITE").length;
  $("pmEligible").textContent=eligible;$("pmShipments").textContent=p.shipments.filter(s=>s.status==="ABERTO").length;$("pmPending").textContent=p.pending.length;
  const embarkedOrders=(p.shipments||[]).flatMap(s=>s.orders||[]);
@@ -5886,18 +5836,6 @@ function renderPlanning(){
  if($("embItems"))$("embItems").textContent=embarkedItems;
  if($("embWeight"))$("embWeight").textContent=`${embarkedWeight.toLocaleString("pt-BR",{maximumFractionDigits:1})} kg`;
  if($("embValue"))$("embValue").textContent=moneyBR(embarkedValue);
- const h=$("shipmentsHost");
- if(h){
-  if(!p.shipments.length){h.className="empty";h.textContent="Nenhum embarque criado ainda."}
-  else{
-   h.className="shipments";
-   h.innerHTML=p.shipments.map(s=>{
-    const pct=(s.weightKnown!==false&&s.capacity)?Math.min(100,Math.round(s.weight/s.capacity*100)):0;
-    const alloc=shipmentAllocationPct(p,s);
-    return`<div class="shipment"><div class="shipmenttop"><div><h4>Embarque ${s.shipment}</h4><div class="routeLabel">${esc(s.routeLabel)}</div></div><button class="btn small ${s.status==="ABERTO"?"success":""}" onclick="closeShipment(${s.shipment})">${s.status}</button></div><div class="progress"><div style="width:${pct}%"></div></div><div class="shipmeta"><span><b>${esc(s.driver)}</b></span><span>${esc(s.truckPlate)}</span><span>${s.weightKnown===false?`Peso pendente • ${alloc}% dos pedidos da rota neste embarque`:`${s.weight.toLocaleString("pt-BR")} / ${s.capacity.toLocaleString("pt-BR")} kg (${pct}%)`}</span><span class="badge ${s.group==="CASA"?"house":"third"}">${s.group}</span></div><div class="orderlist">${s.orders.map(o=>`<div class="orderrow"><button type="button" class="btn small" onclick="openOrderDetail('${encodeURIComponent(currentPlanKey())}','${encodeURIComponent(String(s.shipment))}','${encodeURIComponent(String(o.id))}')">Ped. ${esc(o.id)}</button><div><b>${esc(o.clientName||o.clientCode)}</b><small>${esc(o.city)} • ${esc(categoryLabel(normalizeOrderCategory(o)))} • ${esc(o.credit||"SEM CRÉDITO")} • ${esc(o.status||"SEM SITUAÇÃO")} • ${esc(calculatedWeightLabel(o))}</small></div><button class="ib" title="Remover" onclick="removeOrderFromShipment(${s.shipment},'${esc(o.id)}')">×</button></div>`).join("")||'<div class="empty">Sem pedidos.</div>'}</div></div>`
-   }).join("")
-  }
- }
  const ph=$("pendingHost");if(!p.pending.length){ph.className="empty";ph.textContent="Nenhuma pendência."; } else {ph.className="";ph.innerHTML=p.pending.map(o=>`<div class="pending"><div class="pinfo"><b>Pedido ${esc(o.id)} • ${esc(o.clientName||o.clientCode||"Cliente")}</b><small>${esc(o.city||"Cidade não informada")} ${o.routeLabel?"• "+esc(o.routeLabel):""} • ${esc(o.credit||"SEM CRÉDITO")} • ${esc(o.status||"SEM SITUAÇÃO")} • R$ ${o.openValue.toLocaleString("pt-BR",{minimumFractionDigits:2,maximumFractionDigits:2})} aberto • ${esc(calculatedWeightLabel(o))} • ${esc(categoryLabel(normalizeOrderCategory(o)))}</small></div><div><span class="badge ${o.reason==="PESO ELEVADO - REVISÃO"||o.reason==="REMOVIDO MANUALMENTE DO EMBARQUE"?"review":"block"}">${esc(o.reason)}</span>${o.reason==="PESO ELEVADO - REVISÃO"
  ?` <button class="btn small" onclick="approvePending('${esc(o.id)}')">Liberar</button>`
  :o.reason==="REMOVIDO MANUALMENTE DO EMBARQUE"
@@ -5953,10 +5891,6 @@ $("centralProofDelete").addEventListener("click",()=>{
 });
 $("driverDetailClose").addEventListener("click",closeDriverOperationalDetail);
 $("driverDetailModal").addEventListener("click",e=>{if(e.target===$("driverDetailModal"))closeDriverOperationalDetail()});
-$("redeliveryModalClose").addEventListener("click",closeRedeliveryModal);
-$("redeliveryCancel").addEventListener("click",closeRedeliveryModal);
-$("redeliveryModal").addEventListener("click",e=>{if(e.target===$("redeliveryModal"))closeRedeliveryModal()});
-$("redeliveryApprove").addEventListener("click",approveRedelivery);
 $("shipmentModal").addEventListener("click",e=>{if(e.target===$("shipmentModal"))closeShipmentDetail()});
 $("orderModal").addEventListener("click",e=>{if(e.target===$("orderModal"))closeOrderDetail()});
 $("runRouteAnalysis").addEventListener("click",analyzeRoutes);

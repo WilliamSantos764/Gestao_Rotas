@@ -1,6 +1,13 @@
-Gestão Logística V5.47
-Matriz rodoviária dividida em blocos com retry/fallback.
-Rotas finais grandes divididas em trechos.
-Roteirizar todos e liberar Apps = tudo ou nada.
-Indicadores de consolidação movidos para Embarques.
-Indicadores de corredor deixam de exibir zero falso antes da análise.
+Gestão Logística V5.48 — Auditoria + Estabilidade
+
+Correções principais:
+- lastRouteAnalysisDayKey/Counts declarados e resetados.
+- norm() restaurado no App do Motorista.
+- matriz robusta na Central e no App.
+- linha azul testada com GPS e fallback.
+- desvinculação limpa a operação sem recriar planejamento vazio.
+- localStorage/IndexedDB protegidos contra falhas.
+- código residual de aprovação de reentrega removido.
+- publicação Firebase preserva canhotos/ocorrências.
+
+Validação: 10/10 fluxos principais + 3 testes extras passaram no Chromium automatizado; node --check e varredura de identificadores indefinidos concluídos.

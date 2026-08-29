@@ -1,0 +1,44 @@
+GESTÃO LOGÍSTICA V5.48 — RELATÓRIO DE AUDITORIA
+
+RESULTADO: APROVADO NOS TESTES AUTOMATIZADOS EXECUTADOS
+
+=== FLUXOS PRINCIPAIS ===
+START 1 INITIAL
+START 2 LOAD
+START 3 ANALYSIS
+START 4 ROUTEALL
+START 5 WHATSAPP
+START 6 MATRIXFAIL
+START 7 ROLLBACK
+START 8 UNLINK
+START 9 DRIVERWAIT
+START 10 DRIVERBLUE
+PASS Inicialização da Central - Sem pageerror; navegação principal e engrenagem corretas
+PASS Importação ESPD + Embarques - {"rows": "176", "ships": 15, "pending": 3, "under": "4", "compat": "—", "queue": 9, "locked": true}
+PASS Analisar consolidação - {"c": "0", "f": "0", "s": "0", "state": "Última análise: 0 compatível(is), 0 futuro(s), 0 sugestão(ões)."}
+PASS Roteirizar todos + liberar Apps - {"unlocked": true, "queue": 0, "pubs": 9, "routes": 9, "status": "✓Mapa atualizado. Somente rotas pendentes exibidas sobre o planejamento da semana. Use o filtro para isolar um motorista.", "waInputs": 15}
+PASS WhatsApp editável por motorista - {"driver": "ADEMAR", "old": "", "newValue": "(35) 99999-1234", "fleetValue": "(35) 99999-1234"}
+PASS Fallback da matriz rodoviária - {"unlocked": true, "errors": 0, "routes": 9, "status": "✓Mapa atualizado. Somente rotas pendentes exibidas sobre o planejamento da semana. Use o filtro para isolar um motorista."}
+PASS Rollback de publicação parcial - {"unlocked": false, "release": "🔒 Apps dos Motoristas bloqueados. Nenhum pedido ou rota será publicado até clicar em Roteirizar todos e liberar Apps.", "bundles": [["driverApps/driver_3e408dd1fcfbc174b74ff82def5a11f5", "ROUTE"], ["driverApps/driver_0dde09bef152aeb0d45de969be02a66c", "ROUTE"], ["driverApps/driver_a1e215381c9b4cdd976335935fef0748", "ROUTE"], ["driverApps/driver_e4e58885c4cc74b660b3eaa8d456e250", "ROUTE"], ["driverApps/driver_f2a797ea9b2fd71c20c2b618ef719ee4", "ROUTE"], ["driverApps/driver_42c2a650d48cfd30c88cc9e076b6f609", "ROUTE"], ["driverApps/driver_3e608900a74735c6f4b5787a4d831bc4", "ROUTE"], ["driverApps/driver_7b30f2a040f1693a9603fd081eb5df2a", "ROUTE"], ["driverApps/driver_a403aa52e3574a1a7a35625f9b256b4e", "ROUTE"], ["driverApps/driver_3e408dd1fcfbc174b74ff82def5a11f5/bundle", "WAITING_FOR_ROUTING"], ["driverApps/driver_0dde09bef152aeb0d45de969be02a66c/bundle", "WAITING_FOR_ROUTING"], ["driverApps/driver_a1e215381c9b4cdd976335935fef0748/bundle", "WAITING_FOR_ROUT
+PASS Desvincular ESPD limpa operação - {"before": {"fleet": 15, "routeCount": 62}, "after": {"fleet": 15, "routeCount": 62, "orders": 0, "plans": 0, "revision": "", "rows": "0"}}
+PASS App Motorista bloqueado/aguardando - {"stops": "0", "orders": "0", "error": "Aguardando roteirização.", "mapDisplay": "none", "gps": "Nenhuma rota/pedido liberado. Aguarde a roteirização geral na central."}
+PASS App Motorista + linha azul - {"before": {"poly": 1, "last": 3, "stops": 2}, "after": {"poly": 1, "last": 3, "live": 3, "status": "Linha azul atualizada às 20:37:23."}}
+SUMMARY 10 / 10
+
+
+=== TESTES EXTRAS DE ROBUSTEZ ===
+PASS armazenamento bloqueado + limpeza visual {"orders": 0, "plans": 0, "pmNew": "0", "under": "0", "compat": "—", "rows": "0"}
+PASS matriz/rota do App com OSRM indisponível {"live": 3, "poly": 1, "status": "Linha azul atualizada às 20:38:30."}
+PASS visualizador de canhoto trata link inválido {"status": "Link do canhoto incompleto.", "cls": "err"}
+
+
+=== VERIFICAÇÕES ESTÁTICAS ===
+- node --check: index.html OK
+- node --check: motorista.html OK
+- node --check: canhoto.html OK
+- node --check: sw.js OK
+- IDs HTML duplicados: nenhum
+- handlers HTML apontando para função inexistente: nenhum
+- TypeScript TS2304/TS2552 (identificadores indefinidos): nenhum
+
+Observação: serviços externos reais (Firebase/OSRM/Nominatim) podem sofrer indisponibilidade de rede. O software foi testado com falhas simuladas desses serviços e possui fallback/rollback nos fluxos críticos.
