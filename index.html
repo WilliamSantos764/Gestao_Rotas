@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Gestão Logística - V5.40 Descarga na Rua + Otimização por Via</title>
+<title>Gestão Logística - V5.41 Embarques + Central de Rotas Organizada</title>
 <style>
 :root{
   --bg:#f3f6fb;--card:#fff;--line:#e2e8f0;--text:#152033;--muted:#667085;
@@ -42,6 +42,22 @@ main{max-width:1580px;margin:auto;padding:20px}.view{display:none}.view.active{d
 .fleetgrid{display:grid;grid-template-columns:repeat(3,minmax(280px,1fr));gap:10px}.fleetcard{background:#fff;border:1px solid var(--line);border-radius:14px;padding:13px}.fleetcard .plate{font-size:18px;font-weight:950}.fleetcard .driver{font-weight:850;margin-top:4px}.fleetcard .cap{font-size:12px;color:var(--muted);margin-top:5px}
 .planheader{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:9px}.planmini{border:1px solid var(--line);background:#fff;border-radius:13px;padding:13px}.planmini span{display:block;font-size:11px;color:var(--muted);font-weight:850;text-transform:uppercase}.planmini strong{display:block;margin-top:5px;font-size:18px}
 .shipments{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:11px}.shipment{border:1px solid var(--line);background:#fff;border-radius:15px;padding:14px}.shipmenttop{display:flex;justify-content:space-between;gap:10px;align-items:flex-start}.shipment h4{margin:0;font-size:17px}.shipment .routeLabel{color:var(--muted);font-size:12px;margin-top:4px}.progress{height:9px;border-radius:99px;background:#eef1f5;overflow:hidden;margin:11px 0 6px}.progress>div{height:100%;background:var(--blue);border-radius:99px}.shipmeta{display:flex;gap:10px;flex-wrap:wrap;font-size:12px;color:var(--muted)}.orderlist{margin-top:10px;border-top:1px solid var(--line);padding-top:8px}.orderrow{display:grid;grid-template-columns:100px 1fr auto;gap:8px;align-items:center;padding:6px 0;border-bottom:1px dashed #edf0f5}.orderrow:last-child{border-bottom:0}.orderrow b{font-size:12px}.orderrow small{color:var(--muted)}
+.shipment-business-kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin:10px 0 14px}
+.shipment-business-kpis>div{border:1px solid var(--line);border-radius:11px;background:#fff;padding:10px}
+.shipment-business-kpis span{display:block;font-size:8px;font-weight:900;color:var(--muted);text-transform:uppercase}
+.shipment-business-kpis b{display:block;margin-top:4px;font-size:15px}
+.manual-pending-note{color:#b54708;font-weight:900}
+.central-shipment-routing{margin-bottom:11px;border:1px solid var(--line);border-radius:13px;background:#fff;overflow:hidden}
+.central-shipment-routing-head{display:flex;justify-content:space-between;gap:10px;align-items:flex-start;padding:10px 12px;background:#f8fafc;border-bottom:1px solid var(--line)}
+.central-shipment-routing-head h4{margin:0;font-size:14px}.central-shipment-routing-head small{display:block;margin-top:3px;color:var(--muted);font-size:10px}
+.central-shipment-routing-list{display:grid;grid-template-columns:repeat(3,minmax(230px,1fr));gap:8px;padding:10px}
+.central-route-ship{border:1px solid var(--line);border-radius:11px;padding:9px;background:#fff}
+.central-route-ship h5{margin:0;font-size:12px}.central-route-ship small{display:block;color:var(--muted);font-size:9px;line-height:1.45;margin-top:3px}
+.central-route-ship .btn{width:100%;margin-top:8px;font-size:9px}
+.shipment-orders-only-note{padding:8px 10px;border-radius:9px;background:#eff8ff;border:1px solid #b2ddff;color:#175cd3;font-size:10px;font-weight:850;margin-bottom:10px}
+@media(max-width:900px){.shipment-business-kpis{grid-template-columns:repeat(2,1fr)}.central-shipment-routing-list{grid-template-columns:1fr 1fr}}
+@media(max-width:560px){.shipment-business-kpis,.central-shipment-routing-list{grid-template-columns:1fr}}
+
 .pending{border:1px solid var(--line);border-radius:13px;padding:12px;margin-top:8px;display:flex;justify-content:space-between;gap:12px;align-items:center}.pending .pinfo{min-width:0}.pending b{display:block}.pending small{color:var(--muted);display:block;margin-top:3px}
 .formgrid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:9px}.formfield label{display:block;font-size:11px;font-weight:900;color:var(--muted);margin-bottom:5px}.formfield input,.formfield select{width:100%;border:1px solid var(--line);border-radius:9px;padding:9px 10px}
 .empty{text-align:center;color:var(--muted);padding:30px}.live{display:inline-flex;align-items:center;gap:7px;font-size:12px;font-weight:900;color:var(--green)}.dot{width:9px;height:9px;border-radius:50%;background:var(--green);box-shadow:0 0 0 4px rgba(6,118,71,.12)}
@@ -164,7 +180,7 @@ main{max-width:1580px;margin:auto;padding:20px}.view{display:none}.view.active{d
 .ra-note{background:#f0f9ff;border-left:4px solid #2e90fa;border-radius:10px;padding:11px 13px;font-size:12px;color:#175cd3;line-height:1.45}
 .ra-warning{background:#fffaeb;border-left:4px solid #f79009;border-radius:10px;padding:11px 13px;font-size:12px;color:#7a2e0e;line-height:1.45}
 .route-map-wrap{position:relative;border:1px solid var(--line);border-radius:15px;overflow:hidden;background:#eef2f6}
-#routeMap{height:560px;width:100%;background:#e8edf3}
+#routeMap{height:380px;width:100%;background:#e8edf3}
 .driver-map-controls{display:flex;gap:7px;align-items:center;flex-wrap:wrap}
 .driver-map-controls select{min-width:210px}
 .driver-route-summary{display:grid;grid-template-columns:repeat(3,minmax(250px,1fr));gap:9px;margin-top:11px}
@@ -417,7 +433,7 @@ main{max-width:1580px;margin:auto;padding:20px}.view{display:none}.view.active{d
 .target-rule{display:flex;gap:10px;align-items:flex-start;background:#f0f9ff;border:1px solid #d0ebff;border-radius:13px;padding:12px 14px;margin-bottom:13px;color:#175cd3;font-size:12px;line-height:1.45}
 .target-rule strong{color:#0b4aa2}
 
-@media(max-width:1250px){.board{grid-template-columns:repeat(3,1fr)}.fleetgrid{grid-template-columns:repeat(2,1fr)}.week-board{grid-template-columns:repeat(3,minmax(245px,1fr))}}@media(max-width:900px){.topin,.hero{flex-direction:column;align-items:flex-start}.grid4,.planheader,.formgrid,.week-summary,.daydetail-kpis,.order-summary,.route-analysis-toolbar,.shipment-summary,.dairy-controls,.alloc-rule-grid{grid-template-columns:repeat(2,1fr)}.board,.shipments,.week-board,.dd-ship-grid,.ra-results{grid-template-columns:1fr}.statusgrid{grid-template-columns:1fr}.dd-order{grid-template-columns:90px minmax(0,1fr) auto}}@media(max-width:560px){#routeMap{height:430px}.grid4,.planheader,.formgrid,.fleetgrid,.week-summary,.daydetail-kpis,.order-summary,.route-analysis-toolbar,.shipment-summary{grid-template-columns:1fr}.nav{width:100%}.nav button{flex:1}.orderrow{grid-template-columns:1fr}.dd-order{grid-template-columns:1fr auto}.dd-order .oid{grid-column:1}.dd-order .oclient{grid-column:1}.dd-order .arrow{grid-column:2;grid-row:1/3}.shipment-order-btn{grid-template-columns:1fr auto}.shipment-order-btn .order-id{grid-column:1}.shipment-order-btn .order-client{grid-column:1}.shipment-order-btn .chev{grid-column:2;grid-row:1/3}}
+@media(max-width:1250px){.board{grid-template-columns:repeat(3,1fr)}.fleetgrid{grid-template-columns:repeat(2,1fr)}.week-board{grid-template-columns:repeat(3,minmax(245px,1fr))}}@media(max-width:900px){.topin,.hero{flex-direction:column;align-items:flex-start}.grid4,.planheader,.formgrid,.week-summary,.daydetail-kpis,.order-summary,.route-analysis-toolbar,.shipment-summary,.dairy-controls,.alloc-rule-grid{grid-template-columns:repeat(2,1fr)}.board,.shipments,.week-board,.dd-ship-grid,.ra-results{grid-template-columns:1fr}.statusgrid{grid-template-columns:1fr}.dd-order{grid-template-columns:90px minmax(0,1fr) auto}}@media(max-width:560px){#routeMap{height:320px}.grid4,.planheader,.formgrid,.fleetgrid,.week-summary,.daydetail-kpis,.order-summary,.route-analysis-toolbar,.shipment-summary{grid-template-columns:1fr}.nav{width:100%}.nav button{flex:1}.orderrow{grid-template-columns:1fr}.dd-order{grid-template-columns:1fr auto}.dd-order .oid{grid-column:1}.dd-order .oclient{grid-column:1}.dd-order .arrow{grid-column:2;grid-row:1/3}.shipment-order-btn{grid-template-columns:1fr auto}.shipment-order-btn .order-id{grid-column:1}.shipment-order-btn .order-client{grid-column:1}.shipment-order-btn .chev{grid-column:2;grid-row:1/3}}
 </style>
 
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
@@ -456,9 +472,9 @@ main{max-width:1580px;margin:auto;padding:20px}.view{display:none}.view.active{d
 </head>
 <body>
 <header class="top"><div class="topin">
- <div class="brand"><div class="logo">R</div><div><h1>Gestão Logística - Rotas e Embarques V5.40</h1><small>Rotas • ESPD • Frota • Embarques automáticos</small></div></div>
+ <div class="brand"><div class="logo">R</div><div><h1>Gestão Logística - Embarques e Rotas V5.41</h1><small>Rotas • ESPD • Frota • Embarques automáticos</small></div></div>
  <nav class="nav">
-  <button class="active" data-view="planning">Dashboard</button>
+  <button class="active" data-view="planning">Embarques</button>
   <button data-view="routeanalysis">Central de Rotas</button>
   <button data-view="routes">Rotas Fixas</button>
   <button data-view="fleet">Frota</button>
@@ -470,7 +486,7 @@ main{max-width:1580px;margin:auto;padding:20px}.view{display:none}.view.active{d
 
 <main>
 <section id="planning" class="view active">
- <div class="hero"><div><h2>Dashboard semanal de embarques</h2><p>O sistema trabalha com a regra <b>carregar hoje para entregar no próximo dia útil</b>. Novos pedidos válidos que aparecerem no ESPD com Embarque = 0 são acrescentados automaticamente aos embarques abertos da rota do próximo dia útil. Sábado e domingo são ignorados, e pedidos que já possuem embarque não são duplicados.</p></div><div class="actions"><button class="btn primary" onclick="syncPlanning(true)">⚡ Sincronizar ESPD e planejamento</button><button class="btn" onclick="detectLastShipment()">Detectar último embarque</button></div></div>
+ <div class="hero"><div><h2>Embarques</h2><p>Central operacional de pedidos e embarques. Aqui ficam os pedidos, itens, pesos, valores, status de alocação e composição de cada embarque. Clique nos pedidos para abrir todos os itens e detalhes.</p></div><div class="actions"><button class="btn primary" onclick="syncPlanning(true)">⚡ Sincronizar ESPD e planejamento</button><button class="btn" onclick="detectLastShipment()">Detectar último embarque</button></div></div>
  <div class="planheader">
   <div class="planmini"><span>Carregamento</span><strong id="pToday">—</strong></div>
   <div class="planmini"><span>Entrega</span><strong id="pTomorrow">—</strong></div>
@@ -478,23 +494,11 @@ main{max-width:1580px;margin:auto;padding:20px}.view{display:none}.view.active{d
   <div class="planmini"><span>Último embarque</span><strong id="pLast">93716</strong></div>
   <div class="planmini"><span>Próximo embarque</span><strong id="pNext">93717</strong></div>
  </div>
-
- <section id="redeliveryReminderPanel" class="redelivery-reminder">
-  <h3>↻ Reentregas e ocorrências que exigem atenção</h3>
-  <p>Canhoto retido e entrega não realizada só saem desta lista depois da sua aprovação, programação e reentrega.</p>
-  <div class="redelivery-reminder-grid">
-   <div><span>Aguardando aprovação</span><b id="rrWait">0</b></div>
-   <div><span>Para hoje / vencidas</span><b id="rrDue">0</b></div>
-   <div><span>Programadas</span><b id="rrScheduled">0</b></div>
-  </div>
-  <div id="rrNext" style="margin-top:7px;font-size:9px;color:#7c2d12;font-weight:800">Nenhuma reentrega pendente.</div>
- </section>
-
- <div class="target-rule"><div style="font-size:20px">◎</div><div><strong>Meta de ocupação: 80%.</strong> O sistema mostra a ocupação real de cada caminhão. A meta de 80% não bloqueia a rota: quando todos os pedidos disponíveis daquela rota já estiverem alocados e a carga não atingir 80%, o embarque continua normalmente e o dashboard informa a porcentagem real.</div></div>
+<div class="target-rule"><div style="font-size:20px">◎</div><div><strong>Meta de ocupação: 80%.</strong> O sistema mostra a ocupação real de cada caminhão. A meta de 80% não bloqueia a rota: quando todos os pedidos disponíveis daquela rota já estiverem alocados e a carga não atingir 80%, o embarque continua normalmente e o dashboard informa a porcentagem real.</div></div>
 
  <div class="panel">
   <div style="display:flex;justify-content:space-between;gap:12px;align-items:flex-start;flex-wrap:wrap;margin-bottom:12px">
-   <div><h3>Visão da semana</h3><p style="margin:3px 0 0">Clique em um dia para abrir os embarques, cidades e pedidos alocados.</p></div>
+   <div><h3>Resumo de embarques da semana</h3><p style="margin:3px 0 0">Clique em um dia para abrir os embarques e consultar os pedidos alocados.</p></div>
    <span class="badge info">META 80%</span>
   </div>
   <div class="week-summary">
@@ -517,6 +521,13 @@ main{max-width:1580px;margin:auto;padding:20px}.view{display:none}.view.active{d
   <div class="notice goodnotice"><b>Regra de alocação:</b> derivados, leite + derivados, mistos e outros produtos seguem a alocação automática normal por rota, peso e capacidade. Pedidos de <b>SOMENTE LEITE</b> não entram automaticamente e ficam disponíveis para decisão manual.</div>
  </div>
 
+ <div class="shipment-business-kpis">
+  <div><span>Pedidos dentro dos embarques</span><b id="embOrders">0</b></div>
+  <div><span>Itens dos pedidos</span><b id="embItems">0</b></div>
+  <div><span>Peso conhecido</span><b id="embWeight">0 kg</b></div>
+  <div><span>Valor aberto</span><b id="embValue">R$ 0,00</b></div>
+ </div>
+
  <div class="grid4">
   <div class="metric"><small>Pedidos da rota do próximo dia útil</small><strong id="pmEligible">0</strong><span>Identificados no ESPD</span></div>
   <div class="metric"><small>Embarques abertos</small><strong id="pmShipments">0</strong><span>Podem receber novos pedidos</span></div>
@@ -535,15 +546,15 @@ main{max-width:1580px;margin:auto;padding:20px}.view{display:none}.view.active{d
   <div id="milkManualList" class="milk-manual-list"><div class="empty">Vincule o ESPD para visualizar.</div></div>
  </div>
 
- <div class="panel"><h3>Detalhes do próximo dia útil</h3><div id="shipmentsHost" class="empty">Vincule o ESPD para começar. Cidade, cliente, pedido, peso e embarque são atualizados automaticamente a partir da base.</div></div>
- <div class="panel"><h3>Pedidos pendentes</h3><p>Pedidos que não puderam ser alocados automaticamente por cidade/rota, por exemplo: cidade fora das rotas, crédito não aprovado ou revisão de peso elevado quando houver peso real.</p><div id="pendingHost" class="empty">Nenhuma pendência.</div></div>
+ <div class="panel"><h3>Embarques do próximo dia útil</h3><p style="margin:3px 0 10px;color:var(--muted);font-size:11px">Clique no número do pedido para consultar itens, peso, valor e demais dados. Use × para retirar um pedido; ele ficará pendente de embarque até ser liberado novamente.</p><div id="shipmentsHost" class="empty">Vincule o ESPD para começar. Cidade, cliente, pedido, peso e embarque são atualizados automaticamente a partir da base.</div></div>
+ <div class="panel"><h3>Pedidos pendentes de embarque</h3><p>Pedidos ainda sem embarque, incluindo pedidos retirados manualmente, cidade fora das rotas, crédito não aprovado, revisão de peso ou outras pendências.</p><div id="pendingHost" class="empty">Nenhuma pendência.</div></div>
 </section>
 
 
 <section id="daydetail" class="view">
  <div class="daydetail-head">
-  <div class="daydetail-title"><small>Detalhamento diário</small><h2 id="ddTitle">—</h2><p id="ddSubtitle">Clique em um embarque para abrir os pedidos que estão dentro dele.</p></div>
-  <div class="actions"><button class="btn" onclick="backToWeeklyDashboard()">← Voltar ao dashboard semanal</button></div>
+  <div class="daydetail-title"><small>Detalhamento diário</small><h2 id="ddTitle">—</h2><p id="ddSubtitle">Clique em um embarque para consultar os pedidos, itens, pesos e valores.</p></div>
+  <div class="actions"><button class="btn" onclick="backToWeeklyDashboard()">← Voltar para Embarques</button></div>
  </div>
  <div class="daydetail-kpis">
   <div class="dd-kpi"><span>Embarques criados</span><strong id="ddShipments">0</strong></div>
@@ -552,7 +563,7 @@ main{max-width:1580px;margin:auto;padding:20px}.view{display:none}.view.active{d
   <div class="dd-kpi"><span>Rotas utilizadas</span><strong id="ddRoutes">0</strong></div>
  </div>
  <section class="dd-section">
-  <div class="dd-section-head"><h3>Embarques criados</h3><span class="click-hint">Clique em um embarque para ver os pedidos internos</span></div>
+  <div class="dd-section-head"><h3>Embarques criados</h3><span class="click-hint">Clique para consultar pedidos e itens</span></div>
   <div id="ddShipmentGrid" class="dd-ship-grid"></div>
  </section>
 </section>
@@ -561,8 +572,8 @@ main{max-width:1580px;margin:auto;padding:20px}.view{display:none}.view.active{d
 <section id="routeanalysis" class="view">
  <div class="hero">
   <div>
-   <h2>Análise inteligente de rotas</h2>
-   <p>Procura pedidos de outras rotas que podem completar um embarque sem prolongar o destino. A cidade candidata precisa ficar no corredor natural do trajeto e a combinação de pesos busca aproximar o caminhão da meta de 80% sem ultrapassar a capacidade.</p>
+   <h2>Central de Rotas</h2>
+   <p>Toda a roteirização fica concentrada aqui: geração de rotas dos motoristas, mapa, otimização por rua, GPS, acompanhamento ao vivo, canhotos, finalização e análise de consolidação.</p>
   </div>
   <div class="actions"><button class="btn primary" id="runRouteAnalysis">◎ Analisar rotas</button></div>
  </div>
@@ -595,7 +606,7 @@ main{max-width:1580px;margin:auto;padding:20px}.view{display:none}.view.active{d
    </div>
    <div class="realtime-config">
     <div class="realtime-config-head">
-     <div><h4>Rastreamento em tempo real</h4><small>Firebase do Gestão Logística já integrado. Na V5.40 o App do Motorista também possui essa configuração embutida, evitando links cortados pelo WhatsApp.</small></div>
+     <div><h4>Rastreamento em tempo real</h4><small>Firebase do Gestão Logística já integrado. Na V5.41 o App do Motorista também possui essa configuração embutida, evitando links cortados pelo WhatsApp.</small></div>
      <span class="badge review" id="firebaseConnectionBadge">NÃO CONFIGURADO</span>
     </div>
     <textarea id="firebaseConfigText" placeholder="Configuração Firebase integrada automaticamente."></textarea>
@@ -611,6 +622,13 @@ main{max-width:1580px;margin:auto;padding:20px}.view{display:none}.view.active{d
     <div id="firebaseStatus" class="realtime-status">Firebase integrado. A central conecta automaticamente e os links dos motoristas agora são curtos, sem JSON dentro do WhatsApp.</div>
    </div>
   </div>
+  <section class="central-shipment-routing">
+   <div class="central-shipment-routing-head">
+    <div><h4>Roteirização por embarque</h4><small>Funções de mapa e trajeto individual foram concentradas na Central de Rotas. Selecione um embarque para calcular as entregas porta a porta.</small></div>
+    <span class="badge info" id="centralRoutingShipmentCount">0 embarques</span>
+   </div>
+   <div id="centralShipmentRoutingHost" class="central-shipment-routing-list"><div class="ra-empty">Nenhum embarque disponível no filtro atual.</div></div>
+  </section>
   <div class="route-map-wrap"><div id="routeMap"></div></div>
   <section class="live-tracking-panel">
    <div class="live-tracking-head">
@@ -773,15 +791,20 @@ main{max-width:1580px;margin:auto;padding:20px}.view{display:none}.view.active{d
   </div>
   <div class="mb">
    <div id="shipmentSummary" class="shipment-summary"></div>
-   <div class="shipment-routing-actions">
-    <button type="button" class="btn primary" id="routeShipmentBtn" onclick="routeOpenedShipment()">🧭 Roteirizar entregas</button>
-    <button type="button" class="btn" id="openGoogleRouteBtn" onclick="openCurrentItineraryInGoogleMaps()" disabled>↗ Abrir no Google Maps</button>
-    <span class="route-status" id="shipmentRouteStatus">Aguardando roteirização porta a porta.</span>
+   <div id="shipmentRoutingArea" style="display:none">
+    <div class="shipment-routing-actions">
+     <button type="button" class="btn primary" id="routeShipmentBtn" onclick="routeOpenedShipment()">🧭 Roteirizar entregas</button>
+     <button type="button" class="btn" id="openGoogleRouteBtn" onclick="openCurrentItineraryInGoogleMaps()" disabled>↗ Abrir no Google Maps</button>
+     <span class="route-status" id="shipmentRouteStatus">Aguardando roteirização porta a porta.</span>
+    </div>
+    <div id="shipmentItineraryHost"></div>
+    <div id="shipmentRouteMap" style="display:none"></div>
    </div>
-   <div id="shipmentItineraryHost"></div>
-   <div id="shipmentRouteMap" style="display:none"></div>
-   <div class="dd-section-head"><h3 style="font-size:17px">Pedidos dentro do embarque</h3><span class="click-hint">Clique no pedido para ver os itens</span></div>
-   <div id="shipmentOrdersHost"></div>
+   <div id="shipmentOrderDetailsArea">
+    <div class="shipment-orders-only-note">Esta área é exclusiva para composição do embarque: pedidos, itens, peso e valor. A roteirização está na aba <b>Central de Rotas</b>.</div>
+    <div class="dd-section-head"><h3 style="font-size:17px">Pedidos dentro do embarque</h3><span class="click-hint">Clique no pedido para ver itens, peso e valor</span></div>
+    <div id="shipmentOrdersHost"></div>
+   </div>
   </div>
   <div class="ma"><button class="btn" onclick="closeShipmentDetail()">Fechar</button></div>
  </div>
@@ -794,7 +817,10 @@ main{max-width:1580px;margin:auto;padding:20px}.view{display:none}.view.active{d
    <div id="orderSummary" class="order-summary"></div>
    <div id="orderItemsHost"></div>
   </div>
-  <div class="ma"><button class="btn" onclick="closeOrderDetail()">Fechar</button></div>
+  <div class="ma">
+   <button class="btn danger" id="removeOpenedOrderBtn" type="button" onclick="removeOpenedOrderToPending()" style="display:none">Remover do embarque e deixar pendente</button>
+   <button class="btn" onclick="closeOrderDetail()">Fechar</button>
+  </div>
  </div>
 </div>
 <div class="toast" id="toast"></div>
@@ -1137,11 +1163,11 @@ async function publishDriverAppBundle(driver,routesList){
  bundle.publicationRevision=revision;
  bundle.routeSignature=signature;
  bundle.publishedAt=new Date().toISOString();
- bundle.appBuild="V5.40";
+ bundle.appBuild="V5.41";
 
  const safeBundle=cleanFirebaseObject(bundle);
 
- // V5.40: as viagens ficam em /bundle e os canhotos em /deliveryProofs.
+ // V5.41: as viagens ficam em /bundle e os canhotos em /deliveryProofs.
  // Isso evita carregar fotos grandes toda vez que o motorista abre o App.
  const rootRef=rt.dbMod.ref(rt.db,`driverApps/${publication.appId}`);
  const oldSnap=await rt.dbMod.get(rootRef);
@@ -1203,9 +1229,9 @@ function publishedDriverAppUrl(driver){
  if(!publicBase&&!/^https?:$/.test(location.protocol))return"";
  const url=publicBase?new URL("motorista.html",publicBase):new URL("motorista.html",window.location.href);
 
- // V5.40: Firebase já está embutido no motorista.html.
+ // V5.41: Firebase já está embutido no motorista.html.
  // O WhatsApp recebe somente um link curto; não há mais JSON/configuração no hash.
- url.searchParams.set("v","540");
+ url.searchParams.set("v","541");
  url.hash=`app=${encodeURIComponent(pub.appId)}&rev=${encodeURIComponent(pub.revision||"")}&orders=${encodeURIComponent(pub.orderCount||0)}&stops=${encodeURIComponent(pub.totalStops||0)}&driver=${encodeURIComponent(pub.driver||driver)}`;
  return url.href
 }
@@ -1313,8 +1339,8 @@ function dateFromKeySafe(key){
 function dayNameForDateKey(key){const d=dateFromKeySafe(key);return d?DAY_MAP[d.getDay()]:""}
 function ensurePlanForDateKey(key){
  const day=dayNameForDateKey(key);if(!day||!DAY_ORDER.includes(day))return null;
- if(!plans[key])plans[key]={deliveryDate:key,day,shipments:[],pending:[],seen:{}};
- const p=plans[key];p.deliveryDate=key;p.day=day;p.shipments=p.shipments||[];p.pending=p.pending||[];p.seen=p.seen||{};return p
+ if(!plans[key])plans[key]={deliveryDate:key,day,shipments:[],pending:[],seen:{},manualPending:{}};
+ const p=plans[key];p.deliveryDate=key;p.day=day;p.shipments=p.shipments||[];p.pending=p.pending||[];p.seen=p.seen||{};p.manualPending=p.manualPending||{};return p
 }
 function routeForCityOnDateKey(city,key){
  const day=dayNameForDateKey(key),n=norm(city);if(!day)return null;
@@ -2885,7 +2911,7 @@ function deliveryCoordinateCacheKey(stop){
  return `ADDR:${norm(stop?.address||"")}`
 }
 async function geocodeDeliveryStop(stop){
- // Arquivo de teste V5.40: coordenadas explícitas têm prioridade total.
+ // Arquivo de teste V5.41: coordenadas explícitas têm prioridade total.
  if(validDeliveryCoordinates(stop?.lat,stop?.lon)){
    return{
      lat:Number(stop.lat),lon:Number(stop.lon),
@@ -3322,6 +3348,38 @@ function driverColor(driver){
 function driverRouteId(dayKey,driver){
  return `${dayKey}::${String(driver||"")}`
 }
+
+function centralRoutingShipments(){
+ const out=[];
+ selectedMapDays().forEach(info=>{
+   const plan=plans[info.key];if(!plan)return;
+   (plan.shipments||[]).forEach(s=>{
+     if(!(s.orders||[]).length)return;
+     out.push({dayKey:info.key,day:info.day,shipment:s})
+   })
+ });
+ return out.sort((a,b)=>String(a.dayKey).localeCompare(String(b.dayKey))||Number(a.shipment.shipment)-Number(b.shipment.shipment))
+}
+function renderCentralShipmentRouting(){
+ const host=$("centralShipmentRoutingHost"),count=$("centralRoutingShipmentCount");
+ if(!host||!count)return;
+ const rows=centralRoutingShipments();
+ count.textContent=`${rows.length} embarque${rows.length===1?"":"s"}`;
+ if(!rows.length){
+   host.innerHTML='<div class="ra-empty">Nenhum embarque com pedidos no filtro atual.</div>';
+   return
+ }
+ host.innerHTML=rows.map(({dayKey,day,shipment:s})=>{
+   const orders=s.orders||[];
+   const totalValue=orders.reduce((n,o)=>n+num(o.openValue),0);
+   const weight=s.weightKnown===false?"Peso pendente":`${num(s.weight).toLocaleString("pt-BR",{maximumFractionDigits:1})} kg`;
+   return `<article class="central-route-ship">
+    <h5>${esc(day)} • Embarque ${esc(s.shipment)}</h5>
+    <small>${esc(s.routeLabel||"—")}<br>${esc(s.driver||"A DEFINIR")} • ${esc(s.truckPlate||"A DEFINIR")}<br>${orders.length} pedido(s) • ${weight} • ${moneyBR(totalValue)}</small>
+    <button type="button" class="btn primary" onclick="openShipmentRoutingFromCentral('${encodeURIComponent(dayKey)}','${encodeURIComponent(String(s.shipment))}')">🧭 Roteirizar este embarque</button>
+   </article>`
+ }).join("")
+}
 function selectedMapDays(){
  const filter=$("mapDayFilter")?.value||"TODOS";
  if(filter==="TODOS")return weekDatesFor(weekReferenceDate()).map(d=>({date:d,key:localDateKey(d),day:DAY_MAP[d.getDay()]}));
@@ -3410,7 +3468,7 @@ async function buildDriverRoute(dayInfo,driver){
  const points=[{lat:DEPOT_COORD.lat,lon:DEPOT_COORD.lon},...stops];
  const matrix=await osrmDeliveryMatrix(points);
 
- // V5.40: distância real pela rua + continuidade de via.
+ // V5.41: distância real pela rua + continuidade de via.
  // Ao entrar em uma rua com várias entregas, descarrega os clientes próximos
  // nessa mesma via antes de sair, quando isso evita deslocamentos desnecessários.
  const seq=streetAwareDeliveryOrder(matrix.distances,stops);
@@ -3846,7 +3904,7 @@ function driverAppUrlForRoutes(driver,routesList){
  // Compatibilidade sem Firebase.
  const publicBase=normalizedPublicBaseUrl();
  const url=publicBase?new URL("motorista.html",publicBase):new URL("motorista.html",window.location.href);
- url.searchParams.set("v","540");
+ url.searchParams.set("v","541");
  url.hash=encodeDriverAppPayload(compactDriverBundle(driver,valid));
  return url.href
 }
@@ -3879,7 +3937,7 @@ async function prepareVerifiedDriverApp(driver,routesList){
  const url=driverAppUrlForRoutes(driver,valid);
  if(!url)throw new Error(`Não foi possível gerar o link do App de ${driver}.`);
  if(firebaseConfigReady()&&url.includes("&cfg=")){
-   throw new Error("Foi detectado um link antigo com configuração Firebase embutida. Atualize o sistema para a V5.40.")
+   throw new Error("Foi detectado um link antigo com configuração Firebase embutida. Atualize o sistema para a V5.41.")
  }
  return url
 }
@@ -4292,6 +4350,7 @@ function mapPopupForCity(city,day){
  return `<div class="map-popup-title">${esc(city)}</div><div class="map-popup-meta">${routesTxt||esc(day)}</div><div class="map-popup-orders"><b>Pedidos sem embarque:</b><br>${orderTxt}${orders.length>8?`<br>+${orders.length-8} pedido(s)`:""}</div>`
 }
 async function renderWeeklyRouteMap(){
+ renderCentralShipmentRouting();
  if($("publicAppBaseUrl"))$("publicAppBaseUrl").value=settings.publicAppBaseUrl||"";
  if($("deliveryProofWhatsApp")&&document.activeElement!==$("deliveryProofWhatsApp"))$("deliveryProofWhatsApp").value=settings.deliveryProofWhatsApp||"";
  if($("autoWhatsAppAfterRouting"))$("autoWhatsAppAfterRouting").checked=settings.autoWhatsAppAfterRouting!==false;
@@ -4870,7 +4929,7 @@ function openDayDetail(dayKey){
  }).join(""):'<div class="empty">Nenhum embarque criado neste dia.</div>';
 
  sg.querySelectorAll(".dd-ship-card").forEach(card=>{
-   const open=()=>openShipmentDetail(dayKey,card.dataset.ship);
+   const open=()=>openShipmentDetail(dayKey,card.dataset.ship,"orders");
    card.addEventListener("click",open);
    card.addEventListener("keydown",e=>{if(e.key==="Enter"||e.key===" "){e.preventDefault();open()}})
  });
@@ -4882,7 +4941,8 @@ function backToWeeklyDashboard(){
  selectedDayKey="";
  activateView("planning")
 }
-function openShipmentDetail(dayKey,shipmentNumber){
+let shipmentModalMode="orders",openedOrderContext=null;
+function openShipmentDetail(dayKey,shipmentNumber,mode="orders"){
  const plan=plans[dayKey];if(!plan)return;
  const shipment=(plan.shipments||[]).find(s=>String(s.shipment)===String(shipmentNumber));if(!shipment)return;
  const d=parseDateKey(dayKey);
@@ -4892,7 +4952,7 @@ function openShipmentDetail(dayKey,shipmentNumber){
  const hasWeight=shipment.weightKnown!==false&&shipment.capacity>0;
  const util=hasWeight?Math.min(100,Math.round(shipment.weight/shipment.capacity*100)):routeAllocationPct(plan,shipment.routeLabel);
 
- $("shipmentModalTitle").textContent=`Embarque ${shipment.shipment}`;
+ $("shipmentModalTitle").textContent=mode==="routing"?`Roteirização • Embarque ${shipment.shipment}`:`Embarque ${shipment.shipment}`;
  $("shipmentModalSub").textContent=`${d?DAY_MAP[d.getDay()]+" • "+fmtDate(d)+" • ":""}${shipment.routeLabel}`;
 
  $("shipmentSummary").innerHTML=`
@@ -4907,10 +4967,24 @@ function openShipmentDetail(dayKey,shipmentNumber){
    <div style="grid-column:span 2"><span>Rota</span><b>${esc(shipment.routeLabel||"—")}</b></div>`;
 
  openedShipmentContext={dayKey,shipmentNumber:String(shipment.shipment)};
- renderShipmentOrdersModal();
- restoreSavedShipmentItinerary(shipment);
+ shipmentModalMode=mode==="routing"?"routing":"orders";
+ $("shipmentRoutingArea").style.display=shipmentModalMode==="routing"?"block":"none";
+ $("shipmentOrderDetailsArea").style.display=shipmentModalMode==="orders"?"block":"none";
+ if(shipmentModalMode==="orders"){
+   renderShipmentOrdersModal();
+   currentItinerary=null;
+   $("shipmentItineraryHost").innerHTML="";
+   $("shipmentRouteMap").style.display="none"
+ }else{
+   $("shipmentOrdersHost").innerHTML="";
+   restoreSavedShipmentItinerary(shipment)
+ }
  $("shipmentModal").classList.add("open");
  setTimeout(()=>shipmentRouteMapInstance?.invalidateSize(),80)
+}
+function openShipmentRoutingFromCentral(encodedDay,encodedShipment){
+ const dayKey=decodeURIComponent(encodedDay),shipment=decodeURIComponent(encodedShipment);
+ openShipmentDetail(dayKey,shipment,"routing")
 }
 function renderShipmentOrdersModal(){
  const ctx=openedShipmentContext;if(!ctx)return;
@@ -4954,6 +5028,9 @@ function openOrderDetail(encodedDay,encodedShipment,encodedOrder){
  const plan=plans[dayKey];if(!plan)return;
  const shipment=(plan.shipments||[]).find(s=>String(s.shipment)===String(shipmentNum));if(!shipment)return;
  const order=(shipment.orders||[]).find(o=>String(o.id)===String(orderId));if(!order)return;
+ openedOrderContext={dayKey,shipmentNumber:String(shipment.shipment),orderId:String(order.id)};
+ const removeBtn=$("removeOpenedOrderBtn");
+ if(removeBtn)removeBtn.style.display=shipment.status==="ABERTO"&&order.allocationSource!=="REDELIVERY"?"inline-flex":"none";
 
  const items=orderItemsFor(order);
  $("orderModalTitle").textContent=`Pedido ${order.id}`;
@@ -4994,11 +5071,11 @@ function openOrderDetail(encodedDay,encodedShipment,encodedOrder){
  }
  $("orderModal").classList.add("open")
 }
-function closeOrderDetail(){$("orderModal").classList.remove("open")}
+function closeOrderDetail(){openedOrderContext=null;$("orderModal").classList.remove("open")}
 
 /* PLANNING */
 function currentPlanKey(){return localDateKey(tomorrow())}
-function getPlan(){const key=currentPlanKey();if(!plans[key])plans[key]={deliveryDate:key,day:tomorrowDay(),shipments:[],pending:[],seen:{}};return plans[key]}
+function getPlan(){const key=currentPlanKey();if(!plans[key])plans[key]={deliveryDate:key,day:tomorrowDay(),shipments:[],pending:[],seen:{},manualPending:{}};plans[key].manualPending=plans[key].manualPending||{};return plans[key]}
 function routeForCity(city){const n=norm(city);for(const r of (routes[tomorrowDay()]||[])){if((r.cities||[]).some(c=>norm(c)===n))return r}return null}
 function truckUsed(plan,plate){return plan.shipments.some(s=>s.status==="ABERTO"&&s.truckPlate===plate)}
 function chooseTruck(plan,weight=0){
@@ -5148,6 +5225,7 @@ function syncPlanning(showToast=false){
 
  const recalcResult=recalculateAutomaticOpenShipments();
  const plan=getPlan();
+ plan.manualPending=plan.manualPending||{};
  let inserted=0;
  plan.pending=[];
 
@@ -5161,7 +5239,8 @@ function syncPlanning(showToast=false){
  const evaluated=candidates.map(o=>{
    const route=routeForCity(o.city);
    const allowed=orderAllowedBySelectedRules(o);
-   const reason=pendingReason(o,route);
+   const manual=plan.manualPending?.[String(o.id)];
+   const reason=manual?"REMOVIDO MANUALMENTE DO EMBARQUE":pendingReason(o,route);
    return{o,route,allowed,reason}
  });
 
@@ -5290,7 +5369,56 @@ function closeShipment(n){
  if(s.status==="FECHADO")syncPlanning(false);
  else renderPlanning()
 }
-function removeOrderFromShipment(ship,id){const p=getPlan(),s=p.shipments.find(x=>x.shipment===ship);if(!s)return;const i=s.orders.findIndex(o=>o.id===id);if(i<0)return;s.weight-=s.orders[i].weight;s.orders.splice(i,1);delete p.seen[id];persist();renderPlanning()}
+function removeOrderFromShipmentByDay(dayKey,ship,id,ask=true){
+ const p=plans[dayKey];if(!p)return false;
+ p.manualPending=p.manualPending||{};
+ const s=(p.shipments||[]).find(x=>String(x.shipment)===String(ship));if(!s)return false;
+ const i=(s.orders||[]).findIndex(o=>String(o.id)===String(id));if(i<0)return false;
+ const order=s.orders[i];
+ if(order.allocationSource==="REDELIVERY")return alert("Pedidos de reentrega devem ser tratados pela Central de Rotas."),false;
+ if(ask&&!confirm(`Remover o pedido ${order.id} do embarque ${s.shipment}?\n\nEle ficará PENDENTE DE EMBARQUE e não será recolocado automaticamente até você liberar.`))return false;
+
+ s.orders.splice(i,1);
+ recomputeShipmentTotals(s);
+ delete p.seen[id];
+ p.manualPending[String(id)]={
+   removedAt:new Date().toISOString(),
+   fromShipment:s.shipment,
+   routeLabel:s.routeLabel,
+   reason:"REMOVIDO MANUALMENTE DO EMBARQUE"
+ };
+ const live=aggregatedOrders.find(o=>String(o.id)===String(id));
+ const pendingData=live?latestOrderSnapshotFromESPD(live,order):order;
+ p.pending=(p.pending||[]).filter(o=>String(o.id)!==String(id));
+ p.pending.push({...pendingData,reason:"REMOVIDO MANUALMENTE DO EMBARQUE",routeLabel:s.routeLabel||""});
+ if(p.driverRoutes&&s.driver&&p.driverRoutes[s.driver])delete p.driverRoutes[s.driver];
+ persist();
+ renderPlanning();
+ renderWeeklyDashboard();
+ renderCentralShipmentRouting();
+ toast(`Pedido ${id} removido do embarque ${s.shipment} e deixado pendente.`);
+ return true
+}
+function removeOrderFromShipment(ship,id){
+ return removeOrderFromShipmentByDay(currentPlanKey(),ship,id,true)
+}
+function removeOpenedOrderToPending(){
+ if(!openedOrderContext)return;
+ const ctx={...openedOrderContext};
+ if(removeOrderFromShipmentByDay(ctx.dayKey,ctx.shipmentNumber,ctx.orderId,true)){
+   closeOrderDetail()
+ }
+}
+function releaseManualPending(id){
+ const p=getPlan();p.manualPending=p.manualPending||{};
+ if(!p.manualPending[String(id)])return;
+ if(!confirm(`Liberar o pedido ${id} para ser alocado novamente em um embarque?`))return;
+ delete p.manualPending[String(id)];
+ p.pending=(p.pending||[]).filter(o=>String(o.id)!==String(id));
+ persist();
+ syncPlanning(false);
+ toast(`Pedido ${id} liberado para embarque.`)
+}
 function approvePending(id){const p=getPlan(),o=p.pending.find(x=>x.id===id);if(!o||o.reason!=="PESO ELEVADO - REVISÃO")return;const route=routeForCity(o.city);if(!route)return;let target=p.shipments.find(s=>s.status==="ABERTO"&&s.routeLabel===route.label&&s.capacity-s.weight>=o.weight);if(!target){const t=chooseTruck(p,o.weight);if(!t)return toast("Nenhum caminhão comporta este pedido.");target={shipment:nextShipmentNumber(),routeLabel:route.label,routeCities:route.cities,truckPlate:t.plate,driver:t.driver,capacity:t.capacity,group:t.group,weight:0,status:"ABERTO",orders:[],createdAt:new Date().toISOString()};p.shipments.push(target)}target.orders.push({
  id:o.id,
  clientCode:o.clientCode,
@@ -5366,11 +5494,25 @@ function manualEmbarkMilkOrder(encodedOrder){
 function renderPlanning(){
  renderRedeliveryPanels();
  const d=new Date(),tm=tomorrow(),day=tomorrowDay(),p=getPlan();$("pToday").textContent=fmtDate(d);$("pTomorrow").textContent=fmtDate(tm);$("pDay").textContent=day;$("pLast").textContent=settings.lastShipment;$("pNext").textContent=(Number(settings.lastShipment)||0)+1;$("lastShipmentInput").value=settings.lastShipment;$("heavyThreshold").value=settings.heavyThreshold;$("fleetPriority").value=settings.fleetPriority;
- const eligible=aggregatedOrders.filter(o=>!o.sourceShipment&&!!routeForCity(o.city)&&normalizeOrderCategory(o)!=="LEITE").length;$("pmEligible").textContent=eligible;$("pmShipments").textContent=p.shipments.filter(s=>s.status==="ABERTO").length;$("pmPending").textContent=p.pending.length;
+ const eligible=aggregatedOrders.filter(o=>!o.sourceShipment&&!!routeForCity(o.city)&&normalizeOrderCategory(o)!=="LEITE").length;
+ $("pmEligible").textContent=eligible;$("pmShipments").textContent=p.shipments.filter(s=>s.status==="ABERTO").length;$("pmPending").textContent=p.pending.length;
+ const embarkedOrders=(p.shipments||[]).flatMap(s=>s.orders||[]);
+ const embarkedItems=embarkedOrders.reduce((n,o)=>n+orderItemsFor(o).length,0);
+ const embarkedWeight=embarkedOrders.reduce((n,o)=>n+(o.weightKnown?num(o.weight):0),0);
+ const embarkedValue=embarkedOrders.reduce((n,o)=>n+num(o.openValue),0);
+ if($("embOrders"))$("embOrders").textContent=embarkedOrders.length;
+ if($("embItems"))$("embItems").textContent=embarkedItems;
+ if($("embWeight"))$("embWeight").textContent=`${embarkedWeight.toLocaleString("pt-BR",{maximumFractionDigits:1})} kg`;
+ if($("embValue"))$("embValue").textContent=moneyBR(embarkedValue);
  const h=$("shipmentsHost");if(!p.shipments.length){h.className="empty";h.textContent="Nenhum embarque criado ainda."; } else {h.className="shipments";h.innerHTML=p.shipments.map(s=>{const pct=(s.weightKnown!==false&&s.capacity)?Math.min(100,Math.round(s.weight/s.capacity*100)):0;const alloc=shipmentAllocationPct(p,s);return`<div class="shipment"><div class="shipmenttop"><div><h4>Embarque ${s.shipment}</h4><div class="routeLabel">${esc(s.routeLabel)}</div></div><button class="btn small ${s.status==="ABERTO"?"success":""}" onclick="closeShipment(${s.shipment})">${s.status}</button></div><div class="progress"><div style="width:${pct}%"></div></div><div class="shipmeta"><span><b>${esc(s.driver)}</b></span><span>${esc(s.truckPlate)}</span><span>${s.weightKnown===false?`Peso pendente • ${alloc}% dos pedidos da rota neste embarque`:`${s.weight.toLocaleString("pt-BR")} / ${s.capacity.toLocaleString("pt-BR")} kg (${pct}%)`}</span><span class="badge ${s.group==="CASA"?"house":"third"}">${s.group}</span></div><div class="orderlist">${s.orders.map(o=>`<div class="orderrow"><button type="button" class="btn small" onclick="openOrderDetail('${encodeURIComponent(currentPlanKey())}','${encodeURIComponent(String(s.shipment))}','${encodeURIComponent(String(o.id))}')">Ped. ${esc(o.id)}</button><div><b>${esc(o.clientName||o.clientCode)}</b><small>${esc(o.city)} • ${esc(categoryLabel(normalizeOrderCategory(o)))} • ${esc(o.credit||"SEM CRÉDITO")} • ${esc(o.status||"SEM SITUAÇÃO")} • ${esc(calculatedWeightLabel(o))}</small></div><button class="ib" title="Remover" onclick="removeOrderFromShipment(${s.shipment},'${esc(o.id)}')">×</button></div>`).join("")||'<div class="empty">Sem pedidos.</div>'}</div></div>`}).join("")}
- const ph=$("pendingHost");if(!p.pending.length){ph.className="empty";ph.textContent="Nenhuma pendência."; } else {ph.className="";ph.innerHTML=p.pending.map(o=>`<div class="pending"><div class="pinfo"><b>Pedido ${esc(o.id)} • ${esc(o.clientName||o.clientCode||"Cliente")}</b><small>${esc(o.city||"Cidade não informada")} ${o.routeLabel?"• "+esc(o.routeLabel):""} • ${esc(o.credit||"SEM CRÉDITO")} • ${esc(o.status||"SEM SITUAÇÃO")} • R$ ${o.openValue.toLocaleString("pt-BR",{minimumFractionDigits:2,maximumFractionDigits:2})} aberto • ${esc(calculatedWeightLabel(o))} • ${esc(categoryLabel(normalizeOrderCategory(o)))}</small></div><div><span class="badge ${o.reason==="PESO ELEVADO - REVISÃO"?"review":"block"}">${esc(o.reason)}</span>${o.reason==="PESO ELEVADO - REVISÃO"?` <button class="btn small" onclick="approvePending('${esc(o.id)}')">Liberar</button>`:""}</div></div>`).join("")}
+ const ph=$("pendingHost");if(!p.pending.length){ph.className="empty";ph.textContent="Nenhuma pendência."; } else {ph.className="";ph.innerHTML=p.pending.map(o=>`<div class="pending"><div class="pinfo"><b>Pedido ${esc(o.id)} • ${esc(o.clientName||o.clientCode||"Cliente")}</b><small>${esc(o.city||"Cidade não informada")} ${o.routeLabel?"• "+esc(o.routeLabel):""} • ${esc(o.credit||"SEM CRÉDITO")} • ${esc(o.status||"SEM SITUAÇÃO")} • R$ ${o.openValue.toLocaleString("pt-BR",{minimumFractionDigits:2,maximumFractionDigits:2})} aberto • ${esc(calculatedWeightLabel(o))} • ${esc(categoryLabel(normalizeOrderCategory(o)))}</small></div><div><span class="badge ${o.reason==="PESO ELEVADO - REVISÃO"||o.reason==="REMOVIDO MANUALMENTE DO EMBARQUE"?"review":"block"}">${esc(o.reason)}</span>${o.reason==="PESO ELEVADO - REVISÃO"
+ ?` <button class="btn small" onclick="approvePending('${esc(o.id)}')">Liberar</button>`
+ :o.reason==="REMOVIDO MANUALMENTE DO EMBARQUE"
+   ?` <button class="btn small primary" onclick="releaseManualPending('${esc(o.id)}')">Liberar para embarque</button>`
+   :""}</div></div>`).join("")}
  renderManualMilkOrders();
  renderWeeklyDashboard();
+ renderCentralShipmentRouting();
 }
 function detectLastShipment(showToast=true){
  if(detected.shipment&&currentTable.rows.length){
@@ -5459,13 +5601,13 @@ $("deliveryProofWhatsApp").addEventListener("change",async()=>{
    alert("Número salvo, mas não foi possível republicar os Apps agora. Gere/atualize as rotas antes de enviar aos motoristas.")
  }
 });
-$("mapDayFilter").addEventListener("change",()=>{refreshDriverFilter();renderWeeklyRouteMap()});
+$("mapDayFilter").addEventListener("change",()=>{refreshDriverFilter();renderCentralShipmentRouting();renderWeeklyRouteMap()});
 $("mapDriverFilter").addEventListener("change",()=>{renderWeeklyRouteMap();renderLiveTrackingPanel();renderRouteFinalizationPanel()});
 $("showCompletedRoutesMap").addEventListener("change",()=>{renderWeeklyRouteMap();renderDriverRouteSummary()});
 $("raDay").addEventListener("change",()=>{renderRouteAnalysis([]);if(routeMap)renderWeeklyRouteMap()});
 
 /* INIT */
-renderRoutes();renderFleet();renderDriverApps();renderClientMap();renderPlanning();initRouteAnalysisDays();refreshDriverFilter();renderLiveTrackingPanel();renderRouteFinalizationPanel();renderRedeliveryPanels();detectFields();loadMunicipalityIndex();restoreHandle();
+renderRoutes();renderFleet();renderDriverApps();renderClientMap();renderPlanning();initRouteAnalysisDays();refreshDriverFilter();renderCentralShipmentRouting();renderLiveTrackingPanel();renderRouteFinalizationPanel();renderRedeliveryPanels();detectFields();loadMunicipalityIndex();restoreHandle();
 setTimeout(()=>autoConnectFirebaseTracking(),450);
 </script>
 </body>

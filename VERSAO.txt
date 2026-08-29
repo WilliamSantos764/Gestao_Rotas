@@ -1,5 +1,6 @@
-Gestão Logística V5.40
-Ponto de descarga encaixado na via (OSRM nearest).
-Abordagem curb quando suportada.
-Otimização por rua e distância rodoviária.
-GPS do motorista usa a mesma lógica.
+Gestão Logística V5.41
+Dashboard renomeado para Embarques.
+Pedidos/itens/peso/valor concentrados em Embarques.
+Roteirização concentrada na Central de Rotas.
+Pedido removido fica pendente até liberação manual.
+Mapa reduzido para layout mais limpo.
