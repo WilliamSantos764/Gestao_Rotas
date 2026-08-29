@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Gestão Logística - V5.42 Linha Azul Estável no App</title>
+<title>Gestão Logística - V5.43 Central de Rotas Compacta</title>
 <style>
 :root{
   --bg:#f3f6fb;--card:#fff;--line:#e2e8f0;--text:#152033;--muted:#667085;
@@ -54,6 +54,36 @@ main{max-width:1580px;margin:auto;padding:20px}.view{display:none}.view.active{d
 .central-route-ship{border:1px solid var(--line);border-radius:11px;padding:9px;background:#fff}
 .central-route-ship h5{margin:0;font-size:12px}.central-route-ship small{display:block;color:var(--muted);font-size:9px;line-height:1.45;margin-top:3px}
 .central-route-ship .btn{width:100%;margin-top:8px;font-size:9px}
+
+.route-ops-grid{display:grid;grid-template-columns:minmax(0,1fr) minmax(390px,1fr);gap:12px;align-items:stretch;margin-top:10px}
+.route-map-half{min-width:0;border:1px solid var(--line);border-radius:13px;overflow:hidden;background:#e8edf3}
+.route-operations-side{min-width:0;border:1px solid var(--line);border-radius:13px;background:#fff;overflow:hidden;display:flex;flex-direction:column}
+.ops-head{display:flex;justify-content:space-between;gap:8px;align-items:flex-start;padding:10px 12px;background:#f8fafc;border-bottom:1px solid var(--line)}
+.ops-head h4{margin:0;font-size:14px}.ops-head small{display:block;margin-top:3px;color:var(--muted);font-size:9px;line-height:1.4}
+.ops-kpis{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;padding:9px 10px;border-bottom:1px solid var(--line)}
+.ops-kpis div{border:1px solid var(--line);border-radius:9px;padding:7px;background:#fff}.ops-kpis span{display:block;font-size:7px;font-weight:900;color:var(--muted);text-transform:uppercase}.ops-kpis b{display:block;font-size:13px;margin-top:2px}
+.routing-queue-actions{display:flex;gap:6px;padding:9px 10px;border-bottom:1px solid var(--line);align-items:center}.routing-queue-actions .btn{flex:1}
+.routing-queue{max-height:150px;overflow:auto;padding:0 10px;border-bottom:1px solid var(--line)}
+.routing-queue-row{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:8px;padding:8px 0;border-bottom:1px solid #edf0f5;align-items:center}.routing-queue-row:last-child{border-bottom:0}
+.routing-queue-row b{font-size:10px}.routing-queue-row small{display:block;color:var(--muted);font-size:8px;margin-top:2px}.routing-queue-row .badge{font-size:7px}
+.compact-live-title{display:flex;justify-content:space-between;align-items:center;gap:8px;padding:9px 10px;background:#f8fafc;border-bottom:1px solid var(--line)}.compact-live-title b{font-size:11px}
+.live-tracking-list.compact{max-height:245px;overflow:auto;padding:5px 9px}
+.live-tracking-list.compact .live-truck{cursor:pointer;grid-template-columns:auto minmax(0,1fr) auto;padding:8px;border-radius:9px;margin:4px 0;border:1px solid transparent}
+.live-tracking-list.compact .live-truck:hover{background:#eff8ff;border-color:#b2ddff}.live-tracking-list.compact .live-truck small{font-size:8px}.live-tracking-list.compact .live-kpis{font-size:9px}
+.route-final-panel.hidden-operational{display:none!important}
+.firebase-technical{margin-top:8px;border:1px solid var(--line);border-radius:10px;background:#f8fafc}.firebase-technical summary{cursor:pointer;padding:8px 10px;font-size:9px;font-weight:900;color:#475467}.firebase-technical-body{padding:0 10px 10px}
+.redelivery-panel.informational .redelivery-head{background:#f8fafc;border-color:var(--line)}.redelivery-panel.informational .redelivery-head small{color:var(--muted)}
+.redelivery-next{margin-top:7px;padding:7px 8px;border-radius:8px;background:#eff8ff;border:1px solid #b2ddff;color:#175cd3;font-size:9px;font-weight:900;line-height:1.4}
+.driver-detail-modal{position:fixed;inset:0;background:rgba(16,24,40,.9);z-index:100003;display:none;align-items:center;justify-content:center;padding:14px}.driver-detail-modal.open{display:flex}
+.driver-detail-card{width:min(980px,100%);max-height:94vh;overflow:auto;background:#fff;border-radius:18px;padding:15px;box-shadow:0 24px 80px rgba(0,0,0,.45)}
+.driver-detail-head{display:flex;justify-content:space-between;gap:10px;align-items:flex-start;position:sticky;top:-15px;background:#fff;padding:15px 0 10px;z-index:3;border-bottom:1px solid var(--line)}
+.driver-detail-head h3{margin:0;font-size:20px}.driver-detail-head p{margin:4px 0 0;color:var(--muted);font-size:10px}
+.driver-detail-route{border:1px solid var(--line);border-radius:13px;padding:11px;margin-top:10px;background:#fff}.driver-detail-route.finalized{border-color:#abefc6;background:#f6fef9}.driver-detail-route h4{margin:0;font-size:14px}
+.driver-detail-kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin:9px 0}.driver-detail-kpis div{border:1px solid var(--line);border-radius:9px;background:#fff;padding:7px}.driver-detail-kpis span{display:block;font-size:7px;font-weight:900;color:var(--muted);text-transform:uppercase}.driver-detail-kpis b{display:block;font-size:13px;margin-top:2px}
+.driver-detail-stop{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:8px;align-items:center;padding:9px 0;border-top:1px solid #edf0f5}.driver-detail-stop b{font-size:10px}.driver-detail-stop small{display:block;color:var(--muted);font-size:8px;line-height:1.45;margin-top:2px}
+@media(max-width:1050px){.route-ops-grid{grid-template-columns:1fr}.route-operations-side{min-height:360px}}
+@media(max-width:620px){.driver-detail-kpis{grid-template-columns:1fr 1fr}.driver-detail-stop{grid-template-columns:1fr}}
+
 .shipment-orders-only-note{padding:8px 10px;border-radius:9px;background:#eff8ff;border:1px solid #b2ddff;color:#175cd3;font-size:10px;font-weight:850;margin-bottom:10px}
 @media(max-width:900px){.shipment-business-kpis{grid-template-columns:repeat(2,1fr)}.central-shipment-routing-list{grid-template-columns:1fr 1fr}}
 @media(max-width:560px){.shipment-business-kpis,.central-shipment-routing-list{grid-template-columns:1fr}}
@@ -468,11 +498,20 @@ main{max-width:1580px;margin:auto;padding:20px}.view{display:none}.view.active{d
   </div>
  </div>
 </div>
+<div id="driverDetailModal" class="driver-detail-modal" role="dialog" aria-modal="true">
+ <div class="driver-detail-card">
+  <div class="driver-detail-head">
+   <div><h3 id="driverDetailTitle">Motorista</h3><p id="driverDetailSub">Detalhes das entregas, canhotos e ocorrências.</p></div>
+   <button type="button" class="proof-modal-close" id="driverDetailClose">✕ Fechar</button>
+  </div>
+  <div id="driverDetailHost"></div>
+ </div>
+</div>
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 </head>
 <body>
 <header class="top"><div class="topin">
- <div class="brand"><div class="logo">R</div><div><h1>Gestão Logística - Embarques e Rotas V5.42</h1><small>Rotas • ESPD • Frota • Embarques automáticos</small></div></div>
+ <div class="brand"><div class="logo">R</div><div><h1>Gestão Logística - Embarques e Rotas V5.43</h1><small>Rotas • ESPD • Frota • Embarques automáticos</small></div></div>
  <nav class="nav">
   <button class="active" data-view="planning">Embarques</button>
   <button data-view="routeanalysis">Central de Rotas</button>
@@ -606,20 +645,24 @@ main{max-width:1580px;margin:auto;padding:20px}.view{display:none}.view.active{d
    </div>
    <div class="realtime-config">
     <div class="realtime-config-head">
-     <div><h4>Rastreamento em tempo real</h4><small>Firebase do Gestão Logística já integrado. Na V5.42 o App do Motorista também possui essa configuração embutida, evitando links cortados pelo WhatsApp.</small></div>
-     <span class="badge review" id="firebaseConnectionBadge">NÃO CONFIGURADO</span>
+     <div><h4>Canhotos e rastreamento</h4><small>O rastreamento conecta automaticamente. Use aqui apenas o WhatsApp que receberá os canhotos.</small></div>
+     <span class="badge review" id="firebaseConnectionBadge">CONECTANDO</span>
     </div>
-    <textarea id="firebaseConfigText" placeholder="Configuração Firebase integrada automaticamente."></textarea>
-    <div class="field" style="margin-top:8px">
+    <div class="field">
      <label>WhatsApp que recebe os canhotos de entrega</label>
      <input id="deliveryProofWhatsApp" inputmode="tel" placeholder="Ex.: (35) 99999-9999">
-     <small>Obrigatório para concluir entregas. O motorista tira a foto, o canhoto é salvo no Realtime Database e o App abre este WhatsApp com o comprovante.</small>
     </div>
-    <div class="actions">
-     <button type="button" class="btn small primary" id="saveFirebaseConfig">Salvar / reconectar</button>
-     <button type="button" class="btn small" id="connectLiveTracking">📡 Conectar caminhões ao vivo</button>
-    </div>
-    <div id="firebaseStatus" class="realtime-status">Firebase integrado. A central conecta automaticamente e os links dos motoristas agora são curtos, sem JSON dentro do WhatsApp.</div>
+    <details class="firebase-technical">
+     <summary>Configuração técnica do rastreamento</summary>
+     <div class="firebase-technical-body">
+      <textarea id="firebaseConfigText" placeholder="Configuração Firebase integrada automaticamente."></textarea>
+      <div class="actions" style="margin-top:7px">
+       <button type="button" class="btn small primary" id="saveFirebaseConfig">Salvar / reconectar</button>
+       <button type="button" class="btn small" id="connectLiveTracking">📡 Reconectar</button>
+      </div>
+      <div id="firebaseStatus" class="realtime-status">Conexão automática.</div>
+     </div>
+    </details>
    </div>
   </div>
   <section class="central-shipment-routing">
@@ -629,27 +672,39 @@ main{max-width:1580px;margin:auto;padding:20px}.view{display:none}.view.active{d
    </div>
    <div id="centralShipmentRoutingHost" class="central-shipment-routing-list"><div class="ra-empty">Nenhum embarque disponível no filtro atual.</div></div>
   </section>
-  <div class="route-map-wrap"><div id="routeMap"></div></div>
-  <section class="live-tracking-panel">
-   <div class="live-tracking-head">
-    <div><h4>Caminhões ao vivo</h4><small>Posição recebida diretamente do App do Motorista. Pontos com mais de 60 segundos são marcados como desatualizados.</small></div>
-    <span class="badge open" id="liveTruckCount">0 online</span>
-   </div>
-   <div id="liveTrackingHost" class="live-tracking-list"><div class="ra-empty">Abra o App do Motorista no celular e autorize o GPS. A central receberá a posição automaticamente quando o App estiver publicado em HTTPS.</div></div>
-  </section>
-  <section class="route-final-panel">
+  <div class="route-ops-grid">
+   <div class="route-map-half"><div id="routeMap"></div></div>
+   <aside class="route-operations-side">
+    <div class="ops-head">
+     <div><h4>Painel operacional</h4><small>Roteirize todos com um clique. Depois de gerada, a rota sai automaticamente da fila.</small></div>
+     <span class="badge open" id="opsRouteStatus">OPERAÇÃO</span>
+    </div>
+    <div class="ops-kpis">
+     <div><span>Aguardando rota</span><b id="opsWaitingRoutes">0</b></div>
+     <div><span>Motoristas online</span><b id="opsOnlineDrivers">0</b></div>
+     <div><span>Reentregas</span><b id="opsRedeliveries">0</b></div>
+    </div>
+    <div class="routing-queue-actions">
+     <button type="button" class="btn primary" id="routeAllTrucksBtn">🧭 Roteirizar todos os caminhões</button>
+    </div>
+    <div id="routingQueueHost" class="routing-queue"><div class="ra-empty">Nenhum caminhão aguardando roteirização.</div></div>
+    <div class="compact-live-title"><b>🚚 Motoristas / caminhões ao vivo</b><span class="badge open" id="liveTruckCount">0 online</span></div>
+    <div id="liveTrackingHost" class="live-tracking-list compact"><div class="ra-empty">Aguardando Apps dos Motoristas.</div></div>
+   </aside>
+  </div>
+  <section class="route-final-panel hidden-operational">
    <div class="route-final-head">
     <div><h4>Finalização das rotas e canhotos</h4><small>Quando finalizada, a rota sai automaticamente da visão operacional e do mapa. Para consultá-la novamente, ative “Mostrar rotas concluídas no mapa”. Os canhotos e o histórico continuam disponíveis aqui.</small></div>
     <span class="badge review" id="routeFinalizationCount">0 finalizadas</span>
    </div>
    <div id="routeFinalizationHost" class="route-final-list"><div class="ra-empty">Aguardando canhotos dos motoristas.</div></div>
   </section>
-  <section class="redelivery-panel">
+  <section class="redelivery-panel informational">
    <div class="redelivery-head">
-    <div><h4>Aprovações e reentregas</h4><small>Canhoto retido e “não deu tempo” exigem sua aprovação. Defina a data da nova entrega; em canhoto retido é obrigatório indicar quais produtos precisam seguir novamente.</small></div>
+    <div><h4>Reentregas e ocorrências</h4><small>Mostra o motivo informado pelo motorista e a próxima data em que existe rota fixa para aquela cidade. Não existe mais etapa de aprovação.</small></div>
     <span id="redeliveryCount" class="badge review">0 pendentes</span>
    </div>
-   <div id="redeliveryHost" class="redelivery-list"><div class="ra-empty">Nenhuma ocorrência aguardando aprovação.</div></div>
+   <div id="redeliveryHost" class="redelivery-list"><div class="ra-empty">Nenhuma reentrega ou ocorrência registrada.</div></div>
   </section>
   <div id="driverRouteSummary" class="driver-route-summary"></div>
   <div id="whatsappDispatchHost"></div>
@@ -1163,11 +1218,11 @@ async function publishDriverAppBundle(driver,routesList){
  bundle.publicationRevision=revision;
  bundle.routeSignature=signature;
  bundle.publishedAt=new Date().toISOString();
- bundle.appBuild="V5.42";
+ bundle.appBuild="V5.43";
 
  const safeBundle=cleanFirebaseObject(bundle);
 
- // V5.42: as viagens ficam em /bundle e os canhotos em /deliveryProofs.
+ // V5.43: as viagens ficam em /bundle e os canhotos em /deliveryProofs.
  // Isso evita carregar fotos grandes toda vez que o motorista abre o App.
  const rootRef=rt.dbMod.ref(rt.db,`driverApps/${publication.appId}`);
  const oldSnap=await rt.dbMod.get(rootRef);
@@ -1229,9 +1284,9 @@ function publishedDriverAppUrl(driver){
  if(!publicBase&&!/^https?:$/.test(location.protocol))return"";
  const url=publicBase?new URL("motorista.html",publicBase):new URL("motorista.html",window.location.href);
 
- // V5.42: Firebase já está embutido no motorista.html.
+ // V5.43: Firebase já está embutido no motorista.html.
  // O WhatsApp recebe somente um link curto; não há mais JSON/configuração no hash.
- url.searchParams.set("v","542");
+ url.searchParams.set("v","543");
  url.hash=`app=${encodeURIComponent(pub.appId)}&rev=${encodeURIComponent(pub.revision||"")}&orders=${encodeURIComponent(pub.orderCount||0)}&stops=${encodeURIComponent(pub.totalStops||0)}&driver=${encodeURIComponent(pub.driver||driver)}`;
  return url.href
 }
@@ -1290,19 +1345,17 @@ async function migrateDriverProofMetadata(rt,pub){
 }
 function routeProofMatch(meta,retake,events,redelivery,route,stop){
  const keys=centralProofKeys(route,stop);
- let proofId="",proof=null,request=null,eventId="",event=null,approval=null;
+ let proofId="",proof=null,request=null,eventId="",event=null;
  for(const key of keys){
    if(!proof&&meta?.[key]){proofId=key;proof=meta[key]}
    if(!request&&retake?.[key])request=retake[key];
    const candidate=events?.[key];
    if(!event&&candidate&&candidate.active!==false){eventId=key;event=candidate}
-   if(!approval&&redelivery?.[key])approval=redelivery[key]
  }
  const delivered=!!proof?.deliveredAt&&!request;
  const retained=!request&&event?.status==="CANHOTO_RETIDO";
  const noTime=!request&&event?.status==="NAO_DEU_TEMPO";
- const approved=approval?.status==="APPROVED"||approval?.status==="COMPLETED";
- return{keys,proofId,proof,request,eventId,event,approval,delivered,retained,noTime,approved,resolved:delivered||(retained&&approved)||(noTime&&approved)}
+ return{keys,proofId,proof,request,eventId,event,approval:null,delivered,retained,noTime,approved:true,resolved:delivered||retained||noTime}
 }
 
 function centralRouteFinalization(route){
@@ -1393,22 +1446,54 @@ function redeliveryBadge(row){
  const today=localDateKey(new Date());if(a.scheduledDate<today)return'<span class="redelivery-badge wait">⚠ VENCIDA</span>';if(a.scheduledDate===today)return'<span class="redelivery-badge today">● PARA HOJE</span>';return'<span class="redelivery-badge scheduled">↻ PROGRAMADA</span>'
 }
 function formatRedeliveryProducts(products){return products?.length?products.map(p=>`${p.item?`[${esc(p.item)}] `:""}${esc(p.description||"Item")} • qtd. ${num(p.qty).toLocaleString("pt-BR")}`).join("<br>"):"Entrega completa / itens não detalhados"}
+function nextFixedRouteForEvent(event){
+ let d=nextBusinessDateFrom(new Date());
+ for(let i=0;i<35;i++){
+   const key=localDateKey(d);
+   const route=routeForCityOnDateKey(event?.city||"",key);
+   if(route)return{date:key,day:dayNameForDateKey(key),routeLabel:route.label||"",city:event?.city||""};
+   d=nextBusinessDateFrom(d)
+ }
+ return null
+}
+function redeliveryCaseRows(){
+ const rows=[];
+ Object.values(settings.driverAppPublications||{}).forEach(pub=>{
+   if(!pub?.appId)return;
+   const state=proofStateForApp(pub.appId);
+   Object.entries(state.events||{}).forEach(([eventId,event])=>{
+     if(!event||event.active===false||!["CANHOTO_RETIDO","NAO_DEU_TEMPO"].includes(event.status))return;
+     rows.push({appId:pub.appId,driver:pub.driver,eventId,event,nextRoute:nextFixedRouteForEvent(event)})
+   })
+ });
+ return rows.sort((a,b)=>(a.nextRoute?.date||"9999").localeCompare(b.nextRoute?.date||"9999")||String(a.event.recordedAt||"").localeCompare(String(b.event.recordedAt||"")))
+}
 function renderRedeliveryPanels(){
- const rows=redeliveryCaseRows(),active=rows.filter(r=>r.approval?.status!=="COMPLETED"),today=localDateKey(new Date());
- const waiting=active.filter(r=>!r.approval).length,due=active.filter(r=>r.approval?.scheduledDate&&r.approval.scheduledDate<=today).length,scheduled=active.filter(r=>r.approval?.scheduledDate&&r.approval.scheduledDate>today).length;
- if($("rrWait"))$("rrWait").textContent=waiting;if($("rrDue"))$("rrDue").textContent=due;if($("rrScheduled"))$("rrScheduled").textContent=scheduled;
- if($("rrNext")){const next=active.find(r=>r.approval?.scheduledDate);$("rrNext").innerHTML=next?`<b>Próxima:</b> ${esc(next.event.client||"Cliente")} • ${esc(next.approval.scheduledDate)}`:waiting?`<b>${waiting} ocorrência(s)</b> aguardando aprovação.`:"Nenhuma reentrega pendente."}
- if($("redeliveryCount"))$("redeliveryCount").textContent=`${active.length} pendente(s)`;
- const host=$("redeliveryHost");
- if(host)host.innerHTML=rows.length?rows.map(row=>{
-   const e=row.event,a=row.approval,type=e.status==="CANHOTO_RETIDO"?"CANHOTO RETIDO":"NÃO DEU TEMPO";
-   const schedule=a?.scheduledDate?`<br><b>Reentrega:</b> ${esc(a.scheduledDate)}${a.routeLabel?` • ${esc(a.routeLabel)}`:""}${a.shipment?` • Emb. ${esc(a.shipment)}`:""}`:"";
-   return `<article class="redelivery-card ${redeliveryDueClass(row)}"><div class="redelivery-card-head"><div><h5>${esc(e.client||"Cliente")} — ${type}</h5><small>${esc(row.driver||e.driver||"")} • ${esc(e.city||"")} • Pedido(s): ${(e.orders||[]).map(esc).join(", ")||"—"}${schedule}${a?.planningIssue?`<br><span style="color:#b42318;font-weight:900">${esc(a.planningIssue)}</span>`:""}</small></div>${redeliveryBadge(row)}</div>${e.observation?`<div class="redelivery-products"><b>Motorista:</b> ${esc(e.observation)}</div>`:""}${a?.products?.length?`<div class="redelivery-products"><b>Produtos:</b><br>${formatRedeliveryProducts(a.products)}</div>`:""}<div class="redelivery-actions">${a?.status==="COMPLETED"?`<span class="proof-good">Concluída ${a.completedAt?new Date(a.completedAt).toLocaleString("pt-BR"):""}</span>`:`<button class="btn small primary" onclick="openRedeliveryApproval('${row.appId}','${row.eventId}')">${a?"Alterar programação":"✓ Aprovar e programar"}</button>${a?`<button class="btn small" onclick="markRedeliveryCompleted('${row.appId}','${row.eventId}')">✓ Marcar como reentregue</button>`:""}`}</div></article>`
- }).join(""):'<div class="ra-empty">Nenhuma ocorrência de reentrega.</div>';
- const key=`${waiting}|${due}|${scheduled}`;if((waiting||due)&&key!==redeliveryReminderToastKey){redeliveryReminderToastKey=key;setTimeout(()=>toast(waiting?`⚠ ${waiting} ocorrência(s) aguardando aprovação.`:`↻ ${due} reentrega(s) para hoje ou vencida(s).`),350)}
+ const rows=redeliveryCaseRows(),host=$("redeliveryHost"),count=$("redeliveryCount");
+ if($("opsRedeliveries"))$("opsRedeliveries").textContent=rows.length;
+ if(count)count.textContent=`${rows.length} ocorrência${rows.length===1?"":"s"}`;
+ if(!host)return;
+ if(!rows.length){host.innerHTML='<div class="ra-empty">Nenhuma reentrega ou ocorrência registrada.</div>';return}
+ host.innerHTML=rows.map(row=>{
+   const e=row.event,n=row.nextRoute;
+   const type=e.status==="CANHOTO_RETIDO"?"⚠ CANHOTO RETIDO":"⏱ NÃO DEU TEMPO DE ENTREGAR";
+   const next=n
+     ?`<div class="redelivery-next">↻ Próxima rota para ${esc(e.city||"a cidade")}: <b>${esc(n.date)}</b> • ${esc(n.day||"")} • ${esc(n.routeLabel||"rota cadastrada")}</div>`
+     :`<div class="redelivery-next" style="background:#fef3f2;border-color:#fecdca;color:#b42318">⚠ Nenhuma rota fixa futura encontrada para ${esc(e.city||"esta cidade")}.</div>`;
+   return `<article class="redelivery-card">
+    <div class="redelivery-card-head">
+     <div><h5>${esc(e.client||"Cliente")} — ${type}</h5><small>${esc(row.driver||e.driver||"")} • ${esc(e.city||"")} • Pedido(s): ${(e.orders||[]).map(esc).join(", ")||"—"}<br>${e.recordedAt?new Date(e.recordedAt).toLocaleString("pt-BR"):""}</small></div>
+     <span class="redelivery-badge scheduled">INFORMATIVO</span>
+    </div>
+    ${e.observation?`<div class="redelivery-products"><b>Motivo / observação:</b> ${esc(e.observation)}</div>`:""}
+    ${next}
+   </article>`
+ }).join("")
 }
 function closeRedeliveryModal(){$("redeliveryModal")?.classList.remove("open");currentRedeliveryCase=null}
 function openRedeliveryApproval(appId,eventId){
+ alert("Na V5.43 não existe aprovação manual. A próxima rota é calculada automaticamente.");return;
+
  const state=proofStateForApp(appId),event=state.events?.[eventId];if(!event)return alert("Ocorrência não encontrada.");
  const approval=state.redelivery?.[eventId]||null;currentRedeliveryCase={appId,eventId,event,approval};
  $("redeliveryModalTitle").textContent=event.status==="CANHOTO_RETIDO"?"Aprovar canhoto retido e programar reentrega":"Aprovar entrega não realizada e programar nova tentativa";
@@ -1502,6 +1587,7 @@ function renderRouteFinalizationPanel(){
 
  const finalized=rows.filter(r=>r.finalized).length;
  badge.textContent=`${finalized}/${rows.length} finalizadas`;
+ if($("opsRouteStatus"))$("opsRouteStatus").textContent=`${rows.length-finalized} PENDENTE(S)`;
 
  rows.forEach(r=>{
    const key=`${r.pub.appId}|${r.route.dayKey}|${r.route.generatedAt||""}`;
@@ -1513,16 +1599,13 @@ function renderRouteFinalizationPanel(){
  });
 
  host.innerHTML=rows.map(r=>{
-   const approvalWaiting=r.stopRows.filter(x=>(x.retained||x.noTime)&&!x.approved).length;
    const status=r.finalized
      ? (r.retainedCount||r.noTimeCount)
-       ? `<span class="route-final-status retained">✅ FINALIZADA • REENTREGA PROGRAMADA</span>`
+       ? `<span class="route-final-status retained">✅ FINALIZADA • COM OCORRÊNCIA</span>`
        : `<span class="route-final-status ok">✅ ROTA FINALIZADA</span>`
      : r.retakeCount
        ? `<span class="route-final-status bad">📷 NOVO CANHOTO SOLICITADO</span>`
-       : approvalWaiting
-         ? `<span class="route-final-status bad">✋ AGUARDANDO SUA APROVAÇÃO</span>`
-         : `<span class="route-final-status pending">⏳ PENDENTE</span>`;
+       : `<span class="route-final-status pending">⏳ PENDENTE</span>`;
    const cls=r.finalized?"finalized":r.retakeCount?"retake":"";
    const finalText=r.finalizedAt?` • Finalizada ${new Date(r.finalizedAt).toLocaleString("pt-BR")}`:"";
 
@@ -1551,15 +1634,13 @@ function renderRouteFinalizationPanel(){
          actions=`<button class="btn small" onclick="openCentralProof('${r.pub.appId}','${sr.proofId}')">📷 Ver canhoto</button>
           <button class="btn small danger" onclick="deleteCentralProofAndRequest('${r.pub.appId}','${sr.proofId}')">Excluir e pedir outra</button>`
        }else if(sr.retained){
-         stateText=`<span class="proof-retained">⚠ CANHOTO RETIDO${sr.approved?` • REENTREGA ${esc(sr.approval?.scheduledDate||"PROGRAMADA")}`:" • AGUARDANDO APROVAÇÃO"}${sr.event?.observation?` — ${esc(sr.event.observation)}`:""}</span>`;
-         actions=sr.approved
-           ? `<button class="btn small" onclick="openRedeliveryApproval('${r.pub.appId}','${sr.eventId}')">Ver / alterar reentrega</button>`
-           : `<button class="btn small primary" onclick="openRedeliveryApproval('${r.pub.appId}','${sr.eventId}')">✓ Aprovar e programar</button>`
+         const next=nextFixedRouteForEvent(sr.event);
+         stateText=`<span class="proof-retained">⚠ CANHOTO RETIDO${sr.event?.observation?` — ${esc(sr.event.observation)}`:""}${next?` • próxima rota ${esc(next.date)}`:""}</span>`;
+         actions='<span class="proof-retained">Registrado</span>'
        }else if(sr.noTime){
-         stateText=`<span class="proof-notime">⏱ NÃO DEU TEMPO DE ENTREGAR${sr.approved?` • REENTREGA ${esc(sr.approval?.scheduledDate||"PROGRAMADA")}`:" • AGUARDANDO APROVAÇÃO"}${sr.event?.observation?` — ${esc(sr.event.observation)}`:""}</span>`;
-         actions=sr.approved
-           ? `<button class="btn small" onclick="openRedeliveryApproval('${r.pub.appId}','${sr.eventId}')">Ver / alterar reentrega</button>`
-           : `<button class="btn small primary" onclick="openRedeliveryApproval('${r.pub.appId}','${sr.eventId}')">✓ Aprovar e programar</button>`
+         const next=nextFixedRouteForEvent(sr.event);
+         stateText=`<span class="proof-notime">⏱ NÃO DEU TEMPO DE ENTREGAR${sr.event?.observation?` — ${esc(sr.event.observation)}`:""}${next?` • próxima rota ${esc(next.date)}`:""}</span>`;
+         actions='<span class="proof-notime">Registrado</span>'
        }else{
          stateText='<span class="proof-wait">⏳ Aguardando entrega / canhoto</span>';
          actions='<span class="proof-wait">Pendente</span>'
@@ -1739,41 +1820,62 @@ function liveStatusLabel(t){
  return{label:`DESATUALIZADO ${Math.round(age)}s`,cls:"live-off"}
 }
 function renderLiveTrackingPanel(){
- const host=$("liveTrackingHost"),count=$("liveTruckCount");
- if(!host||!count)return;
- const rows=[...liveTruckPositions.values()]
-   .filter(t=>{
-     const filter=$("mapDriverFilter")?.value||"TODOS";
-     return filter==="TODOS"||norm(t.driver)===norm(filter)
-   })
-   .sort((a,b)=>String(a.driver).localeCompare(String(b.driver),"pt-BR"));
+ const host=$("liveTrackingHost"),count=$("liveTruckCount");if(!host||!count)return;
+ const filter=$("mapDriverFilter")?.value||"TODOS";
+ const pubs=Object.values(settings.driverAppPublications||{}).filter(p=>p?.driver&&p?.appId);
+ const driverNames=new Set([...pubs.map(p=>p.driver),...[...liveTruckPositions.values()].map(t=>t.driver).filter(Boolean)]);
+ const rows=[...driverNames].filter(d=>filter==="TODOS"||norm(d)===norm(filter)).map(driver=>({
+   driver,
+   live:[...liveTruckPositions.values()].find(t=>norm(t.driver)===norm(driver))||null
+ })).sort((a,b)=>String(a.driver).localeCompare(String(b.driver),"pt-BR"));
 
- const online=rows.filter(t=>trackingAgeSeconds(t)<=60).length;
- count.textContent=`${online} online`;
+ const online=rows.filter(r=>r.live&&trackingAgeSeconds(r.live)<=60).length;
+ count.textContent=`${online} online`;if($("opsOnlineDrivers"))$("opsOnlineDrivers").textContent=online;
+ if(!rows.length){host.innerHTML='<div class="ra-empty">Nenhum App de motorista publicado para o filtro atual.</div>';return}
 
- if(!firebaseConfigReady()){
-   host.innerHTML='<div class="firebase-needed"><b>Firebase integrado, mas não conectado.</b> Verifique Authentication Anônimo, regras do Realtime Database e conexão com a internet. Para GPS no celular, o App também precisa estar publicado em HTTPS.</div>';
-   return
- }
- if(!rows.length){
-   host.innerHTML='<div class="ra-empty">Nenhuma posição recebida. Abra o App do Motorista no celular e autorize a localização.</div>';
-   return
- }
- host.innerHTML=rows.map(t=>{
-   const st=liveStatusLabel(t);
-   const speed=Number.isFinite(Number(t.speed))&&Number(t.speed)>=0?`${(Number(t.speed)*3.6).toFixed(0)} km/h`:"—";
-   const accuracy=Number.isFinite(Number(t.accuracy))?`±${Math.round(Number(t.accuracy))} m`:"—";
-   const remaining=Number.isFinite(Number(t.remainingStops))?Number(t.remainingStops):"—";
-   const completed=Number.isFinite(Number(t.completedStops))?Number(t.completedStops):"—";
-   const time=t.timestamp?new Date(Number(t.timestamp)).toLocaleTimeString("pt-BR"):"—";
-   return `<div class="live-truck">
+ host.innerHTML=rows.map(row=>{
+   const t=row.live,st=t?liveStatusLabel(t):{label:"SEM GPS",cls:"live-off"};
+   const plate=t?((t.plates||[]).join(" / ")||t.plate||""):(fleetEntryForDriver(row.driver)?.plate||"");
+   const completed=t&&Number.isFinite(Number(t.completedStops))?Number(t.completedStops):null;
+   const remaining=t&&Number.isFinite(Number(t.remainingStops))?Number(t.remainingStops):null;
+   const total=completed!==null&&remaining!==null?completed+remaining:null;
+   const routeRows=routeFinalizationRows().filter(r=>norm(r.pub.driver)===norm(row.driver));
+   return `<div class="live-truck" role="button" tabindex="0" onclick="openDriverOperationalDetail('${encodeURIComponent(row.driver)}')" onkeydown="if(event.key==='Enter')openDriverOperationalDetail('${encodeURIComponent(row.driver)}')">
     <div class="live-truck-icon">🚚</div>
-    <div><b><span class="live-dot ${st.cls}"></span>${esc(t.driver||"Motorista")} • ${esc((t.plates||[]).join(" / ")||t.plate||"")}</b>
-    <small>${st.label} • última posição ${time} • GPS ${accuracy}<br>Lat ${Number(t.lat).toFixed(5)}, Lon ${Number(t.lon).toFixed(5)}</small></div>
-    <div class="live-kpis">${speed}<br>${completed}/${Number(completed)+Number(remaining)||"—"} entregas</div>
+    <div><b><span class="live-dot ${st.cls}"></span>${esc(row.driver)}${plate?` • ${esc(plate)}`:""}</b><small>${esc(st.label)} • ${routeRows.filter(r=>!r.finalized).length} rota(s) pendente(s) • ${routeRows.filter(r=>r.finalized).length} finalizada(s)</small></div>
+    <div class="live-kpis">${total!==null?`${completed}/${total}`:"—"}<br><span style="color:#175cd3">Ver detalhes ›</span></div>
    </div>`
  }).join("")
 }
+
+function openDriverOperationalDetail(encodedDriver){
+ const driver=decodeURIComponent(encodedDriver||""),modal=$("driverDetailModal"),host=$("driverDetailHost");if(!modal||!host)return;
+ const live=[...liveTruckPositions.values()].find(t=>norm(t.driver)===norm(driver))||null;
+ const rows=routeFinalizationRows().filter(r=>norm(r.pub.driver)===norm(driver));
+ const plate=live?((live.plates||[]).join(" / ")||live.plate||""):(fleetEntryForDriver(driver)?.plate||"");
+ $("driverDetailTitle").textContent=driver||"Motorista";
+ $("driverDetailSub").textContent=`${plate||"Placa não informada"} • ${live?liveStatusLabel(live).label:"Sem GPS no momento"}`;
+ if(!rows.length){host.innerHTML='<div class="ra-empty">Nenhuma rota publicada para este motorista.</div>'}
+ else host.innerHTML=rows.map(r=>{
+   const status=r.finalized?'<span class="route-final-status ok">✅ FINALIZADA</span>':r.retakeCount?'<span class="route-final-status bad">📷 NOVO CANHOTO</span>':'<span class="route-final-status pending">⏳ PENDENTE</span>';
+   return `<article class="driver-detail-route ${r.finalized?"finalized":""}">
+    <div class="route-final-card-head"><div><h4>${esc(r.pub.driver)} — ${esc(r.route.day||r.route.dayKey)}</h4><small>${esc((r.route.plates||[]).join(" / ")||plate||"Placa a definir")} • Emb. ${(r.route.shipments||[]).map(esc).join(", ")||"—"}${r.finalizedAt?` • ${new Date(r.finalizedAt).toLocaleString("pt-BR")}`:""}</small></div>${status}</div>
+    <div class="driver-detail-kpis"><div><span>Entregas</span><b>${r.total}</b></div><div><span>Concluídas</span><b>${r.completed}</b></div><div><span>Canhoto retido</span><b>${r.retainedCount}</b></div><div><span>Não entregues</span><b>${r.noTimeCount}</b></div></div>
+    ${r.stopRows.map(sr=>{
+      const stop=sr.stop,name=stop.deliveryPoint||stop.name||stop.city||`Parada ${sr.index+1}`,orders=(stop.orders||[]).map(o=>esc(o.id)).join(", ")||"—";
+      let state="",action="";
+      if(sr.request)state=`<span class="proof-retake">⚠ Nova foto solicitada${sr.request.reason?` — ${esc(sr.request.reason)}`:""}</span>`;
+      else if(sr.delivered){state=`<span class="proof-good">✓ Canhoto recebido ${new Date(sr.proof.deliveredAt).toLocaleString("pt-BR")}</span>`;action=`<button class="btn small" onclick="openCentralProof('${r.pub.appId}','${sr.proofId}')">📷 Ver canhoto</button>`}
+      else if(sr.retained){const n=nextFixedRouteForEvent(sr.event);state=`<span class="proof-retained">⚠ Canhoto retido${sr.event?.observation?` — ${esc(sr.event.observation)}`:""}${n?` • próxima rota ${esc(n.date)}`:""}</span>`}
+      else if(sr.noTime){const n=nextFixedRouteForEvent(sr.event);state=`<span class="proof-notime">⏱ Não deu tempo${sr.event?.observation?` — ${esc(sr.event.observation)}`:""}${n?` • próxima rota ${esc(n.date)}`:""}</span>`}
+      else state='<span class="proof-wait">⏳ Aguardando entrega / canhoto</span>';
+      return `<div class="driver-detail-stop"><div><b>${sr.index+1}. ${esc(name)}</b><small>${esc(stop.address||"")}<br>Pedido(s): ${orders}<br>${state}</small></div><div>${action}</div></div>`
+    }).join("")}
+   </article>`
+ }).join("");
+ modal.classList.add("open")
+}
+function closeDriverOperationalDetail(){$("driverDetailModal")?.classList.remove("open")}
 function clearLiveTruckLayers(){
  if(!routeMap)return;
  liveTruckLayers.forEach(layer=>{try{routeMap.removeLayer(layer)}catch{}});
@@ -2911,7 +3013,7 @@ function deliveryCoordinateCacheKey(stop){
  return `ADDR:${norm(stop?.address||"")}`
 }
 async function geocodeDeliveryStop(stop){
- // Arquivo de teste V5.42: coordenadas explícitas têm prioridade total.
+ // Arquivo de teste V5.43: coordenadas explícitas têm prioridade total.
  if(validDeliveryCoordinates(stop?.lat,stop?.lon)){
    return{
      lat:Number(stop.lat),lon:Number(stop.lon),
@@ -3380,6 +3482,37 @@ function renderCentralShipmentRouting(){
    </article>`
  }).join("")
 }
+
+function routingQueueRows(){
+ const rows=[];
+ selectedMapDays().forEach(info=>{
+   const plan=plans[info.key];if(!plan)return;
+   const drivers=[...new Set((plan.shipments||[]).filter(s=>(s.orders||[]).length&&s.driver&&norm(s.driver)!=="A DEFINIR").map(s=>s.driver))];
+   drivers.forEach(driver=>{
+     const shipments=shipmentsForDriverOnPlan(plan,driver);
+     const existing=plan.driverRoutes?.[driver];
+     if(existing&&!existing.error)return;
+     rows.push({dayKey:info.key,day:info.day,driver,shipments:shipments.map(s=>s.shipment),orders:shipments.reduce((n,s)=>n+(s.orders||[]).length,0),error:existing?.error||""})
+   })
+ });
+ return rows.sort((a,b)=>String(a.dayKey).localeCompare(String(b.dayKey))||String(a.driver).localeCompare(String(b.driver),"pt-BR"))
+}
+function renderRoutingQueue(){
+ const host=$("routingQueueHost"),waiting=$("opsWaitingRoutes");if(!host||!waiting)return;
+ const rows=routingQueueRows();waiting.textContent=rows.length;
+ if(!rows.length){host.innerHTML='<div class="ra-empty">✓ Todos os caminhões do filtro já possuem rota gerada.</div>';return}
+ host.innerHTML=rows.map(r=>`<div class="routing-queue-row"><div><b>${esc(r.driver)} • ${esc(r.day)}</b><small>Emb. ${r.shipments.map(esc).join(", ")||"—"} • ${r.orders} pedido(s)${r.error?`<br><span style="color:#b42318">${esc(r.error)}</span>`:""}</small></div><span class="badge review">AGUARDANDO</span></div>`).join("")
+}
+async function routeAllPendingTrucks(){
+ if(driverRouteGenerationBusy)return;
+ const select=$("mapDriverFilter"),previous=select?.value||"TODOS";
+ if(select)select.value="TODOS";
+ try{await generateDriverRoutes()}
+ finally{
+   if(select&&[...select.options].some(o=>o.value===previous))select.value=previous;
+   renderRoutingQueue();renderLiveTrackingPanel();renderWeeklyRouteMap()
+ }
+}
 function selectedMapDays(){
  const filter=$("mapDayFilter")?.value||"TODOS";
  if(filter==="TODOS")return weekDatesFor(weekReferenceDate()).map(d=>({date:d,key:localDateKey(d),day:DAY_MAP[d.getDay()]}));
@@ -3468,7 +3601,7 @@ async function buildDriverRoute(dayInfo,driver){
  const points=[{lat:DEPOT_COORD.lat,lon:DEPOT_COORD.lon},...stops];
  const matrix=await osrmDeliveryMatrix(points);
 
- // V5.42: distância real pela rua + continuidade de via.
+ // V5.43: distância real pela rua + continuidade de via.
  // Ao entrar em uma rua com várias entregas, descarrega os clientes próximos
  // nessa mesma via antes de sair, quando isso evita deslocamentos desnecessários.
  const seq=streetAwareDeliveryOrder(matrix.distances,stops);
@@ -3648,6 +3781,7 @@ async function generateDriverRoutes(){
    }
 
    refreshDriverFilter();
+   renderRoutingQueue();
    renderWeeklyRouteMap();
    renderDriverApps();
 
@@ -3924,7 +4058,7 @@ function driverAppUrlForRoutes(driver,routesList){
  // Compatibilidade sem Firebase.
  const publicBase=normalizedPublicBaseUrl();
  const url=publicBase?new URL("motorista.html",publicBase):new URL("motorista.html",window.location.href);
- url.searchParams.set("v","542");
+ url.searchParams.set("v","543");
  url.hash=encodeDriverAppPayload(compactDriverBundle(driver,valid));
  return url.href
 }
@@ -3957,7 +4091,7 @@ async function prepareVerifiedDriverApp(driver,routesList){
  const url=driverAppUrlForRoutes(driver,valid);
  if(!url)throw new Error(`Não foi possível gerar o link do App de ${driver}.`);
  if(firebaseConfigReady()&&url.includes("&cfg=")){
-   throw new Error("Foi detectado um link antigo com configuração Firebase embutida. Atualize o sistema para a V5.42.")
+   throw new Error("Foi detectado um link antigo com configuração Firebase embutida. Atualize o sistema para a V5.43.")
  }
  return url
 }
@@ -5578,6 +5712,8 @@ $("centralProofModal").addEventListener("click",e=>{if(e.target===$("centralProo
 $("centralProofDelete").addEventListener("click",()=>{
  if(currentCentralProof)deleteCentralProofAndRequest(currentCentralProof.appId,currentCentralProof.proofId)
 });
+$("driverDetailClose").addEventListener("click",closeDriverOperationalDetail);
+$("driverDetailModal").addEventListener("click",e=>{if(e.target===$("driverDetailModal"))closeDriverOperationalDetail()});
 $("redeliveryModalClose").addEventListener("click",closeRedeliveryModal);
 $("redeliveryCancel").addEventListener("click",closeRedeliveryModal);
 $("redeliveryModal").addEventListener("click",e=>{if(e.target===$("redeliveryModal"))closeRedeliveryModal()});
@@ -5587,6 +5723,7 @@ $("orderModal").addEventListener("click",e=>{if(e.target===$("orderModal"))close
 $("runRouteAnalysis").addEventListener("click",analyzeRoutes);
 $("refreshRouteMap").addEventListener("click",renderWeeklyRouteMap);
 $("generateDriverRoutes").addEventListener("click",generateDriverRoutes);
+$("routeAllTrucksBtn").addEventListener("click",routeAllPendingTrucks);
 $("saveFirebaseConfig").addEventListener("click",saveFirebaseConfiguration);
 $("connectLiveTracking").addEventListener("click",connectLiveTracking);
 $("publicAppBaseUrl").addEventListener("change",()=>{
@@ -5621,13 +5758,13 @@ $("deliveryProofWhatsApp").addEventListener("change",async()=>{
    alert("Número salvo, mas não foi possível republicar os Apps agora. Gere/atualize as rotas antes de enviar aos motoristas.")
  }
 });
-$("mapDayFilter").addEventListener("change",()=>{refreshDriverFilter();renderCentralShipmentRouting();renderWeeklyRouteMap()});
-$("mapDriverFilter").addEventListener("change",()=>{renderWeeklyRouteMap();renderLiveTrackingPanel();renderRouteFinalizationPanel()});
+$("mapDayFilter").addEventListener("change",()=>{refreshDriverFilter();renderRoutingQueue();renderCentralShipmentRouting();renderWeeklyRouteMap()});
+$("mapDriverFilter").addEventListener("change",()=>{renderRoutingQueue();renderWeeklyRouteMap();renderLiveTrackingPanel();renderRouteFinalizationPanel()});
 $("showCompletedRoutesMap").addEventListener("change",()=>{renderWeeklyRouteMap();renderDriverRouteSummary()});
 $("raDay").addEventListener("change",()=>{renderRouteAnalysis([]);if(routeMap)renderWeeklyRouteMap()});
 
 /* INIT */
-renderRoutes();renderFleet();renderDriverApps();renderClientMap();renderPlanning();initRouteAnalysisDays();refreshDriverFilter();renderCentralShipmentRouting();renderLiveTrackingPanel();renderRouteFinalizationPanel();renderRedeliveryPanels();detectFields();loadMunicipalityIndex();restoreHandle();
+renderRoutes();renderFleet();renderDriverApps();renderClientMap();renderPlanning();initRouteAnalysisDays();refreshDriverFilter();renderRoutingQueue();renderCentralShipmentRouting();renderLiveTrackingPanel();renderRouteFinalizationPanel();renderRedeliveryPanels();detectFields();loadMunicipalityIndex();restoreHandle();
 setTimeout(()=>autoConnectFirebaseTracking(),450);
 </script>
 </body>

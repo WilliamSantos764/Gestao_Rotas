@@ -1,6 +1,6 @@
-Gestão Logística V5.42
-Linha azul contínua restaurada e estabilizada no App do Motorista.
-Preserva geometria durante sincronização.
-Recálculos concorrentes entram em fila.
-OSRM dividido em blocos para rotas com muitas paradas.
-Mantém organização Embarques / Central de Rotas da V5.41.
+Gestão Logística V5.43
+Mapa meia largura + Painel Operacional.
+Roteirizar todos os caminhões em um clique.
+Fila remove automaticamente caminhões já roteirizados.
+Motoristas ao vivo clicáveis com detalhes completos.
+Reentregas sem aprovação; próxima rota calculada automaticamente.
