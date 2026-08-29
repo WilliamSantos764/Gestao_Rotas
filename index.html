@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Gestão Logística - V5.35 Finalização + Canhotos na Central</title>
+<title>Gestão Logística - V5.36 Rotas Pendentes + Concluídas</title>
 <style>
 :root{
   --bg:#f3f6fb;--card:#fff;--line:#e2e8f0;--text:#152033;--muted:#667085;
@@ -246,6 +246,11 @@ main{max-width:1580px;margin:auto;padding:20px}.view{display:none}.view.active{d
 .route-final-card h5{margin:0;font-size:14px}.route-final-card small{display:block;color:var(--muted);font-size:10px;margin-top:3px;line-height:1.4}
 .route-final-status{display:inline-flex;align-items:center;padding:5px 8px;border-radius:999px;font-size:9px;font-weight:950;white-space:nowrap}
 .route-final-status.ok{background:#dcfae6;color:#05603a}.route-final-status.pending{background:#fffaeb;color:#93370d}.route-final-status.bad{background:#fee4e2;color:#b42318}
+.completed-map-switch{display:flex;align-items:center;gap:7px;padding:7px 9px;border:1px solid var(--line);border-radius:9px;background:#f8fafc;font-size:10px;font-weight:850;color:#344054;white-space:nowrap}
+.completed-map-switch input{width:16px;height:16px;accent-color:#12b76a}
+.driver-route-card.completed-route{border-color:#abefc6;background:#f6fef9}
+.completed-route-note{margin-top:7px;padding:7px 9px;border:1px solid #abefc6;background:#ecfdf3;color:#05603a;border-radius:9px;font-size:9px;font-weight:900}
+
 .route-final-kpis{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin-top:9px}
 .route-final-kpis div{background:#fff;border:1px solid var(--line);border-radius:9px;padding:7px}.route-final-kpis span{display:block;font-size:8px;color:var(--muted);text-transform:uppercase;font-weight:900}.route-final-kpis b{display:block;font-size:12px;margin-top:2px}
 .proof-central-list{margin-top:9px;border-top:1px solid var(--line)}
@@ -406,7 +411,7 @@ main{max-width:1580px;margin:auto;padding:20px}.view{display:none}.view.active{d
 </head>
 <body>
 <header class="top"><div class="topin">
- <div class="brand"><div class="logo">R</div><div><h1>Gestão Logística - Rotas e Embarques V5.35</h1><small>Rotas • ESPD • Frota • Embarques automáticos</small></div></div>
+ <div class="brand"><div class="logo">R</div><div><h1>Gestão Logística - Rotas e Embarques V5.36</h1><small>Rotas • ESPD • Frota • Embarques automáticos</small></div></div>
  <nav class="nav">
   <button class="active" data-view="planning">Dashboard semanal</button>
   <button data-view="routeanalysis">Análise de rotas</button>
@@ -524,6 +529,7 @@ main{max-width:1580px;margin:auto;padding:20px}.view{display:none}.view.active{d
     </select>
     <button class="btn small primary" id="generateDriverRoutes">🧭 Gerar rotas dos motoristas</button>
     <button class="btn small" id="refreshRouteMap">↻ Atualizar mapa</button>
+    <label class="completed-map-switch"><input id="showCompletedRoutesMap" type="checkbox"> Mostrar rotas concluídas no mapa</label>
    </div>
    <div class="whatsapp-config">
     <div class="field">
@@ -534,7 +540,7 @@ main{max-width:1580px;margin:auto;padding:20px}.view{display:none}.view.active{d
    </div>
    <div class="realtime-config">
     <div class="realtime-config-head">
-     <div><h4>Rastreamento em tempo real</h4><small>Firebase do Gestão Logística já integrado. Na V5.35 o App do Motorista também possui essa configuração embutida, evitando links cortados pelo WhatsApp.</small></div>
+     <div><h4>Rastreamento em tempo real</h4><small>Firebase do Gestão Logística já integrado. Na V5.36 o App do Motorista também possui essa configuração embutida, evitando links cortados pelo WhatsApp.</small></div>
      <span class="badge review" id="firebaseConnectionBadge">NÃO CONFIGURADO</span>
     </div>
     <textarea id="firebaseConfigText" placeholder="Configuração Firebase integrada automaticamente."></textarea>
@@ -560,7 +566,7 @@ main{max-width:1580px;margin:auto;padding:20px}.view{display:none}.view.active{d
   </section>
   <section class="route-final-panel">
    <div class="route-final-head">
-    <div><h4>Finalização das rotas e canhotos</h4><small>A rota fica FINALIZADA somente quando todas as entregas possuem canhoto válido. Clique em um canhoto para conferir a foto. Se estiver ruim, exclua e solicite outra.</small></div>
+    <div><h4>Finalização das rotas e canhotos</h4><small>Quando finalizada, a rota sai automaticamente da visão operacional e do mapa. Para consultá-la novamente, ative “Mostrar rotas concluídas no mapa”. Os canhotos e o histórico continuam disponíveis aqui.</small></div>
     <span class="badge review" id="routeFinalizationCount">0 finalizadas</span>
    </div>
    <div id="routeFinalizationHost" class="route-final-list"><div class="ra-empty">Aguardando canhotos dos motoristas.</div></div>
@@ -1065,11 +1071,11 @@ async function publishDriverAppBundle(driver,routesList){
  bundle.publicationRevision=revision;
  bundle.routeSignature=signature;
  bundle.publishedAt=new Date().toISOString();
- bundle.appBuild="V5.35";
+ bundle.appBuild="V5.36";
 
  const safeBundle=cleanFirebaseObject(bundle);
 
- // V5.35: as viagens ficam em /bundle e os canhotos em /deliveryProofs.
+ // V5.36: as viagens ficam em /bundle e os canhotos em /deliveryProofs.
  // Isso evita carregar fotos grandes toda vez que o motorista abre o App.
  const rootRef=rt.dbMod.ref(rt.db,`driverApps/${publication.appId}`);
  const oldSnap=await rt.dbMod.get(rootRef);
@@ -1131,9 +1137,9 @@ function publishedDriverAppUrl(driver){
  if(!publicBase&&!/^https?:$/.test(location.protocol))return"";
  const url=publicBase?new URL("motorista.html",publicBase):new URL("motorista.html",window.location.href);
 
- // V5.35: Firebase já está embutido no motorista.html.
+ // V5.36: Firebase já está embutido no motorista.html.
  // O WhatsApp recebe somente um link curto; não há mais JSON/configuração no hash.
- url.searchParams.set("v","535");
+ url.searchParams.set("v","536");
  url.hash=`app=${encodeURIComponent(pub.appId)}&rev=${encodeURIComponent(pub.revision||"")}&orders=${encodeURIComponent(pub.orderCount||0)}&stops=${encodeURIComponent(pub.totalStops||0)}&driver=${encodeURIComponent(pub.driver||driver)}`;
  return url.href
 }
@@ -1198,6 +1204,28 @@ function routeProofMatch(meta,retake,route,stop){
    if(!request&&retake?.[key])request=retake[key]
  }
  return{keys,proofId,proof,request,delivered:!!proof?.deliveredAt&&!request}
+}
+
+function centralRouteFinalization(route){
+ const pub=firebasePublicationForDriver(route?.driver||"");
+ if(!pub?.appId||!route?.stops?.length)return{finalized:false,completed:0,total:route?.stops?.length||0,retakeCount:0,finalizedAt:""};
+ const state=proofStateForApp(pub.appId);
+ const stopRows=(route.stops||[]).map(stop=>routeProofMatch(state.meta,state.retake,route,stop));
+ const completed=stopRows.filter(x=>x.delivered).length;
+ const total=stopRows.length;
+ const finalized=total>0&&completed===total;
+ const retakeCount=stopRows.filter(x=>x.request).length;
+ const times=stopRows.filter(x=>x.delivered).map(x=>Date.parse(x.proof?.deliveredAt)||0).filter(Boolean);
+ return{
+   finalized,completed,total,retakeCount,
+   finalizedAt:finalized&&times.length?new Date(Math.max(...times)).toISOString():""
+ }
+}
+function centralRouteIsFinalized(route){
+ return centralRouteFinalization(route).finalized
+}
+function showCompletedRoutesOnMap(){
+ return !!$("showCompletedRoutesMap")?.checked
 }
 function routeFinalizationRows(){
  const filter=$("mapDriverFilter")?.value||"TODOS";
@@ -1414,7 +1442,9 @@ async function connectLiveTracking(){
        const state=proofStateForApp(pub.appId);
        state.meta=snap.exists()?(snap.val()||{}):{};
        state.driver=pub.driver;
-       renderRouteFinalizationPanel()
+       renderRouteFinalizationPanel();
+       renderDriverRouteSummary();
+       if($("routeanalysis")?.classList.contains("active"))renderWeeklyRouteMap()
      },err=>console.error("Canhotos meta",pub.driver,err));
      firebaseTrackingUnsubs.push(unsubMeta);
 
@@ -1423,7 +1453,9 @@ async function connectLiveTracking(){
        const state=proofStateForApp(pub.appId);
        state.retake=snap.exists()?(snap.val()||{}):{};
        state.driver=pub.driver;
-       renderRouteFinalizationPanel()
+       renderRouteFinalizationPanel();
+       renderDriverRouteSummary();
+       if($("routeanalysis")?.classList.contains("active"))renderWeeklyRouteMap()
      },err=>console.error("Solicitação novo canhoto",pub.driver,err));
      firebaseTrackingUnsubs.push(unsubRetake)
    });
@@ -3071,8 +3103,10 @@ async function generateDriverRoutes(){
    btn.disabled=false
  }
 }
-function savedDriverRoutesForMap(){
+function savedDriverRoutesForMap(options={}){
  const filterDriver=$("mapDriverFilter")?.value||"TODOS";
+ const includeCompleted=options.includeCompleted===true||showCompletedRoutesOnMap();
+ const onlyCompleted=options.onlyCompleted===true;
  const out=[];
  selectedMapDays().forEach(info=>{
    const plan=plans[info.key];
@@ -3080,6 +3114,9 @@ function savedDriverRoutesForMap(){
    Object.values(plan.driverRoutes).forEach(r=>{
      if(!r||r.dayKey!==info.key)return;
      if(filterDriver!=="TODOS"&&norm(r.driver)!==norm(filterDriver))return;
+     const finalized=centralRouteIsFinalized(r);
+     if(onlyCompleted&&!finalized)return;
+     if(!includeCompleted&&finalized)return;
      out.push(r)
    })
  });
@@ -3223,7 +3260,7 @@ function driverAppUrlForRoutes(driver,routesList){
  // Compatibilidade sem Firebase.
  const publicBase=normalizedPublicBaseUrl();
  const url=publicBase?new URL("motorista.html",publicBase):new URL("motorista.html",window.location.href);
- url.searchParams.set("v","535");
+ url.searchParams.set("v","536");
  url.hash=encodeDriverAppPayload(compactDriverBundle(driver,valid));
  return url.href
 }
@@ -3256,7 +3293,7 @@ async function prepareVerifiedDriverApp(driver,routesList){
  const url=driverAppUrlForRoutes(driver,valid);
  if(!url)throw new Error(`Não foi possível gerar o link do App de ${driver}.`);
  if(firebaseConfigReady()&&url.includes("&cfg=")){
-   throw new Error("Foi detectado um link antigo com configuração Firebase embutida. Atualize o sistema para a V5.35.")
+   throw new Error("Foi detectado um link antigo com configuração Firebase embutida. Atualize o sistema para a V5.36.")
  }
  return url
 }
@@ -3496,11 +3533,13 @@ function renderDriverRouteSummary(){
          <div class="ra-warning" style="margin-top:8px">${esc(r.error)}</div>
        </article>`
      }
-     return `<article class="driver-route-card">
+     const completion=centralRouteFinalization(r);
+     return `<article class="driver-route-card ${completion.finalized?"completed-route":""}">
        <div class="driver-route-card-head">
         <div style="display:flex;gap:7px"><i class="driver-route-color" style="background:${r.color||driverColor(r.driver)}"></i><div><h4>${esc(r.driver)}</h4><small>${esc(r.day)} • ${esc((r.plates||[]).join(" / ")||"Placa a definir")} • Emb. ${(r.shipments||[]).map(esc).join(", ")}</small></div></div>
-        <span class="badge open">ROTA GERADA</span>
+        ${completion.finalized?`<span class="badge ready">✅ FINALIZADA</span>`:`<span class="badge open">ROTA GERADA</span>`}
        </div>
+       ${completion.finalized?`<div class="completed-route-note">Esta rota está arquivada como concluída${completion.finalizedAt?` • ${new Date(completion.finalizedAt).toLocaleString("pt-BR")}`:""}.</div>`:""}
        <span class="near-far-badge">✓ ORDEM: MAIS PERTO → MAIS LONGE</span>
        <div class="driver-route-kpis">
         <div><span>Paradas</span><b>${r.stops?.length||0}</b></div>
@@ -3525,15 +3564,16 @@ function addDriverRoutesToAnalysisMap(bounds){
  if(!list.length)return false;
 
  list.forEach(r=>{
-   const color=r.color||driverColor(r.driver);
+   const routeDone=centralRouteIsFinalized(r);
+   const color=routeDone?"#12b76a":(r.color||driverColor(r.driver));
    if(r.geometry?.coordinates?.length){
      const latlngs=r.geometry.coordinates.map(c=>[c[1],c[0]]);
-     const line=addMapLayer(L.polyline(latlngs,{color,weight:6,opacity:.82}));
-     line.bindTooltip(`${r.driver} • ${r.day} • ${(r.totalDistance/1000).toFixed(1)} km`,{sticky:true})
+     const line=addMapLayer(L.polyline(latlngs,{color,weight:routeDone?4:6,opacity:routeDone?.48:.82}));
+     line.bindTooltip(`${routeDone?"✅ CONCLUÍDA • ":""}${r.driver} • ${r.day} • ${(r.totalDistance/1000).toFixed(1)} km`,{sticky:true})
    }else{
      const latlngs=[[DEPOT_COORD.lat,DEPOT_COORD.lon],...r.stops.map(s=>[s.lat,s.lon])];
-     const line=addMapLayer(L.polyline(latlngs,{color,weight:5,opacity:.75,dashArray:"6 4"}));
-     line.bindTooltip(`${r.driver} • ${r.day}`,{sticky:true})
+     const line=addMapLayer(L.polyline(latlngs,{color,weight:routeDone?4:5,opacity:routeDone?.45:.75,dashArray:routeDone?null:"6 4"}));
+     line.bindTooltip(`${routeDone?"✅ CONCLUÍDA • ":""}${r.driver} • ${r.day}`,{sticky:true})
    }
 
    r.stops.forEach((s,i)=>{
@@ -3545,7 +3585,7 @@ function addDriverRoutesToAnalysisMap(bounds){
      });
      const marker=addMapLayer(L.marker([s.lat,s.lon],{icon}));
      const orders=(s.orders||[]).map(o=>`Ped. ${esc(o.id)}`).join(" • ");
-     marker.bindPopup(`<div class="map-popup-title">${esc(r.driver)} — ${i+1}ª parada</div><div class="map-popup-meta">${esc(r.day)} • ${esc(s.deliveryPoint||s.city)}<br>${esc(s.address)}<br><b>${(num(s.distanceFromDepot)/1000).toLocaleString("pt-BR",{maximumFractionDigits:1})} km da Cooperrita</b><br>${orders}</div>`)
+     marker.bindPopup(`<div class="map-popup-title">${routeDone?"✅ CONCLUÍDA — ":""}${esc(r.driver)} — ${i+1}ª parada</div><div class="map-popup-meta">${esc(r.day)} • ${esc(s.deliveryPoint||s.city)}<br>${esc(s.address)}<br><b>${(num(s.distanceFromDepot)/1000).toLocaleString("pt-BR",{maximumFractionDigits:1})} km da Cooperrita</b><br>${orders}</div>`)
    })
  });
  return true
@@ -3733,11 +3773,11 @@ async function renderWeeklyRouteMap(){
  let message="";
  if(driverFilter!=="TODOS"){
    message=hasDriverRoutes
-     ? `Exibindo somente a rota de ${driverFilter}.`
+     ? `Exibindo ${showCompletedRoutesOnMap()?"rotas ativas e concluídas":"somente rotas pendentes"} de ${driverFilter}.`
      : `Nenhuma rota gerada para ${driverFilter} no período selecionado. Clique em “Gerar rotas dos motoristas”.`
  }else{
    message=hasDriverRoutes
-     ? `Rotas dos motoristas exibidas sobre o planejamento da semana. Use o filtro para isolar um motorista.`
+     ? `${showCompletedRoutesOnMap()?"Rotas pendentes e concluídas":"Somente rotas pendentes"} exibidas sobre o planejamento da semana. Use o filtro para isolar um motorista.`
      : `Planejamento exibido. Clique em “Gerar rotas dos motoristas” para calcular as entregas porta a porta.`
  }
  $("mapStatus").innerHTML=`<div style="font-size:20px">${hasDriverRoutes?"✓":"⌖"}</div><div><strong>Mapa atualizado.</strong> ${esc(message)}</div>`;
@@ -4829,6 +4869,7 @@ $("deliveryProofWhatsApp").addEventListener("change",async()=>{
 });
 $("mapDayFilter").addEventListener("change",()=>{refreshDriverFilter();renderWeeklyRouteMap()});
 $("mapDriverFilter").addEventListener("change",()=>{renderWeeklyRouteMap();renderLiveTrackingPanel();renderRouteFinalizationPanel()});
+$("showCompletedRoutesMap").addEventListener("change",()=>{renderWeeklyRouteMap();renderDriverRouteSummary()});
 $("raDay").addEventListener("change",()=>{renderRouteAnalysis([]);if(routeMap)renderWeeklyRouteMap()});
 
 /* INIT */

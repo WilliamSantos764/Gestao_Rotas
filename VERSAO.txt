@@ -1,5 +1,6 @@
-Gestão Logística V5.35
-Central mostra rotas finalizadas e todos os canhotos.
-Canhoto pode ser visualizado dentro do Gestão Logística.
-Central pode excluir foto ruim e solicitar nova ao motorista.
-Motorista recebe pedido de nova foto em tempo real.
+Gestão Logística V5.36
+Rotas concluídas saem da visão operacional e do mapa por padrão.
+Central possui opção Mostrar rotas concluídas no mapa.
+App do Motorista separa Pendentes e Concluídas.
+GPS/navegação utilizam somente rotas pendentes.
+Se canhoto for rejeitado, rota volta automaticamente para Pendentes.

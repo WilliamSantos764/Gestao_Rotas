@@ -10,7 +10,7 @@
 <meta name="apple-mobile-web-app-title" content="Motorista">
 <link rel="manifest" href="./manifest.webmanifest">
 <link rel="apple-touch-icon" href="./icons/icon-192.png">
-<title>App do Motorista - V5.35 Canhotos Sincronizados com a Central</title>
+<title>App do Motorista - V5.36 Pendentes + Concluídas</title>
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
 <style>
 :root{--bg:#f2f4f7;--card:#fff;--text:#101828;--muted:#667085;--line:#d0d5dd;--accent:#155eef;--ok:#027a48;--warn:#b54708}
@@ -57,6 +57,16 @@ body.gps-locked{overflow:hidden}
 .proof-ok{margin-top:8px;padding:8px 10px;border-radius:9px;background:#ecfdf3;border:1px solid #abefc6;color:#027a48;font-size:10px;font-weight:800;line-height:1.4}
 .proof-retake-alert{margin-top:8px;padding:10px;border-radius:10px;background:#fef3f2;border:1px solid #fecdca;color:#b42318;font-size:10px;font-weight:900;line-height:1.45}
 .route-done-banner{margin:8px 0 0;padding:10px;border-radius:10px;background:#ecfdf3;border:1px solid #abefc6;color:#05603a;font-size:11px;font-weight:950;text-align:center}
+.work-section-title{margin:14px 0 8px;display:flex;justify-content:space-between;gap:8px;align-items:center}.work-section-title h2{margin:0;font-size:17px}.work-section-title span{padding:5px 8px;border-radius:999px;font-size:9px;font-weight:950;background:#fffaeb;color:#93370d}
+.completed-routes-box{margin-top:14px;border:1px solid #abefc6;background:#f6fef9;border-radius:14px;overflow:hidden}
+.completed-routes-box summary{cursor:pointer;list-style:none;padding:12px 13px;font-weight:950;color:#05603a;display:flex;justify-content:space-between;align-items:center;gap:8px}
+.completed-routes-box summary::-webkit-details-marker{display:none}.completed-routes-box[open] summary{border-bottom:1px solid #abefc6}
+.completed-routes-host{padding:10px}.completed-route-card{border:1px solid #abefc6;background:#fff;border-radius:12px;padding:10px;margin-bottom:9px}.completed-route-card:last-child{margin-bottom:0}
+.completed-route-card h3{margin:0;font-size:14px}.completed-route-card small{display:block;color:#667085;font-size:9px;margin-top:3px}
+.completed-stop-row{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:7px;align-items:center;padding:7px 0;border-bottom:1px solid #edf0f5}.completed-stop-row:last-child{border-bottom:0}.completed-stop-row b{font-size:10px}.completed-stop-row small{display:block;font-size:8px;color:#667085;margin-top:2px}
+.driver-completed-map-switch{display:flex;align-items:center;gap:7px;padding:9px 11px;background:#ecfdf3;border-top:1px solid #abefc6;font-size:10px;font-weight:850;color:#05603a}.driver-completed-map-switch input{width:16px;height:16px;accent-color:#12b76a}
+.no-pending-routes{padding:18px;border:1px solid #abefc6;background:#ecfdf3;border-radius:13px;color:#05603a;text-align:center;font-weight:900;font-size:12px}
+
 
 .proofbtn{background:#7c3aed!important;color:#fff!important}
 .proofview{background:#fff!important;color:#175cd3!important;border:1px solid #b2ddff!important;text-decoration:none}
@@ -124,7 +134,7 @@ footer{padding:14px;text-align:center;color:var(--muted);font-size:10px}
   <p id="subtitle">Carregando rota...</p>
 </header>
 <div class="wrap">
-  <div class="rule">✓ O GPS é obrigatório. Para concluir cada entrega, o motorista também deve <b>fotografar o canhoto</b>. Só depois que a foto for salva a entrega é marcada como concluída.</div>
+  <div class="rule">✓ O GPS é obrigatório. A área principal mostra somente as <b>rotas pendentes</b>. Quando todos os canhotos de uma rota forem confirmados, ela vai automaticamente para <b>Rotas concluídas</b>.</div>
   <section id="installBox" class="installbox">
    <div><strong>📲 Instalar App do Motorista</strong><small id="installHint">Instale no celular para abrir pelo ícone, como um aplicativo.</small></div>
    <button id="installBtn" type="button" class="installbtn">Instalar App no celular</button>
@@ -152,10 +162,16 @@ footer{padding:14px;text-align:center;color:var(--muted);font-size:10px}
   </div>
   <div id="mapLegend" class="maplegend"><span class="route-sample"></span><span>Linha azul contínua = caminho pelas ruas, da posição atual até todas as entregas restantes da rota ativa.</span></div>
   <div id="map"></div>
+  <div class="work-section-title"><h2>Rotas pendentes para fazer</h2><span id="pendingRouteCount">0 pendentes</span></div>
   <main id="stops"></main>
+  <details id="completedRoutesBox" class="completed-routes-box">
+   <summary><span>✅ Rotas concluídas</span><b id="completedRouteCount">0</b></summary>
+   <div id="completedRoutesHost" class="completed-routes-host"></div>
+   <label class="driver-completed-map-switch"><input id="showCompletedDriverMap" type="checkbox"> Mostrar rotas concluídas também no mapa</label>
+  </details>
   <div id="error" class="empty" style="display:none"></div>
 </div>
-<footer>App de rota gerado pelo sistema de Gestão Logística. • V5.35 — canhoto Realtime • sem Storage</footer>
+<footer>App de rota gerado pelo sistema de Gestão Logística. • V5.36 — pendentes + concluídas</footer>
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script>
 const $=id=>document.getElementById(id);
@@ -339,7 +355,7 @@ async function loadPayload(){
  if(!params.has("orders"))expected.orders=NaN;
  if(!params.has("stops"))expected.stops=NaN;
 
- // V5.35: NÃO depende mais do cfg enviado pelo WhatsApp.
+ // V5.36: NÃO depende mais do cfg enviado pelo WhatsApp.
  // O Firebase oficial do Gestão Logística já está dentro deste arquivo.
  let cfg=EMBEDDED_FIREBASE_CONFIG;
 
@@ -353,7 +369,7 @@ async function loadPayload(){
        cfg=legacyCfg
      }
    }catch(e){
-     console.warn("Configuração antiga do link estava cortada; usando Firebase embutido da V5.35.",e)
+     console.warn("Configuração antiga do link estava cortada; usando Firebase embutido da V5.36.",e)
    }
  }
 
@@ -397,7 +413,7 @@ function syncHeaderFromApp(){
  $("subtitle").textContent=`${days.length} dia(s) • ${plates.join(" / ")||"Placa a definir"} • Emb. ${shipments.join(", ")||"—"}`;
  $("kStops").textContent=flatStops(app).length;
  $("kOrders").textContent=orders.size;
- $("kKm").textContent=km((app.routes||[]).reduce((n,r)=>n+Number(r.totalDistance||0),0))
+ $("kKm").textContent=km((app.routes||[]).filter((_,ri)=>!routeIsCompletedByIndex(ri)).reduce((n,r)=>n+Number(r.totalDistance||0),0))
 }
 function startOnlineBundleSync(){
  if(!tracking?.dbMod||!tracking?.db||!tracking?.appId)return;
@@ -734,13 +750,13 @@ async function confirmDeliveryProof(){
    if(waWindow&&!waWindow.closed)waWindow.location.href=waUrl;
    else window.location.href=waUrl
  }catch(e){
-   console.error("Canhoto V5.35:",e);
+   console.error("Canhoto V5.36:",e);
    if(waWindow&&!waWindow.closed)try{waWindow.close()}catch{}
    const msg=String(e?.message||e);
 
    let hint="";
    if(/permission|denied/i.test(msg)){
-     hint="\n\nO Realtime Database bloqueou o canhoto. Publique o firebase-rules.json da V5.35."
+     hint="\n\nO Realtime Database bloqueou o canhoto. Publique o firebase-rules.json da V5.36."
    }else if(/demorou|network|internet/i.test(msg)){
      hint="\n\nConfira a internet do celular e toque novamente em “Enviar canhoto e concluir”."
    }
@@ -764,14 +780,29 @@ function todayKey(){
  const d=new Date(),y=d.getFullYear(),m=String(d.getMonth()+1).padStart(2,"0"),day=String(d.getDate()).padStart(2,"0");
  return`${y}-${m}-${day}`
 }
+
+function routeIsCompletedByIndex(ri){
+ const route=app.routes?.[ri];
+ if(!route?.stops?.length)return false;
+ const routeFlat=flatStops(app).filter(x=>x._routeIndex===ri);
+ return routeFlat.length>0&&routeFlat.every(x=>isStopDelivered(x))
+}
+function pendingRouteIndexes(){
+ return (app.routes||[]).map((_,ri)=>ri).filter(ri=>!routeIsCompletedByIndex(ri))
+}
+function completedRouteIndexes(){
+ return (app.routes||[]).map((_,ri)=>ri).filter(ri=>routeIsCompletedByIndex(ri))
+}
+function showCompletedDriverMap(){
+ return !!$("showCompletedDriverMap")?.checked
+}
 function activeRouteIndex(){
+ const pending=pendingRouteIndexes();
+ if(!pending.length)return-1;
  const today=todayKey();
- const todayIndex=(app.routes||[]).findIndex(r=>r.dayKey===today);
- if(todayIndex>=0)return todayIndex;
- const firstPending=(app.routes||[]).findIndex((r,ri)=>(r.stops||[]).some((s,si)=>{
-   const f=flatStops(app).find(x=>x._routeIndex===ri&&x._stopIndex===si);return f&&!isStopDelivered(f)
- }));
- return firstPending>=0?firstPending:0
+ const todayIndex=pending.find(ri=>app.routes?.[ri]?.dayKey===today);
+ if(todayIndex!==undefined)return todayIndex;
+ return pending[0]
 }
 function remainingActiveStops(){
  const ri=activeRouteIndex(),route=app.routes?.[ri];if(!route)return[];
@@ -821,36 +852,71 @@ async function osrmRoute(points){
 }
 function updateProgress(){
  const stops=flatStops(app),total=stops.length,completed=stops.filter(s=>isStopDelivered(s)).length;
- $("progressText").textContent=`${completed}/${total} entregas concluídas`;
- $("progressBar").style.width=(total?completed/total*100:0)+"%"
+ const pendingRoutes=pendingRouteIndexes().length,completedRoutes=completedRouteIndexes().length;
+ $("progressText").textContent=`${completed}/${total} entregas concluídas • ${pendingRoutes} rota(s) pendente(s)`;
+ $("progressBar").style.width=(total?completed/total*100:0)+"%";
+ if($("pendingRouteCount"))$("pendingRouteCount").textContent=`${pendingRoutes} pendente${pendingRoutes===1?"":"s"}`;
+ if($("completedRouteCount"))$("completedRouteCount").textContent=completedRoutes;
+ if($("completedRoutesBox"))$("completedRoutesBox").style.display=completedRoutes?"block":"none"
 }
 function toggleDone(n){requestDeliveryProof(n)}
-function renderStops(){
- const host=$("stops");
- host.innerHTML=(app.routes||[]).map((r,ri)=>{
-   const routeStops=r.stops||[],orders=new Set();
-   routeStops.forEach(s=>(s.orders||[]).forEach(o=>o.id&&orders.add(String(o.id))));
-   const routeFlat=flatStops(app).filter(x=>x._routeIndex===ri);
-   const routeCompleted=routeFlat.length>0&&routeFlat.every(x=>isStopDelivered(x));
-   const dayHead=`<div class="dayhead"><div><h2>${esc(r.day||"Rota")}</h2><small>Emb. ${(r.shipments||[]).map(esc).join(", ")||"—"} • ${orders.size} pedido(s)</small></div><span class="daytag">${routeStops.length} parada(s)</span></div>${routeCompleted?`<div class="route-done-banner">✅ ROTA FINALIZADA — todos os canhotos foram confirmados</div>`:""}`;
-   const cards=routeStops.map((s,si)=>{
-     const f=flatStops(app).find(x=>x._routeIndex===ri&&x._stopIndex===si),global=f?f._global:si+1,isDone=f?isStopDelivered(f):false,proof=f?proofRecordForFlat(f):null,retake=f?retakeRequestForFlat(f):null;
-     const dist=s.distanceFromCurrent??s.distanceFromDepot;
-     return`<section class="stop ${isDone?"done":""}">
-      <div class="stophead"><span class="num">${isDone?"✓":global}</span><div>
-       <div class="stopday">${esc(r.day||"")}</div><h2>${esc(s.name||s.city||("Parada "+global))}</h2>
-       <div class="address">${esc(s.address)}<br>${esc(s.city||"")}</div>
-       <div class="distance">${s.distanceFromCurrent!=null?`${km(dist)} da localização atual`:`${km(dist)} da Cooperrita`}</div>
-      </div></div>
-      <div class="orders">${(s.orders||[]).map(o=>`<div class="order"><b>Pedido ${esc(o.id)}</b>${o.clientName?` — ${esc(o.clientName)}`:""}${o.shipment?`<br><small>Embarque ${esc(o.shipment)}</small>`:""}</div>`).join("")}</div>
-      ${retake?`<div class="proof-retake-alert">⚠ CENTRAL SOLICITOU NOVO CANHOTO${retake.reason?`<br>${esc(retake.reason)}`:""}. Tire outra foto para concluir novamente esta entrega.</div>`:isDone?`<div class="proof-ok">✓ Entrega concluída com canhoto em ${proof?.deliveredAt?new Date(proof.deliveredAt).toLocaleString("pt-BR"):"—"}.</div>`:`<div class="proof-note">📷 Para concluir esta entrega é obrigatório fotografar o canhoto.</div>`}
-      <div class="actions"><a class="btn nav" href="${navUrl(s)}" target="_blank" rel="noopener">🧭 Navegar até esta entrega</a>
-      ${isDone&&proof?.viewerUrl&&!retake?`<a class="btn proofview" href="${esc(proof.viewerUrl)}" target="_blank" rel="noopener">📄 Ver canhoto</a>`:`<button class="donebtn proofbtn" type="button" data-stop="${global}">${retake?"📷 Tirar NOVA foto do canhoto":"📷 Tirar foto do canhoto"}</button>`}</div>
-     </section>`
-   }).join("");
-   return`<section class="dayblock">${dayHead}${cards}</section>`
+function renderPendingRouteBlock(r,ri){
+ const routeStops=r.stops||[],orders=new Set();
+ routeStops.forEach(s=>(s.orders||[]).forEach(o=>o.id&&orders.add(String(o.id))));
+ const dayHead=`<div class="dayhead"><div><h2>${esc(r.day||"Rota")}</h2><small>Emb. ${(r.shipments||[]).map(esc).join(", ")||"—"} • ${orders.size} pedido(s)</small></div><span class="daytag">${routeStops.length} parada(s)</span></div>`;
+ const cards=routeStops.map((s,si)=>{
+   const f=flatStops(app).find(x=>x._routeIndex===ri&&x._stopIndex===si);
+   const global=f?f._global:si+1,isDone=f?isStopDelivered(f):false,proof=f?proofRecordForFlat(f):null,retake=f?retakeRequestForFlat(f):null;
+   const dist=s.distanceFromCurrent??s.distanceFromDepot;
+   return`<section class="stop ${isDone?"done":""}">
+    <div class="stophead"><span class="num">${isDone?"✓":global}</span><div>
+     <div class="stopday">${esc(r.day||"")}</div><h2>${esc(s.name||s.city||("Parada "+global))}</h2>
+     <div class="address">${esc(s.address)}<br>${esc(s.city||"")}</div>
+     <div class="distance">${s.distanceFromCurrent!=null?`${km(dist)} da localização atual`:`${km(dist)} da Cooperrita`}</div>
+    </div></div>
+    <div class="orders">${(s.orders||[]).map(o=>`<div class="order"><b>Pedido ${esc(o.id)}</b>${o.clientName?` — ${esc(o.clientName)}`:""}${o.shipment?`<br><small>Embarque ${esc(o.shipment)}</small>`:""}</div>`).join("")}</div>
+    ${retake?`<div class="proof-retake-alert">⚠ CENTRAL SOLICITOU NOVO CANHOTO${retake.reason?`<br>${esc(retake.reason)}`:""}. Tire outra foto para concluir novamente esta entrega.</div>`:isDone?`<div class="proof-ok">✓ Entrega concluída com canhoto em ${proof?.deliveredAt?new Date(proof.deliveredAt).toLocaleString("pt-BR"):"—"}.</div>`:`<div class="proof-note">📷 Para concluir esta entrega é obrigatório fotografar o canhoto.</div>`}
+    <div class="actions"><a class="btn nav" href="${navUrl(s)}" target="_blank" rel="noopener">🧭 Navegar até esta entrega</a>
+    ${isDone&&proof?.viewerUrl&&!retake?`<a class="btn proofview" href="${esc(proof.viewerUrl)}" target="_blank" rel="noopener">📄 Ver canhoto</a>`:`<button class="donebtn proofbtn" type="button" data-stop="${global}">${retake?"📷 Tirar NOVA foto do canhoto":"📷 Tirar foto do canhoto"}</button>`}</div>
+   </section>`
  }).join("");
- host.querySelectorAll("[data-stop]").forEach(b=>b.addEventListener("click",()=>toggleDone(Number(b.dataset.stop))))
+ return`<section class="dayblock">${dayHead}${cards}</section>`
+}
+function renderCompletedRouteBlock(r,ri){
+ const routeStops=r.stops||[];
+ const routeFlat=flatStops(app).filter(x=>x._routeIndex===ri);
+ const times=routeFlat.map(f=>Date.parse(proofRecordForFlat(f)?.deliveredAt)||0).filter(Boolean);
+ const finishedAt=times.length?new Date(Math.max(...times)).toLocaleString("pt-BR"):"—";
+ return`<article class="completed-route-card">
+  <h3>✅ ${esc(r.day||"Rota concluída")}</h3>
+  <small>Emb. ${(r.shipments||[]).map(esc).join(", ")||"—"} • ${routeStops.length} parada(s) • Finalizada ${finishedAt}</small>
+  <div style="margin-top:8px">
+   ${routeStops.map((s,si)=>{
+     const f=flatStops(app).find(x=>x._routeIndex===ri&&x._stopIndex===si);
+     const proof=f?proofRecordForFlat(f):null;
+     return`<div class="completed-stop-row">
+      <div><b>${si+1}. ${esc(s.name||s.city||"Entrega")}</b><small>${esc(s.address||"")} • ${(s.orders||[]).map(o=>`Ped. ${esc(o.id)}`).join(" • ")}</small></div>
+      ${proof?.viewerUrl?`<a class="btn proofview" href="${esc(proof.viewerUrl)}" target="_blank" rel="noopener">📄 Canhoto</a>`:""}
+     </div>`
+   }).join("")}
+  </div>
+ </article>`
+}
+function renderStops(){
+ const host=$("stops"),completedHost=$("completedRoutesHost");
+ const pending=pendingRouteIndexes(),completed=completedRouteIndexes();
+
+ host.innerHTML=pending.length
+   ? pending.map(ri=>renderPendingRouteBlock(app.routes[ri],ri)).join("")
+   : '<div class="no-pending-routes">✅ Não há rotas pendentes. Todas as rotas disponíveis foram concluídas.</div>';
+
+ if(completedHost){
+   completedHost.innerHTML=completed.length
+     ? completed.map(ri=>renderCompletedRouteBlock(app.routes[ri],ri)).join("")
+     : '<div class="empty">Nenhuma rota concluída.</div>'
+ }
+ host.querySelectorAll("[data-stop]").forEach(b=>b.addEventListener("click",()=>toggleDone(Number(b.dataset.stop))));
+ updateProgress()
 }
 function ensureMapReady(){
  if(!window.L||!flatStops(app).length){$("map").style.display="none";return false}
@@ -932,7 +998,9 @@ function rebuildMap(options={}){
 
  let global=0;
  (app.routes||[]).forEach((r,ri)=>{
-   const color=colors[ri%colors.length];
+   const routeCompleted=routeIsCompletedByIndex(ri);
+   if(routeCompleted&&!showCompletedDriverMap())return;
+   const color=routeCompleted?"#12b76a":colors[ri%colors.length];
    const pendingIndexes=(r.stops||[]).map((s,idx)=>{
      const ff=flatStops(app).find(x=>x._routeIndex===ri&&x._stopIndex===idx);
      return ff&&!isStopDelivered(ff)?idx:null
@@ -960,7 +1028,7 @@ function rebuildMap(options={}){
      const size=firstPending&&currentLocation?34:28;
      const icon=L.divIcon({className:"",html:iconHtml,iconSize:[size,size],iconAnchor:[size/2,size/2]});
      L.marker([lat,lon],{icon,zIndexOffset:firstPending?800:0}).addTo(mapStopLayer)
-       .bindPopup(`<b>${esc(r.day||"")} — ${firstPending&&currentLocation?"PRÓXIMA ENTREGA":`entrega ${si+1}`}</b><br>${esc(s.name)}<br>${esc(s.address)}${s.distanceFromCurrent!=null?`<br><b>${km(s.distanceFromCurrent)} da posição atual</b>`:""}`)
+       .bindPopup(`<b>${routeCompleted?"✅ CONCLUÍDA • ":""}${esc(r.day||"")} — ${firstPending&&currentLocation?"PRÓXIMA ENTREGA":`entrega ${si+1}`}</b><br>${esc(s.name)}<br>${esc(s.address)}${s.distanceFromCurrent!=null?`<br><b>${km(s.distanceFromCurrent)} da posição atual</b>`:""}`)
    })
  });
 
@@ -973,7 +1041,15 @@ function rebuildMap(options={}){
 }
 async function optimizeFromCurrentLocation(showMessage=true){
  if(!currentLocation)throw new Error("GPS ainda não localizado.");
- const ri=activeRouteIndex(),route=app.routes?.[ri];if(!route)return;
+ const ri=activeRouteIndex(),route=app.routes?.[ri];
+ if(!route){
+   if(currentPolyline){map?.removeLayer(currentPolyline);currentPolyline=null}
+   $("mapLegend").classList.remove("show");
+   $("currentRouteInfo").style.display="block";
+   $("currentRouteInfo").textContent="✅ Não há rota pendente para executar.";
+   rebuildMap({fit:false});
+   return
+ }
  const remaining=remainingActiveStops().filter(s=>Number.isFinite(Number(s.lat))&&Number.isFinite(Number(s.lon)));
  if(!remaining.length){
    route.liveGeometry=[];
@@ -1142,7 +1218,7 @@ async function boot(){
    }
  }catch(e){
    $("gpsGate").classList.remove("show");document.body.classList.remove("gps-locked");$("map").style.display="none";$("stops").style.display="none";$("error").style.display="block";
-   $("error").textContent=(e.message||String(e))+"\n\nSe este link veio do WhatsApp, peça à central para abrir a V5.35, gerar/atualizar a rota do motorista e enviar o link novamente.";$("subtitle").textContent="Não foi possível abrir as entregas.";
+   $("error").textContent=(e.message||String(e))+"\n\nSe este link veio do WhatsApp, peça à central para abrir a V5.36, gerar/atualizar a rota do motorista e enviar o link novamente.";$("subtitle").textContent="Não foi possível abrir as entregas.";
    $("gpsStatus").textContent=e.message||String(e)
  }
 }
@@ -1152,6 +1228,7 @@ $("rerouteBtn").addEventListener("click",()=>optimizeFromCurrentLocation(true).c
 $("proofCameraInput").addEventListener("change",e=>{const file=e.target.files?.[0];if(file)openProofPreview(file)});
 $("proofRetryBtn").addEventListener("click",()=>{$("proofModal").classList.remove("open");$("proofCameraInput").value="";$("proofCameraInput").click()});
 $("proofConfirmBtn").addEventListener("click",confirmDeliveryProof);
+$("showCompletedDriverMap").addEventListener("change",()=>{liveRouteFitted=false;rebuildMap({fit:true})});
 $("installBtn").addEventListener("click",requestAppInstall);
 $("gpsGateInstallBtn").addEventListener("click",requestAppInstall);
 registerMotoristaServiceWorker();
