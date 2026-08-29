@@ -2,7 +2,7 @@
   "id": "./motorista-app",
   "name": "Gestão Logística - App do Motorista",
   "short_name": "Motorista",
-  "description": "Rotas, entregas e rastreamento GPS dos motoristas.",
+  "description": "Rotas, entregas, GPS e canhotos.",
   "lang": "pt-BR",
   "start_url": "./motorista.html?pwa=1",
   "scope": "./",

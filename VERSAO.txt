@@ -1,4 +1,4 @@
-Gestão Logística V5.33
-Canhoto obrigatório para concluir entrega.
-Foto no Firebase Storage + registro no Realtime Database.
-WhatsApp receptor configurável na central.
+Gestão Logística V5.34
+Canhoto no Realtime Database, sem Firebase Storage.
+Timeouts impedem tela travada.
+Inclui PWA completa e canhoto.html.

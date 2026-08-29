@@ -13,14 +13,6 @@
         ".read": "auth != null",
         ".write": "auth != null"
       }
-    },
-    "deliveryProofs": {
-      "$appId": {
-        "$proofId": {
-          ".read": "auth != null",
-          ".write": "auth != null"
-        }
-      }
     }
   }
 }

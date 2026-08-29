@@ -1,0 +1,81 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#101828">
+<title>Canhoto de Entrega - Gestão Logística</title>
+<style>
+*{box-sizing:border-box}body{margin:0;background:#f2f4f7;color:#101828;font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial}
+header{background:#101828;color:white;padding:18px}header h1{margin:0;font-size:22px}header p{margin:5px 0 0;color:#d0d5dd;font-size:12px}
+main{max-width:760px;margin:auto;padding:14px}.card{background:#fff;border:1px solid #d0d5dd;border-radius:16px;padding:14px;margin-bottom:12px}
+#status{font-size:13px;font-weight:900;color:#475467}.ok{color:#027a48!important}.err{color:#b42318!important}
+img{width:100%;height:auto;max-height:72vh;object-fit:contain;background:#101828;border-radius:12px;display:none}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:12px}.item{padding:9px;background:#f9fafb;border:1px solid #eaecf0;border-radius:10px}
+.item b{display:block;font-size:10px;color:#667085;text-transform:uppercase;margin-bottom:3px}.item span{font-size:12px;font-weight:800;word-break:break-word}
+@media(max-width:560px){.grid{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+<header><h1>📷 Canhoto de Entrega</h1><p>Comprovante registrado pelo Gestão Logística</p></header>
+<main>
+<div class="card"><div id="status">Carregando comprovante...</div></div>
+<div id="proofCard" class="card" style="display:none">
+<img id="proofImage" alt="Canhoto de entrega">
+<div class="grid">
+<div class="item"><b>Motorista</b><span id="driver">—</span></div>
+<div class="item"><b>Cliente / Parada</b><span id="client">—</span></div>
+<div class="item"><b>Pedidos</b><span id="orders">—</span></div>
+<div class="item"><b>Embarques</b><span id="shipments">—</span></div>
+<div class="item"><b>Data / Hora</b><span id="date">—</span></div>
+<div class="item"><b>GPS</b><span id="gps">—</span></div>
+</div></div>
+</main>
+<script>
+const FIREBASE_SDK_VERSION="10.14.1";
+const EMBEDDED_FIREBASE_CONFIG={"apiKey":"AIzaSyBmEX1QM6pJmMO116YTADhqMKOhWl5Nz8Q","authDomain":"gestao-logistica-4c606.firebaseapp.com","databaseURL":"https://gestao-logistica-4c606-default-rtdb.firebaseio.com/","projectId":"gestao-logistica-4c606","storageBucket":"gestao-logistica-4c606.firebasestorage.app","appId":"1:484709506190:web:52590b0888a1da0f1efddf"};
+const $=id=>document.getElementById(id);
+async function boot(){
+ try{
+   const p=new URLSearchParams((location.hash||"").slice(1));
+   const appId=p.get("app"),proofId=p.get("proof");
+   if(!appId||!proofId)throw new Error("Link do canhoto incompleto.");
+
+   const base=`https://www.gstatic.com/firebasejs/${FIREBASE_SDK_VERSION}`;
+   const [appMod,authMod,dbMod]=await Promise.all([
+     import(`${base}/firebase-app.js`),
+     import(`${base}/firebase-auth.js`),
+     import(`${base}/firebase-database.js`)
+   ]);
+
+   let fb=appMod.getApps().find(a=>a.name==="canhoto-viewer");
+   if(!fb)fb=appMod.initializeApp(EMBEDDED_FIREBASE_CONFIG,"canhoto-viewer");
+   const auth=authMod.getAuth(fb);
+   if(!auth.currentUser)await authMod.signInAnonymously(auth);
+   const db=dbMod.getDatabase(fb);
+
+   const snap=await dbMod.get(dbMod.ref(db,`driverApps/${appId}/deliveryProofs/${proofId}`));
+   if(!snap.exists())throw new Error("Canhoto não encontrado.");
+   const r=snap.val();
+   if(!r?.image?.base64)throw new Error("A foto do canhoto não está disponível.");
+
+   $("proofImage").src=`data:${r.image.contentType||"image/jpeg"};base64,${r.image.base64}`;
+   $("proofImage").style.display="block";
+   $("driver").textContent=r.driver||"—";
+   $("client").textContent=r.client||"—";
+   $("orders").textContent=(r.orders||[]).join(", ")||"—";
+   $("shipments").textContent=(r.shipments||[]).join(", ")||"—";
+   $("date").textContent=r.deliveredAt?new Date(r.deliveredAt).toLocaleString("pt-BR"):"—";
+   $("gps").textContent=r.gps?`${Number(r.gps.lat).toFixed(6)}, ${Number(r.gps.lon).toFixed(6)}`:"—";
+   $("status").textContent="✓ Canhoto confirmado";
+   $("status").className="ok";
+   $("proofCard").style.display="block"
+ }catch(e){
+   $("status").textContent=e.message||String(e);
+   $("status").className="err"
+ }
+}
+boot();
+</script>
+</body>
+</html>

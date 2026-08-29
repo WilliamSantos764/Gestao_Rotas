@@ -10,7 +10,7 @@
 <meta name="apple-mobile-web-app-title" content="Motorista">
 <link rel="manifest" href="./manifest.webmanifest">
 <link rel="apple-touch-icon" href="./icons/icon-192.png">
-<title>App do Motorista - V5.33 Canhoto Obrigatório + WhatsApp</title>
+<title>App do Motorista - V5.34 Canhoto Realtime + Sem Storage</title>
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
 <style>
 :root{--bg:#f2f4f7;--card:#fff;--text:#101828;--muted:#667085;--line:#d0d5dd;--accent:#155eef;--ok:#027a48;--warn:#b54708}
@@ -152,7 +152,7 @@ footer{padding:14px;text-align:center;color:var(--muted);font-size:10px}
   <main id="stops"></main>
   <div id="error" class="empty" style="display:none"></div>
 </div>
-<footer>App de rota gerado pelo sistema de Gestão Logística. • V5.33 — GPS + canhoto obrigatório</footer>
+<footer>App de rota gerado pelo sistema de Gestão Logística. • V5.34 — canhoto Realtime • sem Storage</footer>
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script>
 const $=id=>document.getElementById(id);
@@ -265,19 +265,17 @@ function onlineParams(){
 }
 async function firebaseRuntimeFromConfig(cfg){
  const base=`https://www.gstatic.com/firebasejs/${FIREBASE_SDK_VERSION}`;
- const [appMod,authMod,dbMod,storageMod]=await Promise.all([
+ const [appMod,authMod,dbMod]=await Promise.all([
    import(`${base}/firebase-app.js`),
    import(`${base}/firebase-auth.js`),
-   import(`${base}/firebase-database.js`),
-   import(`${base}/firebase-storage.js`)
+   import(`${base}/firebase-database.js`)
  ]);
  let fbapp=appMod.getApps().find(a=>a.name==="motorista-app");
  if(!fbapp)fbapp=appMod.initializeApp(cfg,"motorista-app");
  const auth=authMod.getAuth(fbapp);
  if(!auth.currentUser)await authMod.signInAnonymously(auth);
  const db=dbMod.getDatabase(fbapp);
- const storage=storageMod.getStorage(fbapp);
- return{fbapp,auth,db,dbMod,storage,storageMod}
+ return{fbapp,auth,db,dbMod}
 }
 function onlineBundleMatches(payload,expected){
  if(!payload)return false;
@@ -300,10 +298,17 @@ async function readDriverBundleWithRetry(rt,appId,expected){
  for(let attempt=1;attempt<=10;attempt++){
    $("gpsStatus").textContent=`Sincronizando viagens com a central... ${attempt}/10`;
    try{
-     const snap=await rt.dbMod.get(rt.dbMod.ref(rt.db,`driverApps/${appId}`));
-     if(snap.exists()){
-       last=snap.val();
+     const bundleSnap=await rt.dbMod.get(rt.dbMod.ref(rt.db,`driverApps/${appId}/bundle`));
+     if(bundleSnap.exists()){
+       last=bundleSnap.val();
        if(onlineBundleMatches(last,expected))return last
+     }else{
+       const legacySnap=await rt.dbMod.get(rt.dbMod.ref(rt.db,`driverApps/${appId}`));
+       if(legacySnap.exists()){
+         const legacy=legacySnap.val();
+         last=legacy?.bundle||legacy;
+         if(onlineBundleMatches(last,expected))return last
+       }
      }
    }catch(e){
      if(attempt===10)throw e
@@ -331,7 +336,7 @@ async function loadPayload(){
  if(!params.has("orders"))expected.orders=NaN;
  if(!params.has("stops"))expected.stops=NaN;
 
- // V5.33: NÃO depende mais do cfg enviado pelo WhatsApp.
+ // V5.34: NÃO depende mais do cfg enviado pelo WhatsApp.
  // O Firebase oficial do Gestão Logística já está dentro deste arquivo.
  let cfg=EMBEDDED_FIREBASE_CONFIG;
 
@@ -345,7 +350,7 @@ async function loadPayload(){
        cfg=legacyCfg
      }
    }catch(e){
-     console.warn("Configuração antiga do link estava cortada; usando Firebase embutido da V5.33.",e)
+     console.warn("Configuração antiga do link estava cortada; usando Firebase embutido da V5.34.",e)
    }
  }
 
@@ -394,7 +399,7 @@ function syncHeaderFromApp(){
 function startOnlineBundleSync(){
  if(!tracking?.dbMod||!tracking?.db||!tracking?.appId)return;
  if(onlineBundleUnsub){try{onlineBundleUnsub()}catch{} onlineBundleUnsub=null}
- const ref=tracking.dbMod.ref(tracking.db,`driverApps/${tracking.appId}`);
+ const ref=tracking.dbMod.ref(tracking.db,`driverApps/${tracking.appId}/bundle`);
  onlineBundleUnsub=tracking.dbMod.onValue(ref,snap=>{
    if(!snap.exists())return;
    try{
@@ -452,7 +457,7 @@ function isStopDelivered(flat){return !!proofRecordForFlat(flat)?.deliveredAt}
 async function hydrateDeliveryProofs(){
  if(!tracking?.dbMod||!tracking?.db||!tracking?.appId)return;
  try{
-   const snap=await tracking.dbMod.get(tracking.dbMod.ref(tracking.db,`deliveryProofs/${tracking.appId}`));
+   const snap=await tracking.dbMod.get(tracking.dbMod.ref(tracking.db,`driverApps/${tracking.appId}/deliveryProofs`));
    proofRecords=snap.exists()?(snap.val()||{}):{};
  }catch(e){console.warn("Não foi possível carregar canhotos anteriores:",e)}
 }
@@ -464,16 +469,62 @@ function stopProofSummary(flat){
  const shipments=[...new Set((stop.orders||[]).map(o=>String(o.shipment||"")).filter(Boolean))];
  return{route,stop,orders,shipments,name:stop.name||stop.city||`Parada ${flat._global}`,day:route.day||flat._day||"",dayKey:route.dayKey||flat._dayKey||""}
 }
-async function compressProofImage(file,maxDimension=1800,quality=.84){
+async function canvasToJpegBlob(canvas,quality){
+ return await new Promise((resolve,reject)=>
+   canvas.toBlob(b=>b?resolve(b):reject(new Error("Não foi possível preparar a foto.")),"image/jpeg",quality)
+ )
+}
+async function blobToBase64(blob){
+ const bytes=new Uint8Array(await blob.arrayBuffer());
+ let binary="";
+ const step=0x8000;
+ for(let i=0;i<bytes.length;i+=step){
+   binary+=String.fromCharCode(...bytes.subarray(i,Math.min(bytes.length,i+step)))
+ }
+ return btoa(binary)
+}
+async function compressProofImage(file){
  const bitmap=await createImageBitmap(file);
- let w=bitmap.width,h=bitmap.height;
- const scale=Math.min(1,maxDimension/Math.max(w,h));
- w=Math.max(1,Math.round(w*scale));h=Math.max(1,Math.round(h*scale));
- const canvas=document.createElement("canvas");canvas.width=w;canvas.height=h;
- const ctx=canvas.getContext("2d",{alpha:false});
- ctx.fillStyle="#fff";ctx.fillRect(0,0,w,h);ctx.drawImage(bitmap,0,0,w,h);
- if(bitmap.close)bitmap.close();
- return await new Promise((resolve,reject)=>canvas.toBlob(b=>b?resolve(b):reject(new Error("Não foi possível preparar a foto.")),"image/jpeg",quality))
+ const sourceW=bitmap.width,sourceH=bitmap.height;
+ const maxBytes=620*1024;
+ const dimensions=[1280,1120,960,840];
+ const qualities=[.72,.62,.54,.46];
+ let best=null;
+
+ try{
+   for(const maxDimension of dimensions){
+     const scale=Math.min(1,maxDimension/Math.max(sourceW,sourceH));
+     const w=Math.max(1,Math.round(sourceW*scale));
+     const h=Math.max(1,Math.round(sourceH*scale));
+     const canvas=document.createElement("canvas");
+     canvas.width=w;canvas.height=h;
+     const ctx=canvas.getContext("2d",{alpha:false});
+     ctx.fillStyle="#fff";ctx.fillRect(0,0,w,h);ctx.drawImage(bitmap,0,0,w,h);
+
+     for(const quality of qualities){
+       const blob=await canvasToJpegBlob(canvas,quality);
+       best={blob,width:w,height:h,quality};
+       if(blob.size<=maxBytes){
+         return{
+           base64:await blobToBase64(blob),
+           contentType:"image/jpeg",
+           bytes:blob.size,width:w,height:h,quality
+         }
+       }
+     }
+   }
+ }finally{
+   if(bitmap.close)bitmap.close()
+ }
+
+ if(best&&best.blob.size<=900*1024){
+   return{
+     base64:await blobToBase64(best.blob),
+     contentType:"image/jpeg",
+     bytes:best.blob.size,width:best.width,height:best.height,quality:best.quality
+   }
+ }
+ throw new Error("A foto ficou grande demais. Tire o canhoto mais de perto e tente novamente.")
 }
 function closeProofModal(){
  $("proofModal").classList.remove("open");
@@ -497,66 +548,117 @@ function openProofPreview(file){
  $("proofUploadStatus").textContent="Foto pronta. Ao confirmar, ela será salva e o WhatsApp será aberto.";
  $("proofConfirmBtn").disabled=false;$("proofRetryBtn").disabled=false;$("proofModal").classList.add("open")
 }
+async function withTimeout(promise,ms,label){
+ let timer;
+ try{
+   return await Promise.race([
+     promise,
+     new Promise((_,reject)=>{
+       timer=setTimeout(()=>reject(new Error(`${label} demorou mais de ${Math.round(ms/1000)} segundos. Verifique a internet e tente novamente.`)),ms)
+     })
+   ])
+ }finally{
+   clearTimeout(timer)
+ }
+}
+function proofViewerUrl(proofId){
+ const url=new URL("canhoto.html",window.location.href);
+ url.searchParams.set("v","534");
+ url.hash=`app=${encodeURIComponent(tracking.appId)}&proof=${encodeURIComponent(proofId)}`;
+ return url.href
+}
 function proofWhatsAppMessage(summary,record){
  const gps=record.gps?`${Number(record.gps.lat).toFixed(6)}, ${Number(record.gps.lon).toFixed(6)}`:"—";
- return["✅ CANHOTO DE ENTREGA","",`Motorista: ${app.driver||"—"}`,`Cliente/Parada: ${summary.name}`,`Dia/Rota: ${summary.day||"—"}`,`Pedido(s): ${summary.orders.join(", ")||"—"}`,`Embarque(s): ${summary.shipments.join(", ")||"—"}`,`Entregue em: ${new Date(record.deliveredAt).toLocaleString("pt-BR")}`,`GPS: ${gps}`,"","📷 Canhoto:",record.photoUrl].join("\n")
+ return["✅ CANHOTO DE ENTREGA","",`Motorista: ${app.driver||"—"}`,`Cliente/Parada: ${summary.name}`,`Dia/Rota: ${summary.day||"—"}`,`Pedido(s): ${summary.orders.join(", ")||"—"}`,`Embarque(s): ${summary.shipments.join(", ")||"—"}`,`Entregue em: ${new Date(record.deliveredAt).toLocaleString("pt-BR")}`,`GPS: ${gps}`,"","📷 Canhoto:",record.viewerUrl].join("\n")
 }
 async function confirmDeliveryProof(){
  if(proofUploadBusy)return;
  const flat=stopFlatByGlobal(pendingProofGlobal);
  if(!flat||!pendingProofFile)return;
  if(!validProofWhatsApp())return alert("WhatsApp dos canhotos não configurado.");
- if(!tracking?.storage||!tracking?.storageMod)return alert("Firebase Storage indisponível. A entrega não será concluída.");
+ if(!tracking?.db||!tracking?.dbMod)return alert("Realtime Database indisponível. A entrega não será concluída.");
 
- proofUploadBusy=true;$("proofConfirmBtn").disabled=true;$("proofRetryBtn").disabled=true;
- $("proofUploadStatus").textContent="Preparando e enviando a foto do canhoto...";
- let waWindow=null;try{waWindow=window.open("about:blank","_blank")}catch{}
+ proofUploadBusy=true;
+ $("proofConfirmBtn").disabled=true;
+ $("proofRetryBtn").disabled=true;
+ $("proofUploadStatus").textContent="Preparando a foto do canhoto...";
+
+ let waWindow=null;
+ try{waWindow=window.open("about:blank","_blank")}catch{}
 
  try{
-   const summary=stopProofSummary(flat),proofId=proofKeyForFlat(flat);
-   const blob=await compressProofImage(pendingProofFile),timestamp=Date.now();
-   const safeDay=String(summary.dayKey||"rota").replace(/[^a-zA-Z0-9_-]/g,"_");
-   const storagePath=`deliveryProofs/${tracking.appId}/${safeDay}/${proofId}_${timestamp}.jpg`;
-   const storageRef=tracking.storageMod.ref(tracking.storage,storagePath);
-   $("proofUploadStatus").textContent="Enviando canhoto para o Firebase...";
-   await tracking.storageMod.uploadBytes(storageRef,blob,{
-     contentType:"image/jpeg",
-     customMetadata:{driver:String(app.driver||""),proofId,appId:String(tracking.appId||"")}
-   });
-   const photoUrl=await tracking.storageMod.getDownloadURL(storageRef);
+   const summary=stopProofSummary(flat);
+   const proofId=proofKeyForFlat(flat);
 
+   $("proofUploadStatus").textContent="Comprimindo a foto...";
+   const image=await withTimeout(compressProofImage(pendingProofFile),18000,"A preparação da foto");
+
+   const viewerUrl=proofViewerUrl(proofId);
    const record={
-     proofId,appId:tracking.appId,driver:app.driver||"",day:summary.day,dayKey:summary.dayKey,
+     proofId,appId:tracking.appId,driver:app.driver||"",
+     day:summary.day,dayKey:summary.dayKey,
      client:summary.name,address:summary.stop.address||"",city:summary.stop.city||"",
-     orders:summary.orders,shipments:summary.shipments,deliveredAt:new Date().toISOString(),
-     photoUrl,storagePath,whatsapp:normalizePhoneBR(app.proofWhatsApp||""),
-     gps:currentLocation?{lat:currentLocation.lat,lon:currentLocation.lon,accuracy:currentLocation.accuracy??null,timestamp:currentLocation.timestamp||Date.now()}:null
+     orders:summary.orders,shipments:summary.shipments,
+     deliveredAt:new Date().toISOString(),
+     whatsapp:normalizePhoneBR(app.proofWhatsApp||""),
+     viewerUrl,
+     image:{
+       base64:image.base64,contentType:image.contentType,bytes:image.bytes,
+       width:image.width,height:image.height,quality:image.quality
+     },
+     gps:currentLocation?{
+       lat:currentLocation.lat,lon:currentLocation.lon,
+       accuracy:currentLocation.accuracy??null,
+       timestamp:currentLocation.timestamp||Date.now()
+     }:null
    };
 
-   $("proofUploadStatus").textContent="Registrando a entrega...";
-   await tracking.dbMod.set(tracking.dbMod.ref(tracking.db,`deliveryProofs/${tracking.appId}/${proofId}`),record);
-   proofRecords[proofId]=record;
-   done[flat._global]=true;saveDone(app,done);
+   $("proofUploadStatus").textContent=`Salvando canhoto... ${Math.round(image.bytes/1024)} KB`;
+   const proofRef=tracking.dbMod.ref(tracking.db,`driverApps/${tracking.appId}/deliveryProofs/${proofId}`);
+   await withTimeout(tracking.dbMod.set(proofRef,record),20000,"O envio do canhoto");
 
-   renderStops();updateProgress();rebuildMap({fit:false});
+   $("proofUploadStatus").textContent="Confirmando o canhoto...";
+   const verify=await withTimeout(tracking.dbMod.get(proofRef),12000,"A confirmação do canhoto");
+   if(!verify.exists()||!verify.val()?.image?.base64){
+     throw new Error("O Firebase não confirmou a foto. A entrega não foi concluída.")
+   }
+
+   proofRecords[proofId]=verify.val();
+   done[flat._global]=true;
+   saveDone(app,done);
+
+   renderStops();
+   updateProgress();
+   rebuildMap({fit:false});
    if(currentLocation)await optimizeFromCurrentLocation(false).catch(console.error);
    await publishTracking(true).catch(console.error);
 
-   $("proofUploadStatus").textContent="✓ Entrega concluída. Abrindo o WhatsApp com o canhoto...";
+   $("proofUploadStatus").textContent="✓ Canhoto salvo. Abrindo o WhatsApp...";
    const phone=normalizePhoneBR(app.proofWhatsApp||"");
-   const waUrl=`https://wa.me/${phone}?text=${encodeURIComponent(proofWhatsAppMessage(summary,record))}`;
-   setTimeout(()=>closeProofModal(),500);
+   const waUrl=`https://wa.me/${phone}?text=${encodeURIComponent(proofWhatsAppMessage(summary,proofRecords[proofId]))}`;
+
+   setTimeout(()=>closeProofModal(),450);
    if(waWindow&&!waWindow.closed)waWindow.location.href=waUrl;
    else window.location.href=waUrl
  }catch(e){
-   console.error("Canhoto:",e);
+   console.error("Canhoto V5.34:",e);
    if(waWindow&&!waWindow.closed)try{waWindow.close()}catch{}
    const msg=String(e?.message||e);
-   const hint=/storage|bucket|unauthorized|permission/i.test(msg)?"\n\nVerifique se o Firebase Storage foi criado e se firebase-storage-rules.txt foi publicado.":"";
-   $("proofUploadStatus").textContent="Falha ao enviar o canhoto. A entrega NÃO foi concluída.";
-   alert(`Não foi possível concluir a entrega.\n\n${msg}${hint}`);
-   $("proofConfirmBtn").disabled=false;$("proofRetryBtn").disabled=false
- }finally{proofUploadBusy=false}
+
+   let hint="";
+   if(/permission|denied/i.test(msg)){
+     hint="\n\nO Realtime Database bloqueou o canhoto. Publique o firebase-rules.json da V5.34."
+   }else if(/demorou|network|internet/i.test(msg)){
+     hint="\n\nConfira a internet do celular e toque novamente em “Enviar canhoto e concluir”."
+   }
+
+   $("proofUploadStatus").textContent="⚠ Falha ao salvar. A entrega continua pendente.";
+   alert(`A entrega NÃO foi concluída.\n\n${msg}${hint}`);
+   $("proofConfirmBtn").disabled=false;
+   $("proofRetryBtn").disabled=false
+ }finally{
+   proofUploadBusy=false
+ }
 }
 function storageKey(app){return"driver_route_done_"+String(app.id||app.driver||"rota")}
 function loadDone(app){try{return JSON.parse(localStorage.getItem(storageKey(app))||"{}")}catch{return{}}}
@@ -648,7 +750,7 @@ function renderStops(){
       <div class="orders">${(s.orders||[]).map(o=>`<div class="order"><b>Pedido ${esc(o.id)}</b>${o.clientName?` — ${esc(o.clientName)}`:""}${o.shipment?`<br><small>Embarque ${esc(o.shipment)}</small>`:""}</div>`).join("")}</div>
       ${isDone?`<div class="proof-ok">✓ Entrega concluída com canhoto em ${proof?.deliveredAt?new Date(proof.deliveredAt).toLocaleString("pt-BR"):"—"}.</div>`:`<div class="proof-note">📷 Para concluir esta entrega é obrigatório fotografar o canhoto.</div>`}
       <div class="actions"><a class="btn nav" href="${navUrl(s)}" target="_blank" rel="noopener">🧭 Navegar até esta entrega</a>
-      ${isDone&&proof?.photoUrl?`<a class="btn proofview" href="${esc(proof.photoUrl)}" target="_blank" rel="noopener">📄 Ver canhoto</a>`:`<button class="donebtn proofbtn" type="button" data-stop="${global}">📷 Tirar foto do canhoto</button>`}</div>
+      ${isDone&&proof?.viewerUrl?`<a class="btn proofview" href="${esc(proof.viewerUrl)}" target="_blank" rel="noopener">📄 Ver canhoto</a>`:`<button class="donebtn proofbtn" type="button" data-stop="${global}">📷 Tirar foto do canhoto</button>`}</div>
      </section>`
    }).join("");
    return`<section class="dayblock">${dayHead}${cards}</section>`
@@ -944,7 +1046,7 @@ async function boot(){
    }
  }catch(e){
    $("gpsGate").classList.remove("show");document.body.classList.remove("gps-locked");$("map").style.display="none";$("stops").style.display="none";$("error").style.display="block";
-   $("error").textContent=(e.message||String(e))+"\n\nSe este link veio do WhatsApp, peça à central para abrir a V5.33, gerar/atualizar a rota do motorista e enviar o link novamente.";$("subtitle").textContent="Não foi possível abrir as entregas.";
+   $("error").textContent=(e.message||String(e))+"\n\nSe este link veio do WhatsApp, peça à central para abrir a V5.34, gerar/atualizar a rota do motorista e enviar o link novamente.";$("subtitle").textContent="Não foi possível abrir as entregas.";
    $("gpsStatus").textContent=e.message||String(e)
  }
 }
