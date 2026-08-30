@@ -1,0 +1,31 @@
+AUDITORIA V5.50 — PUBLICAÇÃO DE ROTAS E STATUS
+
+Problema corrigido:
+- a tela de WhatsApp tinha chamadas para funções ausentes;
+- isso podia interromper a liberação geral no meio do processo;
+- a publicação sequencial permitia inconsistência entre Apps.
+
+Nova arquitetura:
+- conferência de embarques/pedidos/rotas antes da publicação;
+- agrupamento exato por motorista e dia;
+- publicação multi-localização de todos os bundles em uma única operação;
+- releitura e confirmação de cada bundle;
+- status explícito por motorista;
+- publishedDayKeys fixa exatamente quais rotas pertencem ao App;
+- rollback de todos os Apps quando a confirmação falha;
+- App religa canhoto/retake/ocorrências ao sair de WAITING para RELEASED.
+
+TESTES
+✓ index.html: sem IDs/funções duplicadas
+✓ motorista.html: sem IDs/funções duplicadas
+✓ canhoto.html: sem IDs/funções duplicadas
+✓ index.html: sem identificadores indefinidos internos
+✓ motorista.html: sem identificadores indefinidos internos
+✓ canhoto.html: sem identificadores indefinidos internos
+✓ Publicação sintética: 2 motoristas / 3 rotas distribuídas corretamente
+✓ Motorista com 2 dias recebeu as 2 rotas
+✓ Divergência de pedido bloqueia liberação
+✓ Falha de conferência reverte todos os Apps para WAITING
+TEST1_OK atomic all routes/status
+TEST2_OK coverage mismatch blocked
+TEST3_OK rollback all apps

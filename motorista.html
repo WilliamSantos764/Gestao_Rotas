@@ -10,7 +10,7 @@
 <meta name="apple-mobile-web-app-title" content="Motorista">
 <link rel="manifest" href="./manifest.webmanifest">
 <link rel="apple-touch-icon" href="./icons/icon-192.png">
-<title>App do Motorista - V5.49 Mapa Saneado</title>
+<title>App do Motorista - V5.50 Publicação Atômica</title>
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
 <style>
 :root{--bg:#f2f4f7;--card:#fff;--text:#101828;--muted:#667085;--line:#d0d5dd;--accent:#155eef;--ok:#027a48;--warn:#b54708}
@@ -179,7 +179,7 @@ footer{padding:14px;text-align:center;color:var(--muted);font-size:10px}
   </details>
   <div id="error" class="empty" style="display:none"></div>
 </div>
-<footer>App de rota gerado pelo sistema de Gestão Logística. • V5.49 — reentregas sincronizadas</footer>
+<footer>App de rota gerado pelo sistema de Gestão Logística. • V5.50 — reentregas sincronizadas</footer>
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script>
 const $=id=>document.getElementById(id);
@@ -365,7 +365,7 @@ async function loadPayload(){
  if(!params.has("orders"))expected.orders=NaN;
  if(!params.has("stops"))expected.stops=NaN;
 
- // V5.49: NÃO depende mais do cfg enviado pelo WhatsApp.
+ // V5.50: NÃO depende mais do cfg enviado pelo WhatsApp.
  // O Firebase oficial do Gestão Logística já está dentro deste arquivo.
  let cfg=EMBEDDED_FIREBASE_CONFIG;
 
@@ -379,7 +379,7 @@ async function loadPayload(){
        cfg=legacyCfg
      }
    }catch(e){
-     console.warn("Configuração antiga do link estava cortada; usando Firebase embutido da V5.49.",e)
+     console.warn("Configuração antiga do link estava cortada; usando Firebase embutido da V5.50.",e)
    }
  }
 
@@ -489,7 +489,7 @@ function showWaitingForRoutingState(message=""){
    $("error").style.display="block";
    $("error").textContent=message||app?.message||"Aguardando a central clicar em “Roteirizar todos e liberar Apps”. Nenhum pedido ou rota foi liberado para este motorista."
  }
- $("gpsBadge").textContent="Aguardando rota";
+ $("gpsBadge").textContent="AGUARDANDO LIBERAÇÃO";
  $("gpsBadge").style.color="#93370d";
  $("gpsStatus").textContent="Nenhuma rota/pedido liberado. Aguarde a roteirização geral na central.";
  $("rerouteBtn").disabled=true;
@@ -570,16 +570,19 @@ function startOnlineBundleSync(){
      app=restoreLiveRouteState(next,liveState);
      syncHeaderFromApp();
      if(isWaitingForRoutingPayload(app)){
+       stopOnlineOperationalSync();
        done={};proofRecords={};retakeRequests={};deliveryEvents={};
        showWaitingForRoutingState(app.message);
        return
      }
      showRoutingPayloadState();
      done=loadDone(app);
+     startOnlineProofSync();
      hydrateDeliveryProofs().then(()=>{renderStops();updateProgress();rebuildMap({fit:false})}).catch(console.error);
      liveRouteFitted=false;
      renderStops();updateProgress();rebuildMap({fit:!currentLocation});
-     $("gpsStatus").textContent="✓ Nova operação liberada pela central. Ative o GPS para iniciar.";
+     $("gpsBadge").textContent="APP LIBERADO";$("gpsBadge").style.color="#027a48";
+     $("gpsStatus").textContent="✓ Todas as rotas deste motorista foram liberadas pela central. Ative o GPS para iniciar.";
      enforceGpsRequirement();
      if(currentLocation)requestLiveRouteRecalc(false)
    }catch(e){console.error("Sincronização das viagens:",e)}
@@ -724,6 +727,9 @@ async function hydrateDeliveryProofs(){
  }catch(e){console.warn("Não foi possível carregar status das entregas:",e)}
 }
 let onlineProofUnsub=null,onlineRetakeUnsub=null,onlineDeliveryEventUnsub=null;
+function stopOnlineOperationalSync(){
+ stopOnlineOperationalSync();
+}
 function startOnlineProofSync(){
  if(!tracking?.dbMod||!tracking?.db||!tracking?.appId)return;
  if(onlineProofUnsub){try{onlineProofUnsub()}catch{} onlineProofUnsub=null}
@@ -955,7 +961,7 @@ async function withTimeout(promise,ms,label){
 }
 function proofViewerUrl(proofId){
  const url=new URL("canhoto.html",window.location.href);
- url.searchParams.set("v","549");
+ url.searchParams.set("v","550");
  url.hash=`app=${encodeURIComponent(tracking.appId)}&proof=${encodeURIComponent(proofId)}`;
  return url.href
 }
@@ -1056,13 +1062,13 @@ async function confirmDeliveryProof(){
    if(waWindow&&!waWindow.closed)waWindow.location.href=waUrl;
    else window.location.href=waUrl
  }catch(e){
-   console.error("Canhoto V5.49:",e);
+   console.error("Canhoto V5.50:",e);
    if(waWindow&&!waWindow.closed)try{waWindow.close()}catch{}
    const msg=String(e?.message||e);
 
    let hint="";
    if(/permission|denied/i.test(msg)){
-     hint="\n\nO Realtime Database bloqueou o canhoto. Publique o firebase-rules.json da V5.49."
+     hint="\n\nO Realtime Database bloqueou o canhoto. Publique o firebase-rules.json da V5.50."
    }else if(/demorou|network|internet/i.test(msg)){
      hint="\n\nConfira a internet do celular e toque novamente em “Enviar canhoto e concluir”."
    }
@@ -1695,14 +1701,15 @@ async function boot(){
    startOnlineProofSync();
    enforceGpsRequirement();
 
+   $("gpsBadge").textContent="APP LIBERADO";$("gpsBadge").style.color="#027a48";
    if(tracking){
-     $("gpsStatus").textContent="Todas as entregas foram liberadas pela central. O GPS é obrigatório para desenhar a rota e compartilhar a posição.";
+     $("gpsStatus").textContent="Todas as rotas deste motorista foram liberadas pela central. O GPS é obrigatório para desenhar a rota e compartilhar a posição.";
    }else{
-     $("gpsStatus").textContent="Entregas liberadas. O GPS é obrigatório para desenhar a rota.";
+     $("gpsStatus").textContent="Rotas liberadas. O GPS é obrigatório para desenhar a rota.";
    }
  }catch(e){
    $("gpsGate").classList.remove("show");document.body.classList.remove("gps-locked");$("map").style.display="none";$("stops").style.display="none";$("error").style.display="block";
-   $("error").textContent=(e.message||String(e))+"\n\nSe este link veio do WhatsApp, peça à central para abrir a V5.49 e clicar em “Roteirizar todos e liberar Apps”.";$("subtitle").textContent="Não foi possível abrir as entregas.";
+   $("error").textContent=(e.message||String(e))+"\n\nSe este link veio do WhatsApp, peça à central para abrir a V5.50 e clicar em “Roteirizar todos e liberar Apps”.";$("subtitle").textContent="Não foi possível abrir as entregas.";
    $("gpsStatus").textContent=e.message||String(e)
  }
 }

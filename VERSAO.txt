@@ -1,5 +1,5 @@
-Gestão Logística V5.49
-Mapa do App saneado contra coordenadas absurdas.
-Central e App validam a região operacional.
-Situação dos embarques visível somente ao clicar no motorista/caminhão ao vivo.
-Linha azul preservada para coordenadas válidas.
+Gestão Logística V5.50
+Publicação atômica de todas as rotas para todos os Apps envolvidos.
+Status por motorista: AGUARDANDO LIBERAÇÃO / PUBLICANDO / APP LIBERADO / ERRO DE PUBLICAÇÃO.
+WhatsApp — envio das rotas restaurado e editável.
+Conferência de rotas, paradas e pedidos antes da liberação.

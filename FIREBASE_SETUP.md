@@ -175,13 +175,17 @@ Não é necessário alterar as regras porque o caminho está dentro de `driverAp
 Usa `driverApps/<appId>/redeliveryApprovals/<eventId>` para aprovações e programação. As regras existentes de `driverApps/$appId` já abrangem este caminho.
 
 
-## V5.49
+## V5.50
 Firebase continua integrado e automático; a configuração técnica apenas foi recolhida da visão principal.
 
 
-## V5.49 — publicação controlada
+## V5.50 — publicação controlada
 Os nós `driverApps/<appId>/bundle` podem ficar com `status: WAITING_FOR_ROUTING` até o usuário clicar em Roteirizar todos e liberar Apps. O mesmo appId é reutilizado quando a nova operação é publicada.
 
 
-## V5.49
+## V5.50
 A liberação dos Apps é transacional no nível operacional: em falha de uma publicação, todos os bundles são devolvidos para WAITING_FOR_ROUTING.
+
+
+## V5.50
+A liberação geral usa atualização multi-localização em `/driverApps`, publicando todos os `/driverApps/<appId>/bundle` em uma única operação e verificando cada bundle depois da escrita.

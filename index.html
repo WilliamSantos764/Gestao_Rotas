@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Gestão Logística - V5.49 Mapa Saneado + Detalhe ao Vivo</title>
+<title>Gestão Logística - V5.50 Publicação Atômica + Status</title>
 <style>
 :root{
   --bg:#f3f6fb;--card:#fff;--line:#e2e8f0;--text:#152033;--muted:#667085;
@@ -508,7 +508,7 @@ main{max-width:1580px;margin:auto;padding:20px}.view{display:none}.view.active{d
 </head>
 <body>
 <header class="top"><div class="topin">
- <div class="brand"><div class="logo">R</div><div><h1>Gestão Logística - Embarques e Rotas V5.49</h1><small>Rotas • ESPD • Frota • Embarques automáticos</small></div></div>
+ <div class="brand"><div class="logo">R</div><div><h1>Gestão Logística - Embarques e Rotas V5.50</h1><small>Rotas • ESPD • Frota • Embarques automáticos</small></div></div>
  <nav class="nav">
   <button class="active" data-view="planning">Embarques</button>
   <button data-view="routeanalysis">Central de Rotas</button>
@@ -925,7 +925,7 @@ let routes=loadJSON(ROUTE_KEY,ORIGINAL_ROUTES),fleet=loadJSON(FLEET_KEY,ORIGINAL
 const EMBEDDED_FIREBASE_CONFIG={"apiKey":"AIzaSyBmEX1QM6pJmMO116YTADhqMKOhWl5Nz8Q","authDomain":"gestao-logistica-4c606.firebaseapp.com","databaseURL":"https://gestao-logistica-4c606-default-rtdb.firebaseio.com/","projectId":"gestao-logistica-4c606","storageBucket":"gestao-logistica-4c606.firebasestorage.app","appId":"1:484709506190:web:52590b0888a1da0f1efddf"};
 const EMBEDDED_FIREBASE_CONFIG_TEXT=JSON.stringify(EMBEDDED_FIREBASE_CONFIG,null,2);
 
-let settings=loadJSON(SETTINGS_KEY,{lastShipment:93716,heavyThreshold:1500,fleetPriority:"CASA",publicAppBaseUrl:"",autoWhatsAppAfterRouting:true,deliveryProofWhatsApp:"",firebaseConfigText:EMBEDDED_FIREBASE_CONFIG_TEXT,driverAppPublications:{},espdOperationalRevision:"",bulkRoutingRevision:"",bulkRoutingAt:""});
+let settings=loadJSON(SETTINGS_KEY,{lastShipment:93716,heavyThreshold:1500,fleetPriority:"CASA",publicAppBaseUrl:"",autoWhatsAppAfterRouting:true,deliveryProofWhatsApp:"",firebaseConfigText:EMBEDDED_FIREBASE_CONFIG_TEXT,driverAppPublications:{},espdOperationalRevision:"",bulkRoutingRevision:"",bulkRoutingAt:"",bulkReleaseId:""});
 
 const ROUTE_GEO_KEY="logistica_route_geo_v55";
 const DEPOT_COORD={lat:-22.261541,lon:-45.764269,name:"COOPERRITA - ORIGEM"};
@@ -974,6 +974,7 @@ if(!settings.driverAppPublications||typeof settings.driverAppPublications!=="obj
 if(typeof settings.espdOperationalRevision!=="string")settings.espdOperationalRevision="";
 if(typeof settings.bulkRoutingRevision!=="string")settings.bulkRoutingRevision="";
 if(typeof settings.bulkRoutingAt!=="string")settings.bulkRoutingAt="";
+if(typeof settings.bulkReleaseId!=="string")settings.bulkReleaseId="";
 delete settings.milkOnlyMaxWeight;
 delete settings.allocationWeightCutoff;
 delete settings.selectedAllocationRules;
@@ -1050,6 +1051,238 @@ function firebasePublicationForDriver(driver){
  return settings.driverAppPublications?.[norm(driver)]||null
 }
 
+function publicationReleaseState(driver){
+ const pub=firebasePublicationForDriver(driver);
+ if(!pub?.appId)return{code:"NO_APP",label:"SEM APP",ok:false};
+ if(pub.releaseStatus==="ERROR")return{code:"ERROR",label:"ERRO DE PUBLICAÇÃO",ok:false};
+ if(pub.releaseStatus==="PUBLISHING")return{code:"PUBLISHING",label:"PUBLICANDO",ok:false};
+ if(driverAppsUnlocked()&&pub.releaseStatus==="RELEASED"&&pub.releaseRevision===settings.bulkReleaseId){
+   return{code:"RELEASED",label:"APP LIBERADO",ok:true}
+ }
+ return{code:"WAITING",label:"AGUARDANDO LIBERAÇÃO",ok:false}
+}
+function markAllDriverPublicationsWaiting(reason="Aguardando roteirização geral"){
+ Object.keys(settings.driverAppPublications||{}).forEach(k=>{
+   settings.driverAppPublications[k]={
+     ...settings.driverAppPublications[k],
+     waitingForRouting:true,
+     releaseStatus:"WAITING",
+     releaseRevision:"",
+     releaseReason:reason,
+     signature:"",
+     orderCount:0,totalStops:0,routeCount:0
+   }
+ })
+}
+function routeOrderIds(route){
+ const ids=new Set();
+ (route?.stops||[]).forEach(s=>(s.orders||[]).forEach(o=>o?.id!=null&&ids.add(String(o.id))));
+ return ids
+}
+function shipmentOrderIds(shipments){
+ const ids=new Set();
+ (shipments||[]).forEach(s=>(s.orders||[]).forEach(o=>o?.id!=null&&ids.add(String(o.id))));
+ return ids
+}
+function collectBulkPublicationPlan(days){
+ const byDriver=new Map(),errors=[];
+ (days||[]).forEach(info=>{
+   const plan=plans[info.key];
+   if(!plan)return;
+   const driverNames=[...new Set((plan.shipments||[])
+     .filter(s=>(s.orders||[]).length&&s.driver&&norm(s.driver)!=="A DEFINIR")
+     .map(s=>s.driver))];
+
+   driverNames.forEach(driver=>{
+     const shipments=shipmentsForDriverOnPlan(plan,driver);
+     const route=plan.driverRoutes?.[driver];
+     if(!route||route.error||!route.stops?.length||!routeBelongsToCurrentEspd(route)){
+       errors.push(`${driver} / ${info.day}: rota válida não encontrada`);
+       return
+     }
+     if(String(route.dayKey)!==String(info.key)){
+       errors.push(`${driver} / ${info.day}: rota pertence a outro dia`);
+       return
+     }
+
+     const expectedOrders=shipmentOrderIds(shipments);
+     const routedOrders=routeOrderIds(route);
+     const missingOrders=[...expectedOrders].filter(id=>!routedOrders.has(id));
+     const extraOrders=[...routedOrders].filter(id=>!expectedOrders.has(id));
+     if(missingOrders.length||extraOrders.length){
+       errors.push(`${driver} / ${info.day}: divergência de pedidos (${missingOrders.length} faltando, ${extraOrders.length} extras)`);
+       return
+     }
+
+     const expectedShipments=new Set(shipments.map(s=>String(s.shipment)));
+     const routedShipments=new Set((route.shipments||[]).map(String));
+     const missingShipments=[...expectedShipments].filter(id=>!routedShipments.has(id));
+     if(missingShipments.length){
+       errors.push(`${driver} / ${info.day}: embarque(s) não incluído(s): ${missingShipments.join(", ")}`);
+       return
+     }
+
+     const key=norm(driver);
+     if(!byDriver.has(key))byDriver.set(key,{driver,routes:[],dayKeys:[],expectedOrders:new Set(),expectedShipments:new Set()});
+     const group=byDriver.get(key);
+     group.routes.push(route);
+     group.dayKeys.push(info.key);
+     expectedOrders.forEach(id=>group.expectedOrders.add(id));
+     expectedShipments.forEach(id=>group.expectedShipments.add(id))
+   })
+ });
+
+ const groups=[...byDriver.values()].map(g=>({
+   ...g,
+   routes:g.routes.sort((a,b)=>String(a.dayKey).localeCompare(String(b.dayKey))),
+   dayKeys:[...new Set(g.dayKeys)].sort(),
+   expectedOrderCount:g.expectedOrders.size,
+   expectedShipmentCount:g.expectedShipments.size
+ })).sort((a,b)=>String(a.driver).localeCompare(String(b.driver),"pt-BR"));
+
+ return{groups,errors}
+}
+function prepareDriverPublicationPayload(driver,routesList,releaseId){
+ const valid=(routesList||[]).filter(r=>!r?.error&&r?.stops?.length&&routeBelongsToCurrentEspd(r));
+ if(!valid.length)throw new Error(`Nenhuma viagem válida encontrada para ${driver}.`);
+ const key=norm(driver);
+ let publication=settings.driverAppPublications[key];
+ if(!publication?.appId){
+   publication={appId:secureRandomId("driver"),driver,createdAt:new Date().toISOString()};
+   settings.driverAppPublications[key]=publication
+ }
+ const signature=driverRoutesSignature(valid);
+ const revision=secureRandomId("rev");
+ const bundle=compactDriverBundle(driver,valid);
+ bundle.id=`DRIVER_APP|${publication.appId}`;
+ bundle.trackingSessionId=publication.appId;
+ bundle.publicationRevision=revision;
+ bundle.routeSignature=signature;
+ bundle.publishedAt=new Date().toISOString();
+ bundle.appBuild="V5.50";
+ bundle.status="ROUTES_RELEASED";
+ bundle.releaseStatus="RELEASED";
+ bundle.releaseRevision=releaseId||"";
+ bundle.espdRevision=settings.espdOperationalRevision||"";
+
+ const safeBundle=cleanFirebaseObject(bundle);
+ const candidate={
+   ...publication,
+   driver,appId:publication.appId,
+   updatedAt:safeBundle.publishedAt,
+   signature,revision,
+   orderCount:Number(safeBundle.orderCount||0),
+   totalStops:Number(safeBundle.totalStops||0),
+   routeCount:Array.isArray(safeBundle.routes)?safeBundle.routes.length:0,
+   publishedDayKeys:(safeBundle.routes||[]).map(r=>String(r.dayKey)).filter(Boolean).sort(),
+   verifiedAt:"",
+   waitingForRouting:false,
+   releaseStatus:"PUBLISHING",
+   releaseRevision:releaseId||"",
+   releaseReason:""
+ };
+ return{driver,key,publication,candidate,bundle:safeBundle,signature}
+}
+async function verifyPreparedPublication(rt,prepared){
+ const snap=await rt.dbMod.get(rt.dbMod.ref(rt.db,`driverApps/${prepared.candidate.appId}/bundle`));
+ if(!snap.exists())throw new Error(`${prepared.driver}: bundle não encontrado após publicação`);
+ const remote=snap.val();
+ const candidate={...prepared.candidate,releaseStatus:"RELEASED"};
+ if(!publicationMatchesBundle(prepared.driver,candidate,remote,prepared.signature)){
+   throw new Error(`${prepared.driver}: conferência de rotas/paradas/pedidos falhou`)
+ }
+ if(String(remote.releaseRevision||"")!==String(prepared.candidate.releaseRevision||"")){
+   throw new Error(`${prepared.driver}: revisão da liberação não confere`)
+ }
+ if(String(remote.espdRevision||"")!==String(settings.espdOperationalRevision||"")){
+   throw new Error(`${prepared.driver}: versão do ESPD não confere`)
+ }
+ return remote
+}
+async function rollbackPreparedPublications(rt,preparedList,reason){
+ const updates={};
+ (preparedList||[]).forEach(p=>{
+   const wait=waitingDriverBundle(p.driver,p.candidate.appId,reason);
+   updates[`${p.candidate.appId}/bundle`]=cleanFirebaseObject(wait)
+ });
+ if(Object.keys(updates).length){
+   await rt.dbMod.update(rt.dbMod.ref(rt.db,"driverApps"),updates)
+ }
+ preparedList.forEach(p=>{
+   settings.driverAppPublications[p.key]={
+     ...p.candidate,
+     waitingForRouting:true,
+     releaseStatus:"ERROR",
+     releaseRevision:"",
+     releaseReason:reason,
+     signature:"",
+     orderCount:0,totalStops:0,routeCount:0
+   }
+ });
+ settings.bulkRoutingRevision="";
+ settings.bulkRoutingAt="";
+ settings.bulkReleaseId="";
+ persist()
+}
+async function publishBulkDriverAppsAtomically(days){
+ if(!firebaseConfigReady())throw new Error("Firebase não configurado.");
+ const plan=collectBulkPublicationPlan(days);
+ if(plan.errors.length)throw new Error(plan.errors.join("\n"));
+ if(!plan.groups.length)throw new Error("Nenhum motorista com rota válida para publicar.");
+
+ const releaseId=secureRandomId("bulk");
+ const prepared=plan.groups.map(g=>prepareDriverPublicationPayload(g.driver,g.routes,releaseId));
+
+ // Estado visual intermediário.
+ prepared.forEach(p=>{
+   settings.driverAppPublications[p.key]={...p.candidate};
+ });
+ persist();renderDriverApps();renderLiveTrackingPanel();renderWhatsAppDispatch();
+
+ const rt=await getFirebaseRuntime();
+ const updates={};
+ prepared.forEach(p=>updates[`${p.candidate.appId}/bundle`]=p.bundle);
+
+ try{
+   // Uma única atualização multi-localização: todos os Apps recebem a mesma liberação.
+   await rt.dbMod.update(rt.dbMod.ref(rt.db,"driverApps"),updates);
+
+   const verification=await Promise.allSettled(prepared.map(p=>verifyPreparedPublication(rt,p)));
+   const failures=verification
+     .map((r,i)=>r.status==="rejected"?`${prepared[i].driver}: ${r.reason?.message||r.reason}`:"")
+     .filter(Boolean);
+   if(failures.length)throw new Error(failures.join("\n"));
+
+   prepared.forEach(p=>{
+     settings.driverAppPublications[p.key]={
+       ...p.candidate,
+       waitingForRouting:false,
+       releaseStatus:"RELEASED",
+       releaseRevision:releaseId,
+       verifiedAt:new Date().toISOString(),
+       releaseReason:""
+     }
+   });
+   settings.bulkRoutingRevision=settings.espdOperationalRevision;
+   settings.bulkRoutingAt=new Date().toISOString();
+   settings.bulkReleaseId=releaseId;
+   persist();
+   return{
+     releaseId,
+     drivers:prepared.length,
+     routes:prepared.reduce((n,p)=>n+p.candidate.routeCount,0),
+     stops:prepared.reduce((n,p)=>n+p.candidate.totalStops,0),
+     orders:prepared.reduce((n,p)=>n+p.candidate.orderCount,0),
+     publications:prepared
+   }
+ }catch(e){
+   try{await rollbackPreparedPublications(rt,prepared,"Falha na liberação geral. Aguardando nova tentativa.")}
+   catch(rollbackError){console.error("Rollback da publicação:",rollbackError)}
+   throw e
+ }
+}
+
+
 function currentEspdOperationalRevision(){
  if(!currentFile||!aggregatedOrders.length)return"";
  const source=[currentFile.name||"",currentFile.lastModified||0,currentFile.size||0,currentFileKind||"",currentSheetIndex||0,currentTable.rows?.length||0,aggregatedOrders.length].join("|");
@@ -1064,8 +1297,10 @@ function routeBelongsToCurrentEspd(route){
 function updateDriverAppReleaseUi(){
  const el=$("driverAppReleaseStatus");if(!el)return;
  if(driverAppsUnlocked()){
+   const pubs=Object.values(settings.driverAppPublications||{}).filter(p=>p?.releaseStatus==="RELEASED"&&p?.releaseRevision===settings.bulkReleaseId);
+   const routes=pubs.reduce((n,p)=>n+Number(p.routeCount||0),0),stops=pubs.reduce((n,p)=>n+Number(p.totalStops||0),0),orders=pubs.reduce((n,p)=>n+Number(p.orderCount||0),0);
    el.className="app-release-banner ready";
-   el.innerHTML=`✓ Apps liberados pela roteirização geral${settings.bulkRoutingAt?` em <b>${new Date(settings.bulkRoutingAt).toLocaleString("pt-BR")}</b>`:""}.`
+   el.innerHTML=`✓ Apps liberados e confirmados no Firebase${settings.bulkRoutingAt?` em <b>${new Date(settings.bulkRoutingAt).toLocaleString("pt-BR")}</b>`:""} • ${pubs.length} motorista(s) • ${routes} rota(s) • ${stops} parada(s) • ${orders} pedido(s).`
  }else{
    el.className="app-release-banner";
    el.innerHTML='🔒 Apps dos Motoristas bloqueados. Nenhum pedido ou rota será publicado até clicar em <b>Roteirizar todos e liberar Apps</b>.'
@@ -1080,21 +1315,48 @@ async function publishDriverAppsWaiting(reason,{clearOperational=false}={}){
  if(!pubs.length)return;
  try{
    const rt=await getFirebaseRuntime();
-   for(const pub of pubs){
-     const bundle=waitingDriverBundle(pub.driver,pub.appId,reason);
-     if(clearOperational){
-       await rt.dbMod.set(rt.dbMod.ref(rt.db,`driverApps/${pub.appId}`),{bundle});
-       await rt.dbMod.remove(rt.dbMod.ref(rt.db,`tracking/${pub.appId}`)).catch(()=>{})
-     }else await rt.dbMod.set(rt.dbMod.ref(rt.db,`driverApps/${pub.appId}/bundle`),bundle);
-     settings.driverAppPublications[norm(pub.driver)]={...pub,revision:bundle.publicationRevision,signature:"",orderCount:0,totalStops:0,routeCount:0,updatedAt:bundle.publishedAt,waitingForRouting:true}
+   if(clearOperational){
+     // Desvinculação: limpa os dados operacionais de cada App, mantendo somente o bundle de espera.
+     const rootUpdates={};
+     pubs.forEach(pub=>{
+       const bundle=waitingDriverBundle(pub.driver,pub.appId,reason);
+       rootUpdates[pub.appId]={bundle:cleanFirebaseObject(bundle)}
+     });
+     await rt.dbMod.update(rt.dbMod.ref(rt.db,"driverApps"),rootUpdates);
+     await Promise.allSettled(pubs.map(pub=>rt.dbMod.remove(rt.dbMod.ref(rt.db,`tracking/${pub.appId}`))))
+   }else{
+     // Mudança normal de ESPD: todos os Apps entram em espera na MESMA atualização.
+     const updates={};
+     pubs.forEach(pub=>{
+       const bundle=waitingDriverBundle(pub.driver,pub.appId,reason);
+       updates[`${pub.appId}/bundle`]=cleanFirebaseObject(bundle)
+     });
+     await rt.dbMod.update(rt.dbMod.ref(rt.db,"driverApps"),updates)
    }
-   persist();renderDriverApps();renderWhatsAppDispatch()
+
+   pubs.forEach(pub=>{
+     const key=norm(pub.driver);
+     settings.driverAppPublications[key]={
+       ...settings.driverAppPublications[key],
+       revision:secureRandomId("wait"),
+       signature:"",
+       orderCount:0,totalStops:0,routeCount:0,
+       updatedAt:new Date().toISOString(),
+       waitingForRouting:true,
+       releaseStatus:"WAITING",
+       releaseRevision:"",
+       releaseReason:reason||"Aguardando roteirização geral",
+       publishedDayKeys:[]
+     }
+   });
+   persist();
+   renderDriverApps();renderLiveTrackingPanel();renderWhatsAppDispatch()
  }catch(e){console.error("Apps aguardando roteirização:",e)}
 }
 function registerCurrentEspdRevision(){
  const next=currentEspdOperationalRevision();if(!next)return false;
  if(next===settings.espdOperationalRevision)return false;
- settings.espdOperationalRevision=next;settings.bulkRoutingRevision="";settings.bulkRoutingAt="";
+ settings.espdOperationalRevision=next;settings.bulkRoutingRevision="";settings.bulkRoutingAt="";settings.bulkReleaseId="";
  persist();updateDriverAppReleaseUi();
  setTimeout(()=>publishDriverAppsWaiting("ESPD atualizado. Aguardando Roteirizar todos e liberar Apps.").catch(console.error),0);
  return true
@@ -1273,62 +1535,36 @@ async function readPublishedDriverBundle(appId){
 }
 async function publishDriverAppBundle(driver,routesList){
  if(!driverAppsUnlocked()&&!bulkRoutePublishMode)throw new Error("Apps bloqueados: clique em Roteirizar todos e liberar Apps.");
- const valid=(routesList||[]).filter(r=>!r?.error&&r?.stops?.length);
- if(!valid.length)throw new Error(`Nenhuma viagem válida encontrada para ${driver}.`);
  if(!firebaseConfigReady())throw new Error("Firebase não configurado.");
-
+ const releaseId=settings.bulkReleaseId||secureRandomId("bulk");
+ const prepared=prepareDriverPublicationPayload(driver,routesList,releaseId);
  const rt=await getFirebaseRuntime();
- const key=norm(driver);
- let publication=settings.driverAppPublications[key];
- if(!publication?.appId){
-   publication={appId:secureRandomId("driver"),driver,waitingForRouting:true,createdAt:new Date().toISOString()};
-   settings.driverAppPublications[key]=publication;
-   persist()
+
+ settings.driverAppPublications[prepared.key]={...prepared.candidate};
+ persist();renderDriverApps();
+
+ try{
+   await rt.dbMod.update(rt.dbMod.ref(rt.db,`driverApps/${prepared.candidate.appId}`),{bundle:prepared.bundle});
+   await verifyPreparedPublication(rt,prepared);
+   const candidate={
+     ...prepared.candidate,
+     waitingForRouting:false,
+     releaseStatus:"RELEASED",
+     releaseRevision:releaseId,
+     verifiedAt:new Date().toISOString(),
+     releaseReason:""
+   };
+   settings.driverAppPublications[prepared.key]=candidate;
+   persist();renderDriverApps();renderLiveTrackingPanel();renderWhatsAppDispatch();
+   return candidate
+ }catch(e){
+   settings.driverAppPublications[prepared.key]={
+     ...prepared.candidate,waitingForRouting:true,releaseStatus:"ERROR",
+     releaseRevision:"",releaseReason:e.message||String(e)
+   };
+   persist();renderDriverApps();renderLiveTrackingPanel();renderWhatsAppDispatch();
+   throw e
  }
-
- const signature=driverRoutesSignature(valid);
- const revision=secureRandomId("rev");
- const bundle=compactDriverBundle(driver,valid);
-
- // ID estável: o mesmo link do motorista continua válido quando novas viagens forem publicadas.
- bundle.id=`DRIVER_APP|${publication.appId}`;
- bundle.trackingSessionId=publication.appId;
- bundle.publicationRevision=revision;
- bundle.routeSignature=signature;
- bundle.publishedAt=new Date().toISOString();
- bundle.appBuild="V5.49";
-
- const safeBundle=cleanFirebaseObject(bundle);
-
- // V5.49: as viagens ficam em /bundle e os canhotos em /deliveryProofs.
- // Isso evita carregar fotos grandes toda vez que o motorista abre o App.
- const rootRef=rt.dbMod.ref(rt.db,`driverApps/${publication.appId}`);
- // Atualiza somente /bundle e preserva canhotos, metadados, ocorrências e retakes.
- await rt.dbMod.update(rootRef,{bundle:safeBundle});
-
- const checkSnap=await rt.dbMod.get(rt.dbMod.ref(rt.db,`driverApps/${publication.appId}/bundle`));
- if(!checkSnap.exists())throw new Error("O Firebase não devolveu as viagens após a publicação.");
- const remote=checkSnap.val();
-
- const candidate={
-   ...publication,
-   driver,
-   appId:publication.appId,
-   updatedAt:safeBundle.publishedAt,
-   signature,
-   revision,
-   orderCount:Number(safeBundle.orderCount||0),
-   totalStops:Number(safeBundle.totalStops||0),
-   routeCount:Array.isArray(safeBundle.routes)?safeBundle.routes.length:0,
-   verifiedAt:new Date().toISOString()
- };
- if(!publicationMatchesBundle(driver,candidate,remote,signature)){
-   throw new Error(`A conferência das viagens de ${driver} falhou. O link não será enviado.`)
- }
-
- settings.driverAppPublications[key]=candidate;
- persist();
- return candidate
 }
 async function ensureDriverAppPublished(driver,routesList){
  if(!driverAppsUnlocked()&&!bulkRoutePublishMode)throw new Error("Apps bloqueados: clique em Roteirizar todos e liberar Apps.");
@@ -1358,9 +1594,9 @@ function publishedDriverAppUrl(driver){
  if(!publicBase&&!/^https?:$/.test(location.protocol))return"";
  const url=publicBase?new URL("motorista.html",publicBase):new URL("motorista.html",window.location.href);
 
- // V5.49: Firebase já está embutido no motorista.html.
+ // V5.50: Firebase já está embutido no motorista.html.
  // O WhatsApp recebe somente um link curto; não há mais JSON/configuração no hash.
- url.searchParams.set("v","549");
+ url.searchParams.set("v","550");
  url.hash=`app=${encodeURIComponent(pub.appId)}&rev=${encodeURIComponent(pub.revision||"")}&orders=${encodeURIComponent(pub.orderCount||0)}&stops=${encodeURIComponent(pub.totalStops||0)}&driver=${encodeURIComponent(pub.driver||driver)}`;
  return url.href
 }
@@ -1736,7 +1972,10 @@ function renderLiveTrackingPanel(){
  const finalRows=routeFinalizationRows(),finalByDriver=new Map();
  finalRows.forEach(r=>{const k=norm(r.pub.driver);if(!finalByDriver.has(k))finalByDriver.set(k,[]);finalByDriver.get(k).push(r)});
  const liveByDriver=new Map([...liveTruckPositions.values()].filter(t=>t.driver).map(t=>[norm(t.driver),t]));
- const rows=[...driverNames].filter(d=>filter==="TODOS"||norm(d)===norm(filter)).map(driver=>({driver,live:liveByDriver.get(norm(driver))||null,routeRows:finalByDriver.get(norm(driver))||[]})).sort((a,b)=>String(a.driver).localeCompare(String(b.driver),"pt-BR"));
+ const rows=[...driverNames].filter(d=>filter==="TODOS"||norm(d)===norm(filter)).map(driver=>({
+   driver,live:liveByDriver.get(norm(driver))||null,routeRows:finalByDriver.get(norm(driver))||[],
+   releaseState:publicationReleaseState(driver),publication:firebasePublicationForDriver(driver)
+ })).sort((a,b)=>String(a.driver).localeCompare(String(b.driver),"pt-BR"));
 
  const online=rows.filter(r=>r.live&&trackingAgeSeconds(r.live)<=60).length;
  count.textContent=`${online} online`;if($("opsOnlineDrivers"))$("opsOnlineDrivers").textContent=online;
@@ -1751,7 +1990,7 @@ function renderLiveTrackingPanel(){
    const routeRows=row.routeRows||[];
    return `<div class="live-truck" role="button" tabindex="0" onclick="openDriverOperationalDetail('${encodeURIComponent(row.driver)}')" onkeydown="if(event.key==='Enter')openDriverOperationalDetail('${encodeURIComponent(row.driver)}')">
     <div class="live-truck-icon">🚚</div>
-    <div><b><span class="live-dot ${st.cls}"></span>${esc(row.driver)}${plate?` • ${esc(plate)}`:""}</b><small>${esc(st.label)} • ${routeRows.filter(r=>!r.finalized).length} rota(s) pendente(s) • ${routeRows.filter(r=>r.finalized).length} finalizada(s)</small></div>
+    <div><b><span class="live-dot ${st.cls}"></span>${esc(row.driver)}${plate?` • ${esc(plate)}`:""}</b><small>${esc(st.label)} • <b style="color:${row.releaseState.ok?"#027a48":"#b54708"}">${esc(row.releaseState.label)}</b> • ${routeRows.filter(r=>!r.finalized).length} rota(s) pendente(s) • ${routeRows.filter(r=>r.finalized).length} finalizada(s)</small></div>
     <div class="live-kpis">${total!==null?`${completed}/${total}`:"—"}<br><span style="color:#175cd3">Ver detalhes ›</span></div>
    </div>`
  }).join("")
@@ -1854,6 +2093,93 @@ function saveWhatsAppDispatchPhone(encodedDriver){
  entry.whatsapp=raw;persist();renderFleet();renderDriverApps();renderWhatsAppDispatch();toast(raw?`WhatsApp de ${driver} atualizado.`:`WhatsApp de ${driver} removido.`)
 }
 function focusWhatsAppDispatchPhone(driver){const input=$(whatsappDispatchInputId(driver));if(input){input.focus();input.select?.()}}
+
+function whatsappRouteSummary(route){
+ const km=(num(route?.totalDistance)/1000).toLocaleString("pt-BR",{maximumFractionDigits:1});
+ const shipments=(route?.shipments||[]).map(String).join(", ")||"—";
+ const stops=route?.stops?.length||0;
+ const orders=route?.orderCount??route?.routedOrderCount??0;
+ return `${route?.day||route?.dayKey||"Rota"} • Emb. ${shipments} • ${stops} parada(s) • ${orders} pedido(s) • ${km} km`
+}
+function whatsappMessageForRoutes(driver,routesList,appUrl=""){
+ const valid=(routesList||[]).filter(r=>!r?.error&&r?.stops?.length).sort((a,b)=>String(a.dayKey).localeCompare(String(b.dayKey)));
+ const lines=[
+   "*GESTÃO LOGÍSTICA — ROTAS*",
+   `Motorista: ${driver}`,
+   "",
+   ...valid.map(whatsappRouteSummary)
+ ];
+ if(appUrl){
+   lines.push("","📱 *App do Motorista:*",appUrl);
+   lines.push("","Abra o App para ver a ordem completa, mapa, GPS, entregas e canhotos.")
+ }else{
+   lines.push("","Abra o Gestão Logística para consultar as paradas completas.")
+ }
+ return lines.join("\n")
+}
+async function sendWhatsAppForDriver(encodedDriver){
+ const driver=decodeURIComponent(encodedDriver);
+ const releaseState=publicationReleaseState(driver);
+ if(!releaseState.ok)return alert(`O App de ${driver} ainda não está liberado. Clique em “Roteirizar todos e liberar Apps”.`);
+ const routesList=routesForDriverApp(driver);
+ if(!routesList.length)return alert(`Nenhuma rota liberada para ${driver}.`);
+
+ const phone=whatsappForDriver(driver);
+ if(!validWhatsAppNumber(phone)){
+   focusWhatsAppDispatchPhone(driver);
+   return alert(`Cadastre ou corrija o WhatsApp de ${driver} nesta lista e clique em Salvar.`)
+ }
+
+ let appUrl="";
+ try{appUrl=await prepareVerifiedDriverApp(driver,routesList)}
+ catch(e){
+   console.error(e);
+   alert(`O envio foi bloqueado porque o Firebase não confirmou todas as rotas de ${driver}.\n\n${e.message||e}`);
+   return
+ }
+
+ const msg=whatsappMessageForRoutes(driver,routesList,appUrl);
+ window.open(`https://wa.me/${phone}?text=${encodeURIComponent(msg)}`,"_blank","noopener")
+}
+function renderWhatsAppDispatch(){
+ const host=$("whatsappDispatchHost");if(!host)return;
+ const drivers=[...fleet].sort((a,b)=>String(a.driver).localeCompare(String(b.driver),"pt-BR"));
+ if(!drivers.length){host.innerHTML="";return}
+
+ host.innerHTML=`<section class="whatsapp-dispatch">
+  <div class="whatsapp-dispatch-head">
+   <div>
+    <b>WhatsApp — envio das rotas</b>
+    <small style="display:block;color:var(--muted);margin-top:2px">Edite o telefone e salve aqui. O envio só fica disponível quando o Firebase confirmar todas as rotas daquele motorista.</small>
+   </div>
+   <span class="badge ${driverAppsUnlocked()?"ready":"review"}">${driverAppsUnlocked()?"LIBERAÇÃO GERAL CONCLUÍDA":"AGUARDANDO LIBERAÇÃO"}</span>
+  </div>
+  <div class="whatsapp-dispatch-list">${drivers.map(v=>{
+   const driver=v.driver;
+   const rs=routesForDriverApp(driver);
+   const release=publicationReleaseState(driver);
+   const pub=firebasePublicationForDriver(driver);
+   const phoneOk=validWhatsAppNumber(v.whatsapp);
+   const routeOk=release.ok&&rs.length>0&&Number(pub?.routeCount||0)===rs.length;
+   return `<div class="whatsapp-row">
+    <div>
+     <b>${esc(driver)}</b>
+     <small>
+      ${routeOk?`${rs.length} rota(s) • ${pub.totalStops||0} parada(s) • ${pub.orderCount||0} pedido(s)`:"Sem rota liberada"}
+      • <span class="${phoneOk?"whatsapp-ready":"whatsapp-warn"}">${phoneOk?`WhatsApp +${whatsappForDriver(driver)}`:"WhatsApp não cadastrado"}</span>
+      <br><b style="color:${release.ok?"#027a48":release.code==="ERROR"?"#b42318":"#b54708"}">${esc(release.label)}</b>
+     </small>
+    </div>
+    <div class="whatsapp-inline-edit">
+     <label>Telefone do motorista</label>
+     <input id="${whatsappDispatchInputId(driver)}" type="tel" inputmode="tel" value="${esc(v.whatsapp||"")}" placeholder="(35) 99999-9999">
+     <button type="button" class="btn small" onclick="saveWhatsAppDispatchPhone('${encodeURIComponent(driver)}')">Salvar</button>
+    </div>
+    <button type="button" class="btn small primary" ${routeOk&&phoneOk?"":"disabled"} onclick="sendWhatsAppForDriver('${encodeURIComponent(driver)}')">${routeOk?"💬 Enviar rota":"🔒 Aguardando liberação"}</button>
+   </div>`
+  }).join("")}</div>
+ </section>`
+}
 function latestRouteForDriver(driver){
  let latest=null;
  Object.values(plans||{}).forEach(plan=>{
@@ -1950,7 +2276,9 @@ function renderDriverApps(){
    const phoneOk=validWhatsAppNumber(v.whatsapp);
    const appRoutes=routesForDriverApp(v.driver);
    const route=appRoutes.length?appRoutes[appRoutes.length-1]:null;
-   const routeOk=driverAppsUnlocked()&&appRoutes.length>0;
+   const releaseState=publicationReleaseState(v.driver);
+   const pub=firebasePublicationForDriver(v.driver);
+   const routeOk=releaseState.ok&&appRoutes.length>0&&Number(pub?.routeCount||0)===appRoutes.length;
    if(phoneOk)phones++;
    if(routeOk)routesCount++;
    if(phoneOk&&routeOk)ready++;
@@ -1974,7 +2302,13 @@ function renderDriverApps(){
    return `<article class="driver-app-card">
     <div style="display:flex;justify-content:space-between;gap:8px;align-items:flex-start">
      <span class="badge ${v.group==="CASA"?"house":"third"}">${esc(v.group)}</span>
-     ${routeOk?'<span class="app-linked">● APP ATUALIZADO</span>':'<span class="app-wait">○ AGUARDANDO ROTA</span>'}
+     ${releaseState.ok
+       ?'<span class="app-linked">● APP LIBERADO</span>'
+       :releaseState.code==="PUBLISHING"
+         ?'<span class="app-wait">↻ PUBLICANDO</span>'
+         :releaseState.code==="ERROR"
+           ?'<span class="app-wait" style="color:#b42318">! ERRO DE PUBLICAÇÃO</span>'
+           :'<span class="app-wait">○ AGUARDANDO LIBERAÇÃO</span>'}
     </div>
     <div class="app-name">App do ${esc(v.driver)}</div>
     <div class="app-vehicle">${esc(v.plate)} • ${esc(v.capacityLabel)} • ${num(v.capacity).toLocaleString("pt-BR")} kg</div>
@@ -1993,9 +2327,9 @@ function renderDriverApps(){
      <b>${routeInfo}</b>
      ${routeDate?`<div class="app-route-meta">Atualizado em ${esc(routeDate)} • o app reúne TODAS as entregas disponíveis • ordem de cada dia: otimizada por rua e deslocamento rodoviário</div>`:""}
     </div>
-    ${firebasePublicationForDriver(v.driver)
-      ? `<div class="public-share-note">📡 App online publicado • link curto • GPS preparado para rastreamento.</div>`
-      : `<div class="local-share-note">App ainda não publicado no rastreamento online. Configure Firebase e gere a rota para habilitar GPS central.</div>`}
+    ${releaseState.ok
+      ? `<div class="public-share-note">📡 ${releaseState.label} • ${pub.routeCount||0} rota(s) • ${pub.totalStops||0} parada(s) • ${pub.orderCount||0} pedido(s) confirmados no Firebase.</div>`
+      : `<div class="local-share-note">${releaseState.label}${pub?.releaseReason?` • ${esc(pub.releaseReason)}`:""}</div>`}
 
     <div class="app-actions">
      <button type="button" class="btn ${routeOk?"primary":""}" ${routeOk?"":"disabled"} onclick="openLinkedDriverApp('${encodeURIComponent(v.driver)}')">📱 Abrir app</button>
@@ -2482,7 +2816,7 @@ async function unlinkESPD(){
  lastRouteAnalysis=[];lastRouteAnalysisDayKey="";lastRouteAnalysisCounts=null;selectedDayKey="";
  openedShipmentContext=null;openedOrderContext=null;currentItinerary=null;
  driverProofStates=new Map();routeCompletionState=new Map();liveTruckPositions=new Map();
- settings.espdOperationalRevision="";settings.bulkRoutingRevision="";settings.bulkRoutingAt="";
+ settings.espdOperationalRevision="";settings.bulkRoutingRevision="";settings.bulkRoutingAt="";settings.bulkReleaseId="";
  Object.keys(settings.driverAppPublications||{}).forEach(k=>settings.driverAppPublications[k]={...settings.driverAppPublications[k],signature:"",orderCount:0,totalStops:0,routeCount:0,waitingForRouting:true});
  persist();persistRouteGeo();persistDeliveryGeo();stopLiveTrackingSubscriptions();
  try{await dbDel(HANDLE_KEY)}catch(e){console.warn("Não foi possível apagar o vínculo persistido do ESPD; a operação local foi limpa normalmente.",e)}
@@ -2982,7 +3316,7 @@ function deliveryCoordinateCacheKey(stop){
  return `ADDR:${norm(stop?.address||"")}`
 }
 async function geocodeDeliveryStop(stop){
- // Arquivo de teste V5.49: coordenadas explícitas têm prioridade total.
+ // Arquivo de teste V5.50: coordenadas explícitas têm prioridade total.
  if(validOperationalCoordinates(stop?.lat,stop?.lon)){
    return{
      lat:Number(stop.lat),lon:Number(stop.lon),
@@ -3604,7 +3938,9 @@ async function routeAllPendingTrucks(){
  bulkRoutePublishMode=true;
  settings.bulkRoutingRevision="";
  settings.bulkRoutingAt="";
- persist();updateDriverAppReleaseUi();renderWhatsAppDispatch();
+ settings.bulkReleaseId="";
+ markAllDriverPublicationsWaiting("Nova roteirização geral em andamento.");
+ persist();updateDriverAppReleaseUi();renderDriverApps();renderLiveTrackingPanel();renderWhatsAppDispatch();
  try{await generateDriverRoutes()}
  finally{
    bulkRoutePublishMode=false;
@@ -3714,7 +4050,7 @@ async function buildDriverRoute(dayInfo,driver){
  const matrix=await osrmDeliveryMatrix(points);
  if(matrix.fallbackBlocks)$("mapStatus").innerHTML=`<div style="font-size:20px">↻</div><div><strong>${esc(driver)} • ${esc(dayInfo.day)}</strong> Matriz calculada com fallback em ${matrix.fallbackBlocks} bloco(s); continuando a roteirização.</div>`;
 
- // V5.49: distância real pela rua + continuidade de via.
+ // V5.50: distância real pela rua + continuidade de via.
  // Ao entrar em uma rua com várias entregas, descarrega os clientes próximos
  // nessa mesma via antes de sair, quando isso evita deslocamentos desnecessários.
  const seq=streetAwareDeliveryOrder(matrix.distances,stops);
@@ -3924,46 +4260,40 @@ async function generateDriverRoutes(){
      return
    }
 
-   const driversToPublish=[...new Set(days.flatMap(info=>{
-     const plan=plans[info.key];
-     return (plan?.shipments||[]).filter(s=>(s.orders||[]).length&&s.driver&&norm(s.driver)!=="A DEFINIR").map(s=>s.driver)
-   }))];
-
-   if(!driversToPublish.length){
-     settings.bulkRoutingRevision="";settings.bulkRoutingAt="";persist();updateDriverAppReleaseUi();
-     $("mapStatus").innerHTML='<div style="font-size:20px">◎</div><div><strong>Nenhum App liberado.</strong> Não existem embarques com motorista definido para esta semana.</div>';
+   const bulkPlan=collectBulkPublicationPlan(days);
+   if(bulkPlan.errors.length){
+     settings.bulkRoutingRevision="";settings.bulkRoutingAt="";settings.bulkReleaseId="";
+     markAllDriverPublicationsWaiting("Roteirização geral possui divergências.");
+     persist();updateDriverAppReleaseUi();renderDriverApps();renderLiveTrackingPanel();renderWhatsAppDispatch();
+     await publishDriverAppsWaiting("Roteirização geral possui divergências. Aguardando nova tentativa.").catch(console.error);
+     $("mapStatus").innerHTML=`<div style="font-size:20px">!</div><div><strong>Apps NÃO liberados.</strong> A conferência encontrou ${bulkPlan.errors.length} divergência(s) entre embarques, pedidos e rotas.<br><small>${bulkPlan.errors.slice(0,6).map(esc).join(" • ")}</small></div>`;
+     alert(`Não foi possível liberar os Apps.\n\nA conferência de cobertura encontrou:\n${bulkPlan.errors.slice(0,10).join("\n")}`);
+     return
+   }
+   if(!bulkPlan.groups.length){
+     settings.bulkRoutingRevision="";settings.bulkRoutingAt="";settings.bulkReleaseId="";
+     persist();updateDriverAppReleaseUi();
+     $("mapStatus").innerHTML='<div style="font-size:20px">◎</div><div><strong>Nenhum App liberado.</strong> Não existem motoristas com rotas válidas nesta semana.</div>';
      return
    }
 
-   let publishErrors=[];
-   for(const driver of driversToPublish){
-     const rs=routesForDriverApp(driver);
-     if(!rs.length){
-       publishErrors.push(`${driver}: nenhuma rota válida da versão atual`);
-       continue
-     }
-     try{await publishDriverAppBundle(driver,rs)}
-     catch(e){console.error("Publicação App",driver,e);publishErrors.push(`${driver}: ${e.message||e}`)}
+   try{
+     $("mapStatus").innerHTML=`<div style="font-size:20px">↻</div><div><strong>Publicando todos os Apps em conjunto...</strong> ${bulkPlan.groups.length} motorista(s). A operação só será liberada após a conferência de todas as rotas.</div>`;
+     const released=await publishBulkDriverAppsAtomically(days);
+
+     updateDriverAppReleaseUi();
+     renderDriverApps();renderWhatsAppDispatch();renderRoutingQueue();renderLiveTrackingPanel();renderWeeklyRouteMap();
+     connectLiveTracking().catch(console.error);
+
+     $("mapStatus").innerHTML=`<div style="font-size:20px">✓</div><div><strong>Todos os Apps foram atualizados e confirmados.</strong> ${released.drivers} motorista(s) • ${released.routes} rota(s) • ${released.stops} parada(s) • ${released.orders} pedido(s).${skippedFinalized?` • ${skippedFinalized} rota(s) concluída(s) preservada(s)`:""}${reactivatedNoTime?` • ${reactivatedNoTime} reativação(ões)`:""}</div>`;
+     toast(`Apps liberados: ${released.drivers} motorista(s), ${released.routes} rota(s).`)
+   }catch(e){
+     console.error("Liberação geral atômica:",e);
+     settings.bulkRoutingRevision="";settings.bulkRoutingAt="";settings.bulkReleaseId="";
+     persist();updateDriverAppReleaseUi();renderDriverApps();renderWhatsAppDispatch();renderRoutingQueue();renderLiveTrackingPanel();
+     $("mapStatus").innerHTML=`<div style="font-size:20px">!</div><div><strong>Apps NÃO liberados.</strong> A publicação geral falhou e foi revertida para “Aguardando liberação”.<br><small>${esc(e.message||e)}</small></div>`;
+     alert(`Falha ao liberar os Apps.\n\nNenhum motorista deve permanecer com publicação parcial.\n\n${e.message||e}`)
    }
-
-   if(publishErrors.length){
-     settings.bulkRoutingRevision="";settings.bulkRoutingAt="";persist();updateDriverAppReleaseUi();
-     // Reverte qualquer publicação parcial para Aguardando roteirização.
-     await publishDriverAppsWaiting("Falha na liberação geral. Aguardando nova tentativa.").catch(console.error);
-     renderDriverApps();renderWhatsAppDispatch();
-     $("mapStatus").innerHTML=`<div style="font-size:20px">!</div><div><strong>Apps NÃO liberados.</strong> Falhou a publicação de ${publishErrors.length} motorista(s). Nenhum App permanecerá com a operação parcial.</div>`;
-     alert(`Falha ao liberar os Apps.\n\nNenhum App ficará com publicação parcial.\n\n${publishErrors.slice(0,8).join("\n")}`);
-     return
-   }
-
-   settings.bulkRoutingRevision=settings.espdOperationalRevision;
-   settings.bulkRoutingAt=new Date().toISOString();
-   persist();updateDriverAppReleaseUi();
-   renderDriverApps();renderWhatsAppDispatch();renderRoutingQueue();
-   connectLiveTracking().catch(console.error);
-
-   $("mapStatus").innerHTML=`<div style="font-size:20px">✓</div><div><strong>Roteirização geral concluída e Apps liberados.</strong> ${success} rota(s) calculada(s)${skippedFinalized?` • ${skippedFinalized} concluída(s) preservada(s)`:""}${reactivatedNoTime?` • ${reactivatedNoTime} reativação(ões)`:""}. Agora os Apps podem receber pedidos e rotas.</div>`;
-   toast("Roteirização geral concluída. Apps liberados com sucesso.")
  }finally{
    driverRouteGenerationBusy=false;
    if(btn)btn.disabled=false;if(allBtn)allBtn.disabled=false
@@ -4156,7 +4486,7 @@ function driverAppUrlForRoutes(driver,routesList){
  // Compatibilidade sem Firebase.
  const publicBase=normalizedPublicBaseUrl();
  const url=publicBase?new URL("motorista.html",publicBase):new URL("motorista.html",window.location.href);
- url.searchParams.set("v","549");
+ url.searchParams.set("v","550");
  url.hash=encodeDriverAppPayload(compactDriverBundle(driver,valid));
  return url.href
 }
@@ -4190,7 +4520,7 @@ async function prepareVerifiedDriverApp(driver,routesList){
  const url=driverAppUrlForRoutes(driver,valid);
  if(!url)throw new Error(`Não foi possível gerar o link do App de ${driver}.`);
  if(firebaseConfigReady()&&url.includes("&cfg=")){
-   throw new Error("Foi detectado um link antigo com configuração Firebase embutida. Atualize o sistema para a V5.49.")
+   throw new Error("Foi detectado um link antigo com configuração Firebase embutida. Atualize o sistema para a V5.50.")
  }
  return url
 }
@@ -4264,120 +4594,16 @@ function allSavedRoutesForDriver(driver){
  return result.sort((a,b)=>String(a.dayKey).localeCompare(String(b.dayKey)))
 }
 function routesForDriverApp(driver){
- const currentOnly=list=>(list||[]).filter(routeBelongsToCurrentEspd);
- const week=currentOnly(currentWeekRoutesForDriver(driver));if(week.length)return week;
- const selected=currentOnly(routesForDriverInCurrentSelection(driver));if(selected.length)return selected;
- const all=currentOnly(allSavedRoutesForDriver(driver));
- if(all.length){const latestDay=all[all.length-1].dayKey;return all.filter(r=>r.dayKey===latestDay)}
- return[]
-}
-
-function stopNavigationUrl(stop){
- if(!stop)return"";
- const destination=stop.address||(
-   Number.isFinite(Number(stop.lat))&&Number.isFinite(Number(stop.lon))
-     ? `${stop.lat},${stop.lon}`:""
- );
- if(!destination)return"";
- return `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(destination)}&travelmode=driving`
-}
-function whatsappShareMode(){
- return driverAppIsShareable()?"APP_PUBLICO":"ROTA_LOCAL"
-}
-function whatsappMessageForRoutes(driver,routesList,verifiedAppUrl=""){
- const validRoutes=(routesList||[]).filter(r=>!r?.error&&r?.stops?.length).sort((a,b)=>String(a.dayKey).localeCompare(String(b.dayKey)));
- const plate=[...new Set(validRoutes.flatMap(r=>r.plates||[]).filter(Boolean))].join(" / ");
- const appUrl=verifiedAppUrl||driverAppUrlForRoutes(driver,validRoutes);
- const publicMode=driverAppIsShareable()&&!!appUrl;
-
- const uniqueOrders=new Set();
- validRoutes.forEach(r=>(r.stops||[]).forEach(s=>(s.orders||[]).forEach(o=>o.id&&uniqueOrders.add(String(o.id)))));
- const totalStops=validRoutes.reduce((n,r)=>n+(r.stops?.length||0),0);
-
- const lines=[
-   `Olá ${driver}!`,
-   ``,
-   `Todas as suas entregas roteirizadas estão prontas.`,
-   `Sequência de cada dia: da entrega mais próxima da Cooperrita para a mais distante.`,
-   plate?`Veículo(s): ${plate}`:"",
-   `Total: ${uniqueOrders.size} pedido(s) • ${totalStops} parada(s)`,
-   ``
- ].filter(x=>x!==undefined&&x!=="");
-
- validRoutes.forEach(r=>{
-   lines.push(`*${r.day}*`);
-   lines.push(`Embarque(s): ${(r.shipments||[]).join(", ")}`);
-   lines.push(`Pedidos: ${r.routedOrderCount??r.orderCount??0}/${r.orderCount??r.routedOrderCount??0}`);
-   lines.push(`Paradas: ${r.stops?.length||0}`);
-   lines.push(`Distância estimada: ${(num(r.totalDistance)/1000).toLocaleString("pt-BR",{maximumFractionDigits:1})} km`);
-   lines.push(``);
-
-   if(!publicMode){
-     lines.push(`📍 *Entregas de ${r.day}:*`);
-     (r.stops||[]).forEach((s,i)=>{
-       const orders=(s.orders||[]).map(o=>o.id).filter(Boolean).join(", ");
-       lines.push(`${i+1}ª — ${s.deliveryPoint||s.city||"Entrega"}`);
-       lines.push(`${s.address||s.city||""}`);
-       if(Number.isFinite(Number(s.distanceFromDepot))){
-         lines.push(`${(num(s.distanceFromDepot)/1000).toLocaleString("pt-BR",{maximumFractionDigits:1})} km da Cooperrita`);
-       }
-       if(orders)lines.push(`Pedido(s): ${orders}`);
-       const nav=stopNavigationUrl(s);
-       if(nav)lines.push(`Navegar: ${nav}`);
-       lines.push(``);
-     })
-   }
- });
-
- if(publicMode){
-   lines.push(`📱 *App do Motorista — TODAS AS ENTREGAS + GPS:*`);
-   lines.push(appUrl);
-   lines.push(``);
-   lines.push(`Abra este único link, permita a localização e o App vai montar a rota a partir de onde você estiver. A central poderá acompanhar o caminhão quando o rastreamento online estiver configurado.`);
- }else{
-   lines.push(`Siga as sequências acima. Todas as entregas roteirizadas estão nesta mensagem.`);
-   lines.push(`O App completo permanece vinculado ao Gestão Logística neste computador.`);
+ const allCurrent=allSavedRoutesForDriver(driver).filter(routeBelongsToCurrentEspd);
+ const pub=firebasePublicationForDriver(driver);
+ if(pub?.releaseStatus==="RELEASED"&&Array.isArray(pub.publishedDayKeys)&&pub.publishedDayKeys.length){
+   const allowed=new Set(pub.publishedDayKeys.map(String));
+   return allCurrent.filter(r=>allowed.has(String(r.dayKey))).sort((a,b)=>String(a.dayKey).localeCompare(String(b.dayKey)))
  }
- return lines.join("\n")
-}
-function whatsappUrlForRoutes(driver,routesList){
- const phone=whatsappForDriver(driver);
- if(!validWhatsAppNumber(phone)||!routesList?.length)return"";
- const msg=whatsappMessageForRoutes(driver,routesList);
- return `https://wa.me/${phone}?text=${encodeURIComponent(msg)}`
-}
-async function sendWhatsAppForDriver(encodedDriver){
- const driver=decodeURIComponent(encodedDriver);
- if(!driverAppsUnlocked())return alert("Os Apps ainda estão bloqueados. Clique em Roteirizar todos e liberar Apps.");
- const routesList=routesForDriverApp(driver);
- if(!routesList.length)return alert("Nenhuma rota da versão atual do ESPD foi liberada para este motorista.");
- const phone=whatsappForDriver(driver);
- if(!validWhatsAppNumber(phone)){focusWhatsAppDispatchPhone(driver);return alert(`Cadastre o WhatsApp de ${driver} nesta lista e clique em Salvar.`)}
- let appUrl="";
- try{appUrl=await prepareVerifiedDriverApp(driver,routesList)}catch(e){console.error(e);alert(`O WhatsApp não será aberto: ${e.message||e}`);return}
- const msg=whatsappMessageForRoutes(driver,routesList,appUrl);
- window.open(`https://wa.me/${phone}?text=${encodeURIComponent(msg)}`,"_blank","noopener")
-}
-function renderWhatsAppDispatch(){
- const host=$("whatsappDispatchHost");if(!host)return;
- const routesList=savedDriverRoutesForMap().filter(r=>!r.error&&r.stops?.length&&routeBelongsToCurrentEspd(r));
- const byDriver=new Map();routesList.forEach(r=>{if(!byDriver.has(r.driver))byDriver.set(r.driver,[]);byDriver.get(r.driver).push(r)});
- const drivers=[...fleet].sort((a,b)=>String(a.driver).localeCompare(String(b.driver),"pt-BR"));
- if(!drivers.length){host.innerHTML="";return}
- host.innerHTML=`<section class="whatsapp-dispatch">
-  <div class="whatsapp-dispatch-head">
-   <div><b>WhatsApp — envio das rotas</b><small style="display:block;color:var(--muted);margin-top:2px">Edite e salve o telefone aqui. O envio só é liberado depois de “Roteirizar todos e liberar Apps”.</small></div>
-   <span class="badge ${driverAppsUnlocked()?"ready":"review"}">${driverAppsUnlocked()?"APPS LIBERADOS":"APPS BLOQUEADOS"}</span>
-  </div>
-  <div class="whatsapp-dispatch-list">${drivers.map(v=>{
-   const driver=v.driver,rs=byDriver.get(driver)||[],ok=validWhatsAppNumber(v.whatsapp),released=driverAppsUnlocked()&&rs.length>0;
-   return `<div class="whatsapp-row">
-    <div><b>${esc(driver)}</b><small>${rs.length?`${rs.map(r=>esc(r.day)).join(" • ")} • ${rs.reduce((n,r)=>n+(r.orderCount||0),0)} pedido(s)`:"Sem rota liberada"} • <span class="${ok?"whatsapp-ready":"whatsapp-warn"}">${ok?`WhatsApp +${whatsappForDriver(driver)}`:"WhatsApp não cadastrado"}</span></small></div>
-    <div class="whatsapp-inline-edit"><label>Telefone do motorista</label><input id="${whatsappDispatchInputId(driver)}" type="tel" inputmode="tel" value="${esc(v.whatsapp||"")}" placeholder="(35) 99999-9999"><button type="button" class="btn small" onclick="saveWhatsAppDispatchPhone('${encodeURIComponent(driver)}')">Salvar</button></div>
-    <button type="button" class="btn small primary" ${released&&ok?"":"disabled"} onclick="sendWhatsAppForDriver('${encodeURIComponent(driver)}')">${released?"💬 Enviar rota":"🔒 Aguardando roteirização"}</button>
-   </div>`
-  }).join("")}</div>
- </section>`
+ const weekDays=new Set(weekDatesFor(weekReferenceDate()).map(localDateKey));
+ const week=allCurrent.filter(r=>weekDays.has(String(r.dayKey)));
+ if(week.length)return week.sort((a,b)=>String(a.dayKey).localeCompare(String(b.dayKey)));
+ return allCurrent.sort((a,b)=>String(a.dayKey).localeCompare(String(b.dayKey)))
 }
 function googleMapsUrlForDriverRoute(route){
  if(!route?.stops?.length)return"";
